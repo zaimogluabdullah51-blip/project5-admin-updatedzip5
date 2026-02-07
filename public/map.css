@@ -56,6 +56,8 @@
   top: 24px;
   left: 24px;
   width: min(360px, 90vw);
+  max-height: calc(100vh - 48px);
+  overflow-y: auto;
   background: linear-gradient(135deg, rgba(139, 30, 30, 0.85) 0%, rgba(80, 15, 15, 0.9) 50%, rgba(17, 24, 39, 0.95) 100%);
   border: 1px solid rgba(200, 60, 60, 0.2);
   border-radius: 18px;
