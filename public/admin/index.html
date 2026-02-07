@@ -82,13 +82,11 @@
             </label>
             <div class="parser-actions">
               <button id="parse-btn" class="btn primary" type="button">Ayrıştır</button>
-              <button id="apply-btn" class="btn ghost" type="button">Uygula</button>
               <button id="clear-btn" class="btn ghost" type="button">Temizle</button>
             </div>
             <div id="parse-results" class="list"></div>
           </div>
           <form id="profile-form">
-            <label>Dava seç<select name="caseId" id="profile-case"></select></label>
             <label>İsim Soyad<input name="name" required /></label>
             <label>Fotoğraf URL<input name="photo" placeholder="https://..." /></label>
             <label>Rol
@@ -102,8 +100,7 @@
                 <option value="detained">Tutuklu</option>
               </select>
             </label>
-            <label>Eylemler<select name="actionIds" id="profile-actions" multiple></select></label>
-            <label>TCK Maddeleri<select name="tckCodes" id="profile-tcks" multiple></select></label>
+            <div id="actions-container"></div>
             <label>Suçlama<textarea name="accusations" rows="2"></textarea></label>
             <label>Deliller<textarea name="evidence" rows="2"></textarea></label>
             <label>Savunma<textarea name="defense" rows="2"></textarea></label>
