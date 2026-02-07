@@ -48,3 +48,7 @@ The project is structured with `server.js` and `db.js` at the root, alongside `v
 - Map: Ghost node modal enriched — shows all actions where the person is mentioned, including parent person name, eylem number, and context description
 - Map: Person modal mentioned names now show context alongside name and role
 - Data flow: context field stored in mentioned_names JSON (no schema change needed), flows admin → API → map modal automatically
+- Admin: Parser enhanced — now recognizes structured emoji format (📂 SANIK KARTI, 👤 SANIK KİMLİĞİ, 🚨 SUÇLAMA, 👥 GEÇEN İSİMLER)
+- Admin: parseSanikKimligi extracts name, organization (from "bünyesinde"), title (from "olarak görev"), multiple roles ([Sanık][Tutuklu]), sentence demand, eylem numbers, TCK codes
+- Admin: parseMentionedNames extracts name [Role]: context from 👥 section, auto-maps Turkish roles to English, stops at emoji boundaries
+- Admin: Multiple roles preserved through full chain (parser → form → API → map)

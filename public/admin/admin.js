@@ -561,6 +561,176 @@ function parseTck(text) {
   return Array.from(codes);
 }
 
+function parseOrgAndTitle(text) {
+  const orgKeywords = [
+    "Müdürlüğü", "Müdürlügü", "Bakanlığı", "Bakanlıgı",
+    "Belediyesi", "Belediye", "Başkanlığı", "Başkanlıgı",
+    "A.Ş.", "A.S.", "A.Ş", "Ltd.", "Ltd", "Şirketi", "Sirketi",
+    "Holding", "Kurumu", "Genel Müdürlüğü", "Daire Başkanlığı",
+    "Emniyet", "Üniversitesi", "Hastanesi", "Vakıfı", "Vakfi",
+    "Derneği", "Dernegi", "Ajansı", "Gazetesi", "Bankası", "Odası",
+    "İSFALT", "İBB"
+  ];
+  let organization = "";
+  let titleVal = "";
+  const separator = text.includes(",") ? "," : text.includes(" - ") ? " - " : null;
+  if (separator) {
+    const parts = text.split(separator).map(s => s.trim());
+    const orgIdx = parts.findIndex(p => orgKeywords.some(k => p.includes(k)));
+    if (orgIdx !== -1) {
+      organization = parts[orgIdx];
+      titleVal = parts.filter((_, i) => i !== orgIdx).join(", ");
+    } else {
+      organization = parts[0];
+      titleVal = parts.slice(1).join(", ");
+    }
+  } else {
+    if (orgKeywords.some(k => text.includes(k))) {
+      organization = text;
+    } else {
+      titleVal = text;
+    }
+  }
+  return { organization, title: titleVal };
+}
+
+function parseSanikKimligi(textBlock) {
+  const roleMap = {
+    "Sanık": "defendant", "İtirafçı": "informant", "Tanık": "witness",
+    "Gizli Tanık": "secretWitness", "Mağdur": "victim", "Firari": "fugitive", "Tutuklu": "detained"
+  };
+
+  const section = textBlock.match(/👤\s*SANIK\s*KİMLİĞİ\s*:\s*([\s\S]*?)(?=🚨|$)/u);
+  if (!section) return null;
+  const body = section[1].trim();
+
+  const firstSentence = body.split(/[.,;]/)[0].trim();
+  const nameMatch = firstSentence.match(/^([A-ZÇĞİÖŞÜa-zçğıöşü\s]+?)(?:,|\s+(?:bünyesinde|tarafından|hakkında|eski|Eski))/i);
+  let name = "";
+  if (nameMatch) {
+    name = nameMatch[1].trim();
+  } else {
+    const words = firstSentence.split(/\s+/);
+    const nameWords = [];
+    for (const w of words) {
+      if (/^[A-ZÇĞİÖŞÜ]/.test(w) && !/bünyesinde|tarafından|hakkında|olarak|kapsamında/i.test(w)) {
+        nameWords.push(w);
+      } else if (nameWords.length >= 2) break;
+      else if (nameWords.length > 0) break;
+    }
+    name = nameWords.join(" ");
+  }
+
+  let organization = "";
+  let titleVal = "";
+
+  const fullOrgTitleMatch = body.match(/,\s*([^\n,]+?)\s+bünyesinde\s+(.*?)\s+olarak\s+görev/i);
+  if (fullOrgTitleMatch) {
+    organization = fullOrgTitleMatch[1].trim();
+    titleVal = fullOrgTitleMatch[2].trim();
+  } else {
+    const orgBeforeMatch = body.match(/([A-ZÇĞİÖŞÜİ][A-ZÇĞİÖŞÜİa-zçğıöşü\s.]+?)\s+bünyesinde/i);
+    if (orgBeforeMatch) {
+      organization = orgBeforeMatch[1].trim();
+      if (organization.includes(",")) {
+        organization = organization.split(",").pop().trim();
+      }
+    }
+
+    const titleOnlyMatch = body.match(/bünyesinde\s+(.*?)\s+olarak\s+görev/i);
+    if (titleOnlyMatch) {
+      titleVal = titleOnlyMatch[1].trim();
+    } else {
+      const standaloneTitle = body.match(/((?:Eski\s+)?[A-ZÇĞİÖŞÜa-zçğıöşü\s]+?)\s+olarak\s+görev/i);
+      if (standaloneTitle) {
+        titleVal = standaloneTitle[1].trim();
+      }
+    }
+  }
+
+  if (!organization) {
+    const inlineOrgMatch = body.match(/,\s*([A-ZÇĞİÖŞÜİ][^\n,]*(?:bünyesinde|nezdinde|A\.Ş\.|Ltd\.|Holding|Müdürlüğü|Başkanlığı|Belediyesi|Şirketi))/i);
+    if (inlineOrgMatch) {
+      organization = inlineOrgMatch[1].replace(/\s*bünyesinde\s*/i, "").replace(/\s*nezdinde\s*/i, "").trim();
+    }
+  }
+
+  const roles = [];
+  const bracketRoles = body.match(/\[([^\]]+)\]/g) || [];
+  bracketRoles.forEach(br => {
+    const r = br.replace(/[\[\]]/g, "").trim();
+    if (roleMap[r]) roles.push(roleMap[r]);
+  });
+  if (!roles.length) roles.push("defendant");
+
+  let sentenceDemand = "";
+  const sentencePatterns = [
+    /toplam\s+(.*?hapis\s*cezası)\s*talep/i,
+    /(\d+\s*yıl.*?hapis.*?cezası)\s*talep/i,
+    /Talep edilen ceza:\s*([^\n]+)/i,
+    /(\d+[-–]\d+\s*yıl(?:\s*(?:ve|ile)\s*\d+[-–]\d+\s*ay)?\s*(?:hapis|ağır hapis)(?:\s*cezası)?)/i
+  ];
+  for (const pat of sentencePatterns) {
+    const m = body.match(pat);
+    if (m) { sentenceDemand = m[1] ? m[1].trim() : m[0].trim(); break; }
+  }
+
+  const actionNumbers = [];
+  const eylemRefs = body.match(/Eylem\s*(\d+)/gi) || [];
+  eylemRefs.forEach(ref => {
+    const n = ref.replace(/Eylem/i, "").trim();
+    if (n) actionNumbers.push(n);
+  });
+
+  const tckCodes = parseTck(body);
+
+  return {
+    name, organization, title: titleVal,
+    roles: roles.join(","),
+    sentenceDemand,
+    actionNumbers: Array.from(new Set(actionNumbers)),
+    tckCodes
+  };
+}
+
+function parseMentionedNames(block) {
+  const roleMap = {
+    "Sanık": "defendant", "İtirafçı": "informant", "Tanık": "witness",
+    "Gizli Tanık": "secretWitness", "Mağdur": "victim", "Firari": "fugitive", "Tutuklu": "detained"
+  };
+
+  const mentionedNames = [];
+  const mnSection = block.match(/👥\s*GEÇEN\s*İSİMLER\s*:\s*([\s\S]*?)(?=🚨|📂|👤|🚩|🖼|$)/u);
+  if (!mnSection) {
+    const blockText = block.replace(/👥[\s\S]*$/u, "");
+    const autoNames = extractNamesFromText(blockText);
+    return autoNames.map(n => ({ name: n, role: "unknown", context: "" }));
+  }
+
+  const mnBody = mnSection[1].trim();
+  const mnLines = mnBody.split("\n").map(l => l.trim()).filter(l => l && !/^(🚨|📂|👤|🚩)/.test(l));
+
+  for (const line of mnLines) {
+    const match = line.match(/^([A-ZÇĞİÖŞÜa-zçğıöşü\s]+)\s*\[([^\]]+)\]\s*:\s*(.*)/i);
+    if (match) {
+      const mnName = match[1].trim();
+      const mnRoleTr = match[2].trim();
+      const mnContext = match[3].trim().replace(/[.;,]$/, "").trim();
+      mentionedNames.push({
+        name: mnName,
+        role: roleMap[mnRoleTr] || "unknown",
+        context: mnContext
+      });
+    } else {
+      const simpleName = line.replace(/^[-•]\s*/, "").trim();
+      if (simpleName && /[A-ZÇĞİÖŞÜ]/.test(simpleName[0])) {
+        mentionedNames.push({ name: simpleName, role: "unknown", context: "" });
+      }
+    }
+  }
+  return mentionedNames;
+}
+
 function parsePastedText(text) {
   const lines = text.split("\n");
   const result = {
@@ -576,181 +746,97 @@ function parsePastedText(text) {
 
   const textBlock = lines.join("\n");
 
-  const fileLine = lines.find((l) => l.trim().startsWith("\u{1F4C2}"));
+  const fileLine = lines.find((l) => /📂/.test(l.trim()));
   if (fileLine) {
-    const value = fileLine.split(":").slice(1).join(":").trim();
+    const value = fileLine.replace(/📂\s*\[?SANIK\s*KARTI\]?\s*[-–]?\s*/i, "").trim();
     const match = value.match(/^(\d{4}\/\d+)\s+(.*)$/);
     if (match) {
       result.caseNumber = match[1];
-      result.title = match[2];
-    } else if (value.includes("-")) {
-      const [num, title] = value.split("-").map((v) => v.trim());
-      result.caseNumber = num;
-      result.title = title;
+      result.title = match[2].replace(/Dosyası\s*$/i, "").trim();
     } else {
-      result.caseNumber = value;
-    }
-  }
-
-  const actionLine = lines.find((l) => l.trim().startsWith("\u2696\uFE0F"));
-  if (actionLine) {
-    const value = actionLine.split(":").slice(1).join(":").trim();
-    const [actionsPart] = value.split("|").map((v) => v.trim());
-    if (actionsPart) {
-      const parts = actionsPart.split(/,|&/).map((v) => v.trim()).filter(Boolean);
-      result.actionNumbers = parts;
-    }
-
-    const roleKeywords = ["Sanık", "İtirafçı", "Tanık", "Gizli Tanık", "Mağdur", "Firari", "Tutuklu"];
-    let foundRole = "";
-    let personPart = "";
-    for (const keyword of roleKeywords) {
-      const roleIdx = actionLine.indexOf(keyword + ":");
-      if (roleIdx !== -1) {
-        foundRole = keyword;
-        personPart = actionLine.slice(roleIdx + keyword.length + 1).trim();
-        break;
-      }
-    }
-    if (!foundRole) {
-      const pipeIdx = actionLine.indexOf("|");
-      if (pipeIdx !== -1) {
-        personPart = actionLine.slice(pipeIdx + 1).trim();
-        const colonIdx = personPart.indexOf(":");
-        if (colonIdx !== -1) {
-          foundRole = personPart.slice(0, colonIdx).trim();
-          personPart = personPart.slice(colonIdx + 1).trim();
-        }
-      }
-    }
-    if (personPart) {
-      const unvanMatch = personPart.match(/^([^(]+)\(([^)]+)\)/);
-      if (unvanMatch) {
-        const nameStr = unvanMatch[1].trim();
-        const unvanStr = unvanMatch[2].trim();
-        let organization = "";
-        let titleVal = "";
-
-        const orgKeywords = [
-          "Müdürlüğü", "Müdürlügü",
-          "Bakanlığı", "Bakanlıgı",
-          "Belediyesi", "Belediye",
-          "Başkanlığı", "Başkanlıgı",
-          "A.Ş.", "A.S.", "A.Ş",
-          "Ltd.", "Ltd",
-          "Şirketi", "Sirketi",
-          "Holding",
-          "Kurumu",
-          "Genel Müdürlüğü",
-          "Daire Başkanlığı",
-          "Emniyet",
-          "Üniversitesi",
-          "Hastanesi",
-          "Vakıfı", "Vakfi",
-          "Derneği", "Dernegi",
-          "Ajansı",
-          "Gazetesi",
-          "Bankası",
-          "Odası"
-        ];
-
-        if (unvanStr.includes(",")) {
-          const parts = unvanStr.split(",").map((s) => s.trim());
-          const orgIdx = parts.findIndex((p) => orgKeywords.some((k) => p.includes(k)));
-          if (orgIdx !== -1) {
-            organization = parts[orgIdx];
-            titleVal = parts.filter((_, i) => i !== orgIdx).join(", ");
-          } else {
-            organization = parts[0];
-            titleVal = parts.slice(1).join(", ");
-          }
-        } else if (unvanStr.includes(" - ")) {
-          const parts = unvanStr.split(" - ").map((s) => s.trim());
-          const orgIdx = parts.findIndex((p) => orgKeywords.some((k) => p.includes(k)));
-          if (orgIdx !== -1) {
-            organization = parts[orgIdx];
-            titleVal = parts.filter((_, i) => i !== orgIdx).join(" - ");
-          } else {
-            organization = parts[0];
-            titleVal = parts.slice(1).join(" - ");
-          }
-        } else {
-          const isOrg = orgKeywords.some((k) => unvanStr.includes(k));
-          if (isOrg) {
-            organization = unvanStr;
-          } else {
-            titleVal = unvanStr;
-          }
-        }
-        result.profiles.push({
-          name: nameStr,
-          role: foundRole || "Sanık",
-          organization: organization,
-          title: titleVal
-        });
+      const dashMatch = value.match(/^(.*?)\s*[-–]\s*(.*)$/);
+      if (dashMatch) {
+        result.caseNumber = dashMatch[1].trim();
+        result.title = dashMatch[2].replace(/Dosyası\s*$/i, "").trim();
       } else {
-        result.profiles.push({
-          name: personPart.trim(),
-          role: foundRole || "Sanık",
-          organization: "",
-          title: ""
-        });
+        result.caseNumber = value;
       }
     }
   }
 
-  const summaryMatch = textBlock.match(/\u{1F6A9}\s*İddianame Özeti:\s*([\s\S]*?)(?=\u{1F6A8}|$)/u);
+  const sanik = parseSanikKimligi(textBlock);
+  if (sanik) {
+    const reverseRoleMap = {
+      defendant: "Sanık", informant: "İtirafçı", witness: "Tanık",
+      secretWitness: "Gizli Tanık", victim: "Mağdur", fugitive: "Firari", detained: "Tutuklu"
+    };
+    const rolesTr = sanik.roles.split(",").map(r => reverseRoleMap[r.trim()] || r.trim()).join(",");
+    result.profiles.push({
+      name: sanik.name,
+      role: rolesTr,
+      organization: sanik.organization,
+      title: sanik.title
+    });
+    result.sentenceDemand = sanik.sentenceDemand;
+    result.actionNumbers = [...sanik.actionNumbers];
+    result.tckCodes = [...sanik.tckCodes];
+  }
+
+  const summaryMatch = textBlock.match(/🚩\s*İddianame Özeti:\s*([\s\S]*?)(?=🚨|$)/u);
   if (summaryMatch) {
     result.summary = summaryMatch[1].trim();
   }
 
-  const sentencePatterns = [
-    /Talep edilen ceza:\s*([^\n]+)/i,
-    /(\d+[-\u2013]\d+\s*yıl(?:\s*(?:ve|ile)\s*\d+[-\u2013]\d+\s*ay)?\s*(?:hapis|ağır hapis)(?:\s*cezası)?)/i,
-    /hapis cezası talep/i
-  ];
-  for (const pat of sentencePatterns) {
-    const m = textBlock.match(pat);
-    if (m) {
-      result.sentenceDemand = m[1] ? m[1].trim() : m[0].trim();
-      break;
+  if (!result.sentenceDemand) {
+    const sentencePatterns = [
+      /toplam\s+(.*?hapis\s*cezası)\s*talep/i,
+      /Talep edilen ceza:\s*([^\n]+)/i,
+      /(\d+[-–]\d+\s*yıl(?:\s*(?:ve|ile)\s*\d+[-–]\d+\s*ay)?\s*(?:hapis|ağır hapis)(?:\s*cezası)?)/i
+    ];
+    for (const pat of sentencePatterns) {
+      const m = textBlock.match(pat);
+      if (m) { result.sentenceDemand = m[1] ? m[1].trim() : m[0].trim(); break; }
     }
   }
 
-  const actionMentions = textBlock.match(/Eylem\s*\d+/gi) || [];
-  actionMentions.forEach((item) => {
-    const num = item.replace(/Eylem/i, "").trim();
-    if (num) result.actionNumbers.push(num);
-  });
-  result.actionNumbers = Array.from(new Set(result.actionNumbers));
-
-  const accBlocks = textBlock.split(/\u{1F6A8}\s*Suçlama\s*\d+:/u).slice(1);
+  const accBlocks = textBlock.split(/🚨\s*SUÇLAMA\s*\d+\s*:/u).slice(1);
   accBlocks.forEach((block) => {
-    const titleLine = block.split("\n").find((l) => l.trim()).trim();
-    const claimMatch = block.match(/İDDİA:\s*([\s\S]*?)(?=DELİL:|SAVUNMA:|$)/);
-    const evidenceMatch = block.match(/DELİL:\s*([\s\S]*?)(?=SAVUNMA:|$)/);
-    const defenseMatch = block.match(/SAVUNMA:\s*([\s\S]*?)$/);
+    const firstLine = block.split("\n").find((l) => l.trim())?.trim() || "";
 
-    const blockTckCodes = parseTck(block);
+    const eylemMatch = block.match(/EYLEM\s*:\s*([^\n]+)/i);
+    const tckMatch = block.match(/TCK\s*:\s*([^\n]+)/i);
+    const claimMatch = block.match(/İDDİA\s*:\s*([\s\S]*?)(?=DELİL|SAVUNMA|👥|$)/i);
+    const evidenceMatch = block.match(/DELİLLER?\s*:\s*([\s\S]*?)(?=SAVUNMA|👥|$)/i);
+    const defenseMatch = block.match(/SAVUNMA\s*:\s*([\s\S]*?)(?=👥|$)/i);
 
     const blockActionNums = [];
-    const actionRefs = block.match(/Eylem\s*(\d+)/gi) || [];
-    actionRefs.forEach((ref) => {
-      const n = ref.replace(/Eylem/i, "").trim();
-      if (n) blockActionNums.push(n);
-    });
+    if (eylemMatch) {
+      const eylemText = eylemMatch[1].trim();
+      const nums = eylemText.match(/(?:Eylem\s*)?(\d+)/gi) || [];
+      nums.forEach(ref => {
+        const n = ref.replace(/Eylem/i, "").trim();
+        if (n) blockActionNums.push(n);
+      });
+    } else {
+      const actionRefs = block.match(/Eylem\s*(\d+)/gi) || [];
+      actionRefs.forEach(ref => {
+        const n = ref.replace(/Eylem/i, "").trim();
+        if (n) blockActionNums.push(n);
+      });
+    }
 
-    const blockText = [
-      claimMatch ? claimMatch[1] : "",
-      evidenceMatch ? evidenceMatch[1] : "",
-      defenseMatch ? defenseMatch[1] : "",
-      titleLine || ""
-    ].join(" ");
-    const extractedNames = extractNamesFromText(blockText);
-    const mentionedNames = extractedNames.map(n => ({ name: n, role: "unknown" }));
+    let blockTckCodes = [];
+    if (tckMatch) {
+      blockTckCodes = parseTck(tckMatch[1]);
+    }
+    if (!blockTckCodes.length) {
+      blockTckCodes = parseTck(block);
+    }
+
+    const mentionedNames = parseMentionedNames(block);
 
     result.accusations.push({
-      title: titleLine || "",
+      title: firstLine || "",
       actionNums: Array.from(new Set(blockActionNums)),
       tckCodes: blockTckCodes,
       claim: claimMatch ? claimMatch[1].trim() : "",
@@ -760,7 +846,13 @@ function parsePastedText(text) {
     });
   });
 
-  result.tckCodes = parseTck(text);
+  const allEylemFromAccs = result.accusations.flatMap(a => a.actionNums);
+  result.actionNumbers = Array.from(new Set([...result.actionNumbers, ...allEylemFromAccs]));
+
+  if (!result.tckCodes.length) result.tckCodes = parseTck(text);
+  const allTckFromAccs = result.accusations.flatMap(a => a.tckCodes);
+  result.tckCodes = Array.from(new Set([...result.tckCodes, ...allTckFromAccs]));
+
   return result;
 }
 
@@ -1061,7 +1153,8 @@ function applyParsedToForm(parsed) {
       "Firari": "fugitive",
       "Tutuklu": "detained"
     };
-    setRoleCheckboxes(roleMap[rawRole] || "defendant");
+    const mappedRoles = rawRole.split(",").map(r => roleMap[r.trim()] || r.trim()).join(",");
+    setRoleCheckboxes(mappedRoles);
   }
 
   setInput(profileForm, "sentenceDemand", parsed.sentenceDemand || "");
