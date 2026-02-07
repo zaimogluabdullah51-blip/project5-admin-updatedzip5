@@ -16,16 +16,13 @@ const caseList = document.getElementById("case-list");
 
 const profileForm = document.getElementById("profile-form");
 const profileList = document.getElementById("profile-list");
-const profileCaseSelect = document.getElementById("profile-case");
-const profileActionsSelect = document.getElementById("profile-actions");
-const profileTckSelect = document.getElementById("profile-tcks");
+const actionsContainer = document.getElementById("actions-container");
 
 const exportBtn = document.getElementById("export-json");
 const importInput = document.getElementById("import-json");
 
 const parseInput = document.getElementById("parse-input");
 const parseBtn = document.getElementById("parse-btn");
-const applyBtn = document.getElementById("apply-btn");
 const clearBtn = document.getElementById("clear-btn");
 const parseResults = document.getElementById("parse-results");
 const activeCaseSelect = document.getElementById("active-case");
@@ -68,17 +65,6 @@ function fillSelect(select, items, labelKey = "title") {
   });
 }
 
-function fillMulti(select, items, labelKey = "title") {
-  if (!select) return;
-  select.innerHTML = "";
-  items.forEach((item) => {
-    const option = document.createElement("option");
-    option.value = item.id;
-    option.textContent = item[labelKey];
-    select.appendChild(option);
-  });
-}
-
 function renderLists(data) {
   caseList.innerHTML = "";
   data.cases.forEach((c) => {
@@ -97,22 +83,6 @@ function renderLists(data) {
   });
 }
 
-function refreshSelectors(data) {
-  fillSelect(profileCaseSelect, data.cases, "title");
-  fillSelect(activeCaseSelect, data.cases, "title");
-
-  const selectedCaseId = profileCaseSelect.value || (data.cases[0] && data.cases[0].id);
-  const actionsForCase = (data.actions || []).filter((a) => a.caseId === selectedCaseId);
-
-  fillMulti(profileActionsSelect, actionsForCase, "title");
-  const tckOptions = actionsForCase
-    .flatMap((a) => a.tckCodes)
-    .filter(Boolean)
-    .map((code) => ({ id: code, title: code }))
-    .filter((v, i, arr) => arr.findIndex((x) => x.id === v.id) === i);
-  fillMulti(profileTckSelect, tckOptions, "title");
-}
-
 async function loadServerCases() {
   try {
     const res = await fetch("/api/cases");
@@ -127,27 +97,16 @@ async function sync() {
 
   const serverCases = await loadServerCases();
   if (serverCases.length > 0) {
-    profileCaseSelect.innerHTML = "";
+    activeCaseSelect.innerHTML = "";
     serverCases.forEach((c) => {
       const option = document.createElement("option");
       option.value = c.id;
       option.textContent = c.title;
-      profileCaseSelect.appendChild(option);
+      activeCaseSelect.appendChild(option);
     });
   } else {
-    fillSelect(profileCaseSelect, data.cases, "title");
+    fillSelect(activeCaseSelect, data.cases, "title");
   }
-  fillSelect(activeCaseSelect, data.cases, "title");
-
-  const selectedCaseId = profileCaseSelect.value || (data.cases[0] && data.cases[0].id);
-  const actionsForCase = (data.actions || []).filter((a) => a.caseId === selectedCaseId);
-  fillMulti(profileActionsSelect, actionsForCase, "title");
-  const tckOptions = actionsForCase
-    .flatMap((a) => a.tckCodes)
-    .filter(Boolean)
-    .map((code) => ({ id: code, title: code }))
-    .filter((v, i, arr) => arr.findIndex((x) => x.id === v.id) === i);
-  fillMulti(profileTckSelect, tckOptions, "title");
 }
 
 function setInput(form, name, value) {
@@ -157,7 +116,7 @@ function setInput(form, name, value) {
 
 function parseTck(text) {
   const codes = new Set();
-  const regex = /TCK\s*(\d{3})(?:\/([\w.-]+))?/gi;
+  const regex = /TCK\s*(\d{2,3})(?:\/([\w.-]+))?/gi;
   let match;
   while ((match = regex.exec(text)) !== null) {
     const base = match[1];
@@ -174,7 +133,7 @@ function parseTck(text) {
       shortMatches.forEach((seg) => codes.add(`${base}/${seg}`));
     }
   }
-  const standalone = text.match(/\b\d{3}\/[0-9a-zA-Z.-]+\b/g) || [];
+  const standalone = text.match(/\b\d{2,3}\/[0-9a-zA-Z.-]+\b/g) || [];
   standalone.forEach((seg) => codes.add(seg));
   return Array.from(codes);
 }
@@ -242,8 +201,16 @@ function parsePastedText(text) {
     const claimMatch = block.match(/\u0130DD\u0130A:\s*([\s\S]*?)(?=DEL\u0130L:|SAVUNMA:|$)/);
     const evidenceMatch = block.match(/DEL\u0130L:\s*([\s\S]*?)(?=SAVUNMA:|$)/);
     const defenseMatch = block.match(/SAVUNMA:\s*([\s\S]*?)$/);
+
+    const blockTckCodes = parseTck(block);
+
+    const actionMatch = titleLine ? titleLine.match(/Eylem\s*(\d+)/i) : null;
+    const actionNum = actionMatch ? actionMatch[1] : "";
+
     result.accusations.push({
       title: titleLine || "",
+      actionNum,
+      tckCodes: blockTckCodes,
       claim: claimMatch ? claimMatch[1].trim() : "",
       evidence: evidenceMatch ? evidenceMatch[1].trim() : "",
       defense: defenseMatch ? defenseMatch[1].trim() : ""
@@ -252,27 +219,53 @@ function parsePastedText(text) {
 
   const sentenceMatch = textBlock.match(/Talep edilen ceza:\s*([^\n]+)/i);
   result.sentenceDemand = sentenceMatch ? sentenceMatch[1].trim() : "";
+
   result.tckCodes = parseTck(text);
   return result;
 }
 
-function applyParsed(parsed) {
+function renderActionCards(parsed) {
+  actionsContainer.innerHTML = "";
+  if (!parsed || !parsed.accusations || parsed.accusations.length === 0) return;
+
+  parsed.accusations.forEach((acc, idx) => {
+    const card = document.createElement("div");
+    card.className = "action-card";
+
+    const actionLabel = acc.actionNum ? `Eylem ${acc.actionNum}` : `Suçlama ${idx + 1}`;
+    const tckList = acc.tckCodes.length > 0 ? acc.tckCodes.join(", ") : "\u2014";
+
+    card.innerHTML = `
+      <div class="action-card-header">
+        <strong>${actionLabel}</strong>
+        <span class="muted">${acc.title || ""}</span>
+      </div>
+      <div class="action-card-body">
+        <span class="action-tck-label">TCK:</span>
+        <span class="action-tck-codes">${tckList}</span>
+      </div>
+    `;
+    actionsContainer.appendChild(card);
+  });
+}
+
+function applyParsedToForm(parsed) {
   if (!parsed) return;
-  setInput(caseForm, "caseNumber", parsed.caseNumber);
-  setInput(caseForm, "title", parsed.title || "");
-  setInput(caseForm, "summary", parsed.summary || "");
-  setInput(caseForm, "courtName", "");
-  setInput(caseForm, "prosecutor", "");
-  setInput(caseForm, "judge", "");
-  setInput(caseForm, "panel", "");
-  setInput(caseForm, "sentenceDemand", parsed.sentenceDemand || "");
 
   if (parsed.profiles[0]) {
     const rawRole = parsed.profiles[0].role || "San\u0131k";
-    const nameWithRole = rawRole && !/san\u0131k|tan\u0131k|itiraf|ma\u011fdur|firari|tutuk/i.test(rawRole)
-      ? `${parsed.profiles[0].name} (${rawRole})`
-      : parsed.profiles[0].name;
-    setInput(profileForm, "name", nameWithRole);
+    const name = parsed.profiles[0].name;
+    const displayName =
+      rawRole && !/san\u0131k|tan\u0131k|itiraf|ma\u011fdur|firari|tutuk/i.test(rawRole)
+        ? `${name} (${rawRole})`
+        : name;
+
+    if (parsed.title) {
+      setInput(profileForm, "name", `${displayName} — ${parsed.title}`);
+    } else {
+      setInput(profileForm, "name", displayName);
+    }
+
     const roleMap = {
       "San\u0131k": "defendant",
       "\u0130tiraf\u00E7\u0131": "informant",
@@ -284,127 +277,34 @@ function applyParsed(parsed) {
     };
     setInput(profileForm, "role", roleMap[rawRole] || "defendant");
   }
+
   const claimText = parsed.accusations
-    .map((a, idx) => (a.claim.includes("\n") ? a.claim : `${idx + 1}) ${a.claim}`))
-    .filter(Boolean)
+    .map((a, idx) => {
+      const label = a.actionNum ? `Eylem ${a.actionNum}` : `${idx + 1}`;
+      return `${label}) ${a.claim}`;
+    })
+    .filter((s) => s.replace(/^[^)]+\)\s*/, ""))
     .join("\n");
   const evidenceText = parsed.accusations
-    .map((a, idx) => (a.evidence.includes("\n") ? a.evidence : `${idx + 1}) ${a.evidence}`))
-    .filter(Boolean)
+    .map((a, idx) => {
+      const label = a.actionNum ? `Eylem ${a.actionNum}` : `${idx + 1}`;
+      return `${label}) ${a.evidence}`;
+    })
+    .filter((s) => s.replace(/^[^)]+\)\s*/, ""))
     .join("\n");
   const defenseText = parsed.accusations
-    .map((a, idx) => (a.defense.includes("\n") ? a.defense : `${idx + 1}) ${a.defense}`))
-    .filter(Boolean)
+    .map((a, idx) => {
+      const label = a.actionNum ? `Eylem ${a.actionNum}` : `${idx + 1}`;
+      return `${label}) ${a.defense}`;
+    })
+    .filter((s) => s.replace(/^[^)]+\)\s*/, ""))
     .join("\n\n");
 
   setInput(profileForm, "accusations", claimText);
   setInput(profileForm, "evidence", evidenceText);
   setInput(profileForm, "defense", defenseText);
-}
 
-function applyParsedToData(parsed) {
-  const data = loadData();
-  let caseItem = data.cases.find((c) => c.caseNumber === parsed.caseNumber);
-  const activeCaseId = activeCaseSelect.value;
-  if (activeCaseId) {
-    const selected = data.cases.find((c) => c.id === activeCaseId);
-    if (selected) {
-      caseItem = selected;
-    }
-  }
-  if (!caseItem) {
-    caseItem = {
-      id: `case_${Date.now()}`,
-      title: parsed.title || "",
-      caseNumber: parsed.caseNumber,
-      courtName: "",
-      prosecutor: "",
-      judge: "",
-      panel: [],
-      date: "",
-      status: "Devam Ediyor",
-      summary: parsed.summary || "",
-      sentenceDemand: parsed.sentenceDemand || ""
-    };
-    data.cases.push(caseItem);
-  } else {
-    caseItem.title = parsed.title || caseItem.title;
-    caseItem.summary = parsed.summary || caseItem.summary;
-    caseItem.sentenceDemand = parsed.sentenceDemand || caseItem.sentenceDemand;
-  }
-
-  const actionIds = [];
-  if (!data.actions) data.actions = [];
-  parsed.actionNumbers.forEach((num) => {
-    const title = `Eylem ${num}`;
-    let action = data.actions.find((a) => a.caseId === caseItem.id && a.title === title);
-    if (!action) {
-      action = {
-        id: `action_${caseItem.id}_${num}`,
-        caseId: caseItem.id,
-        title,
-        description: "",
-        date: "",
-        tckCodes: parsed.tckCodes
-      };
-      data.actions.push(action);
-    } else {
-      action.tckCodes = parsed.tckCodes;
-    }
-    actionIds.push(action.id);
-  });
-
-  if (parsed.profiles[0]) {
-    const rawRole = parsed.profiles[0].role || "San\u0131k";
-    const roleMap = {
-      "San\u0131k": "defendant",
-      "\u0130tiraf\u00E7\u0131": "informant",
-      "Tan\u0131k": "witness",
-      "Gizli Tan\u0131k": "secretWitness",
-      "Ma\u011fdur": "victim",
-      "Firari": "fugitive",
-      "Tutuklu": "detained"
-    };
-    const roleCode = roleMap[rawRole] || "defendant";
-    const name = parsed.profiles[0].name;
-    const displayName =
-      rawRole && !/san\u0131k|tan\u0131k|itiraf|ma\u011fdur|firari|tutuk/i.test(rawRole)
-        ? `${name} (${rawRole})`
-        : name;
-    let profile = data.profiles.find((p) => p.caseId === caseItem.id && p.name === displayName);
-    if (!profile) {
-      profile = {
-        id: `profile_${caseItem.id}_${Date.now()}`,
-        caseId: caseItem.id,
-        name: displayName,
-        photo: "",
-        role: roleCode,
-        actionIds,
-        tckCodes: parsed.tckCodes,
-        accusations: "",
-        evidence: "",
-        defense: ""
-      };
-      data.profiles.push(profile);
-    }
-    profile.actionIds = actionIds;
-    profile.tckCodes = parsed.tckCodes;
-    profile.accusations = parsed.accusations
-      .map((a, idx) => `${idx + 1}) ${a.title ? a.title + " - " : ""}${a.claim}`.trim())
-      .filter(Boolean)
-      .join("\n");
-    profile.evidence = parsed.accusations
-      .map((a, idx) => `${idx + 1}) ${a.evidence}`.trim())
-      .filter(Boolean)
-      .join("\n");
-    profile.defense = parsed.accusations
-      .map((a, idx) => `${idx + 1}) ${a.defense}`.trim())
-      .filter(Boolean)
-      .join("\n\n");
-  }
-
-  saveData(data);
-  sync();
+  renderActionCards(parsed);
 }
 
 function renderParseResults(parsed) {
@@ -413,11 +313,23 @@ function renderParseResults(parsed) {
 
   const info = document.createElement("div");
   info.className = "list-item";
+
+  let tckSummary = "";
+  if (parsed.accusations.length > 0) {
+    tckSummary = parsed.accusations.map((acc, idx) => {
+      const label = acc.actionNum ? `Eylem ${acc.actionNum}` : `Suçlama ${idx + 1}`;
+      const codes = acc.tckCodes.length > 0 ? acc.tckCodes.join(", ") : "\u2014";
+      return `${label}: ${codes}`;
+    }).join("<br />");
+  } else {
+    tckSummary = parsed.tckCodes.join(", ") || "\u2014";
+  }
+
   info.innerHTML = `
     <strong>\u00D6zet</strong><br />
     <span class="muted">Dosya: ${parsed.caseNumber || "\u2014"} \u00B7 ${parsed.title || ""}</span><br />
     <span class="muted">Eylem: ${parsed.actionNumbers.join(", ") || "\u2014"}</span><br />
-    <span class="muted">TCK: ${parsed.tckCodes.join(", ") || "\u2014"}</span><br />
+    <span class="muted">TCK:<br />${tckSummary}</span><br />
     <span class="muted">Su\u00E7lama say\u0131s\u0131: ${parsed.accusations.length}</span>
   `;
   parseResults.appendChild(info);
@@ -463,28 +375,20 @@ menuItems.forEach((btn) => {
 });
 
 parseBtn.addEventListener("click", () => {
-  lastParsed = parsePastedText(parseInput.value || "");
-  renderParseResults(lastParsed);
-});
+  const text = parseInput.value || "";
+  if (!text.trim()) return;
 
-applyBtn.addEventListener("click", () => {
-  if (!lastParsed) return;
-  const ok = window.confirm(
-    `Dosya: ${lastParsed.caseNumber || "-"} ${lastParsed.title || ""}\n` +
-      `Eylemler: ${lastParsed.actionNumbers.join(", ") || "-"}\n` +
-      `San\u0131k: ${lastParsed.profiles[0] ? lastParsed.profiles[0].name : "-"}\n` +
-      `TCK: ${lastParsed.tckCodes.join(", ") || "-"}\n\nUygulans\u0131n m\u0131?`
-  );
-  if (ok) {
-    applyParsed(lastParsed);
-    applyParsedToData(lastParsed);
-  }
+  lastParsed = parsePastedText(text);
+  renderParseResults(lastParsed);
+  applyParsedToForm(lastParsed);
 });
 
 clearBtn.addEventListener("click", () => {
   parseInput.value = "";
   lastParsed = null;
   parseResults.innerHTML = "";
+  actionsContainer.innerHTML = "";
+  profileForm.reset();
 });
 
 caseForm.addEventListener("submit", async (event) => {
@@ -531,37 +435,40 @@ caseForm.addEventListener("submit", async (event) => {
       alert("Dava sunucuya kaydedilemedi. L\u00FCtfen tekrar giri\u015f yap\u0131n.");
     }
   } catch (err) {
-    alert("Sunucuya ba\u011flant\u0131 hatas\u0131. Dava yerel olarak kaydedildi ancak ana sayfada g\u00F6r\u00FCnmeyebilir.");
+    alert("Sunucuya ba\u011flant\u0131 hatas\u0131.");
   }
 
   caseForm.reset();
   sync();
 });
 
-profileCaseSelect.addEventListener("change", sync);
-
 profileForm.addEventListener("submit", async (event) => {
   event.preventDefault();
-  const data = loadData();
   const formData = new FormData(profileForm);
-  const id = `profile_${Date.now()}`;
-  const actionIds = Array.from(profileActionsSelect.selectedOptions).map((o) => o.value);
-  const tckCodes = Array.from(profileTckSelect.selectedOptions).map((o) => o.value);
-  const caseId = formData.get("caseId");
+  const caseId = activeCaseSelect.value;
+
+  const allTckCodes = lastParsed
+    ? lastParsed.accusations.flatMap((a) => a.tckCodes)
+    : [];
+  const uniqueTck = Array.from(new Set(allTckCodes));
+
+  const actionsWithTck = lastParsed
+    ? lastParsed.accusations.map((acc, idx) => ({
+        actionNum: acc.actionNum || String(idx + 1),
+        tckCodes: acc.tckCodes
+      }))
+    : [];
+
   const profileObj = {
-    id,
-    caseId,
     name: formData.get("name"),
-    photo: formData.get("photo"),
     role: formData.get("role"),
-    actionIds,
-    tckCodes,
+    photo: formData.get("photo"),
     accusations: formData.get("accusations"),
     evidence: formData.get("evidence"),
-    defense: formData.get("defense")
+    defense: formData.get("defense"),
+    tckCodes: uniqueTck,
+    actionsWithTck
   };
-  data.profiles.push(profileObj);
-  saveData(data);
 
   try {
     const res = await fetch("/api/people", {
@@ -574,7 +481,7 @@ profileForm.addEventListener("submit", async (event) => {
         accusations: profileObj.accusations,
         evidence: profileObj.evidence,
         defense: profileObj.defense,
-        tck_articles: tckCodes
+        tck_articles: profileObj.tckCodes
       })
     });
     if (res.ok && caseId) {
@@ -585,13 +492,24 @@ profileForm.addEventListener("submit", async (event) => {
         body: JSON.stringify({ caseId, personId: person.id })
       });
     } else if (!res.ok) {
-      alert("Profil sunucuya kaydedilemedi. Lütfen tekrar giriş yapın.");
+      alert("Profil sunucuya kaydedilemedi.");
     }
   } catch (err) {
-    alert("Sunucuya bağlantı hatası.");
+    alert("Sunucuya ba\u011flant\u0131 hatas\u0131.");
   }
 
+  const data = loadData();
+  data.profiles.push({
+    id: `profile_${Date.now()}`,
+    caseId,
+    ...profileObj
+  });
+  saveData(data);
+
   profileForm.reset();
+  actionsContainer.innerHTML = "";
+  parseResults.innerHTML = "";
+  lastParsed = null;
   sync();
 });
 

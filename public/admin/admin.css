@@ -141,6 +141,43 @@ body {
   background: rgba(17, 24, 39, 0.6);
 }
 
+#actions-container {
+  display: grid;
+  gap: 8px;
+}
+
+.action-card {
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 10px 14px;
+  background: var(--panel-light);
+}
+
+.action-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 6px;
+}
+
+.action-card-header strong {
+  color: #ef4444;
+  font-size: 0.85rem;
+}
+
+.action-card-body {
+  font-size: 0.85rem;
+}
+
+.action-tck-label {
+  color: var(--muted);
+  margin-right: 6px;
+}
+
+.action-tck-codes {
+  color: #fbbf24;
+}
+
 .parser-actions {
   display: flex;
   gap: 8px;
