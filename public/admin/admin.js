@@ -6,7 +6,10 @@ const loginError = document.getElementById("login-error");
 const logoutBtn = document.getElementById("logout");
 
 const menuItems = document.querySelectorAll(".menu-item");
-const sections = document.querySelectorAll("[data-section]");
+const tabPanels = {
+  cases: document.getElementById("tab-cases"),
+  profiles: document.getElementById("tab-profiles")
+};
 
 const caseForm = document.getElementById("case-form");
 const caseList = document.getElementById("case-list");
@@ -49,8 +52,8 @@ function saveData(data) {
 
 function setSection(tab) {
   menuItems.forEach((btn) => btn.classList.toggle("active", btn.dataset.tab === tab));
-  sections.forEach((section) => {
-    section.hidden = section.dataset.section !== tab;
+  Object.keys(tabPanels).forEach((key) => {
+    tabPanels[key].classList.toggle("active-tab", key === tab);
   });
 }
 

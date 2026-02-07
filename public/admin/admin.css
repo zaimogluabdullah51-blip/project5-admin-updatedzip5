@@ -124,6 +124,14 @@ body {
   gap: 14px;
 }
 
+.tab-panel {
+  display: none;
+}
+
+.tab-panel.active-tab {
+  display: grid;
+}
+
 .parser {
   display: grid;
   gap: 10px;
