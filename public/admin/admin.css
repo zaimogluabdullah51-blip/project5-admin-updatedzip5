@@ -402,12 +402,40 @@ input[readonly] {
 
 .mentioned-name-item {
   display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 4px 8px;
+  flex-direction: column;
+  gap: 4px;
+  padding: 6px 8px;
   background: rgba(255, 255, 255, 0.04);
   border-radius: 6px;
   border: 1px solid var(--border);
+}
+
+.mentioned-name-top-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.mentioned-context-input {
+  font-family: "Inter", sans-serif;
+  font-size: 0.78rem;
+  background: var(--panel);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 4px 8px;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.mentioned-context-input::placeholder {
+  color: var(--muted);
+  font-style: italic;
+}
+
+.mentioned-context-input:focus {
+  border-color: var(--accent);
+  outline: none;
 }
 
 .mentioned-name-text {

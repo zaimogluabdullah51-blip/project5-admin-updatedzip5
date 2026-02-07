@@ -495,13 +495,16 @@ function openPersonModal(person) {
         label.className = "action-label";
         label.textContent = "Mentioned Names";
         section.appendChild(label);
-        const namesP = document.createElement("p");
-        namesP.textContent = mentioned.map(mn => {
-          if (typeof mn === "string") return mn;
-          const rl = roleLabels[mn.role] || mn.role || "";
-          return rl && mn.role !== "unknown" ? `${mn.name} (${rl})` : mn.name;
-        }).join(", ");
-        section.appendChild(namesP);
+        for (const mn of mentioned) {
+          const entry = typeof mn === "string" ? { name: mn, role: "unknown" } : mn;
+          const rl = roleLabels[entry.role] || entry.role || "";
+          const nameSpan = document.createElement("p");
+          let text = rl && entry.role !== "unknown" ? `${entry.name} (${rl})` : entry.name;
+          if (entry.context) text += ` — ${entry.context}`;
+          nameSpan.textContent = text;
+          nameSpan.style.fontSize = "0.85rem";
+          section.appendChild(nameSpan);
+        }
         card.appendChild(section);
       }
 
@@ -519,6 +522,7 @@ function openGhostModal(ghostNode) {
   const ghostName = document.getElementById("ghost-name");
   const ghostRole = document.getElementById("ghost-role");
   const ghostClose = document.getElementById("ghost-close");
+  const mentionsList = document.getElementById("ghost-mentions-list");
 
   ghostName.textContent = ghostNode._ghostName || "";
   const roleLbl = roleLabels[ghostNode._ghostRole] || ghostNode._ghostRole || "Unknown";
@@ -527,6 +531,62 @@ function openGhostModal(ghostNode) {
   const roleTag = document.getElementById("ghost-role-tag");
   if (roleTag) {
     roleTag.className = "ghost-role-badge role-" + (ghostNode._ghostRole || "unknown");
+  }
+
+  mentionsList.innerHTML = "";
+  const lowerGhostName = (ghostNode._ghostName || "").toLowerCase().trim();
+  const mentions = [];
+
+  for (const action of allActions) {
+    const mentionedNames = action.mentioned_names || [];
+    for (const mn of mentionedNames) {
+      const entry = typeof mn === "string" ? { name: mn, role: "unknown" } : mn;
+      if (entry.name.toLowerCase().trim() === lowerGhostName) {
+        const parentPerson = people.find(p => p.id === action.person_id);
+        mentions.push({
+          personName: parentPerson ? parentPerson.name : "—",
+          actionNum: action.action_num || "—",
+          actionTitle: action.title || "",
+          context: entry.context || "",
+          role: entry.role || "unknown"
+        });
+      }
+    }
+  }
+
+  if (mentions.length) {
+    const header = document.createElement("p");
+    header.className = "ghost-mentions-header";
+    header.textContent = `Mentioned In (${mentions.length})`;
+    mentionsList.appendChild(header);
+
+    for (const m of mentions) {
+      const card = document.createElement("div");
+      card.className = "ghost-mention-card";
+      const personLine = document.createElement("div");
+      personLine.className = "ghost-mention-person";
+      personLine.textContent = m.personName;
+      card.appendChild(personLine);
+
+      const eylemLine = document.createElement("div");
+      eylemLine.className = "ghost-mention-eylem";
+      eylemLine.textContent = `Action ${m.actionNum}${m.actionTitle ? " — " + m.actionTitle : ""}`;
+      card.appendChild(eylemLine);
+
+      if (m.context) {
+        const contextLine = document.createElement("div");
+        contextLine.className = "ghost-mention-context";
+        contextLine.textContent = m.context;
+        card.appendChild(contextLine);
+      }
+
+      mentionsList.appendChild(card);
+    }
+  } else {
+    const note = document.createElement("p");
+    note.className = "ghost-note muted";
+    note.textContent = "This person is mentioned in text but no detailed information has been entered.";
+    mentionsList.appendChild(note);
   }
 
   ghostClose.onclick = () => ghostModal.close();

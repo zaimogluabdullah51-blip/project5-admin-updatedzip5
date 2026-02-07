@@ -786,21 +786,27 @@ function renderMentionedNamesForCard(container, accIdx) {
     const item = document.createElement("div");
     item.className = "mentioned-name-item";
     item.innerHTML = `
-      <span class="mentioned-name-text">${entry.name}</span>
-      <select class="mentioned-role-select" data-acc="${accIdx}" data-mn="${mnIdx}">
-        <option value="unknown"${entry.role === "unknown" ? " selected" : ""}>Bilinmiyor</option>
-        <option value="defendant"${entry.role === "defendant" ? " selected" : ""}>Sanık</option>
-        <option value="informant"${entry.role === "informant" ? " selected" : ""}>İtirafçı</option>
-        <option value="witness"${entry.role === "witness" ? " selected" : ""}>Tanık</option>
-        <option value="secretWitness"${entry.role === "secretWitness" ? " selected" : ""}>Gizli Tanık</option>
-        <option value="victim"${entry.role === "victim" ? " selected" : ""}>Mağdur</option>
-        <option value="fugitive"${entry.role === "fugitive" ? " selected" : ""}>Firari</option>
-        <option value="detained"${entry.role === "detained" ? " selected" : ""}>Tutuklu</option>
-      </select>
-      <button type="button" class="btn-remove-name" title="Çıkar">&times;</button>
+      <div class="mentioned-name-top-row">
+        <span class="mentioned-name-text">${entry.name}</span>
+        <select class="mentioned-role-select" data-acc="${accIdx}" data-mn="${mnIdx}">
+          <option value="unknown"${entry.role === "unknown" ? " selected" : ""}>Bilinmiyor</option>
+          <option value="defendant"${entry.role === "defendant" ? " selected" : ""}>Sanık</option>
+          <option value="informant"${entry.role === "informant" ? " selected" : ""}>İtirafçı</option>
+          <option value="witness"${entry.role === "witness" ? " selected" : ""}>Tanık</option>
+          <option value="secretWitness"${entry.role === "secretWitness" ? " selected" : ""}>Gizli Tanık</option>
+          <option value="victim"${entry.role === "victim" ? " selected" : ""}>Mağdur</option>
+          <option value="fugitive"${entry.role === "fugitive" ? " selected" : ""}>Firari</option>
+          <option value="detained"${entry.role === "detained" ? " selected" : ""}>Tutuklu</option>
+        </select>
+        <button type="button" class="btn-remove-name" title="Çıkar">&times;</button>
+      </div>
+      <input type="text" class="mentioned-context-input" placeholder="Olayla dahili (örn: para transferi yapılan kişi)" value="${(entry.context || "").replace(/"/g, "&quot;")}">
     `;
     item.querySelector(".mentioned-role-select").addEventListener("change", (e) => {
       entry.role = e.target.value;
+    });
+    item.querySelector(".mentioned-context-input").addEventListener("input", (e) => {
+      entry.context = e.target.value;
     });
     item.querySelector(".btn-remove-name").addEventListener("click", () => {
       lastParsed.accusations[accIdx].mentionedNames.splice(mnIdx, 1);
@@ -832,7 +838,7 @@ function renderMentionedNamesForCard(container, accIdx) {
     const name = mnNameInput.value.trim();
     if (!name) return;
     if (!lastParsed.accusations[accIdx].mentionedNames) lastParsed.accusations[accIdx].mentionedNames = [];
-    lastParsed.accusations[accIdx].mentionedNames.push({ name, role: roleSelect.value });
+    lastParsed.accusations[accIdx].mentionedNames.push({ name, role: roleSelect.value, context: "" });
     renderMentionedNamesForCard(container, accIdx);
   });
   mnNameInput.addEventListener("keydown", (e) => {
