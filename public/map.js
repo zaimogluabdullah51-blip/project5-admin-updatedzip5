@@ -6,11 +6,13 @@ const caseTitle = document.getElementById("case-title");
 const caseNumber = document.getElementById("case-number");
 const caseCourt = document.getElementById("case-court");
 const caseJudge = document.getElementById("case-judge");
-const casePanel = document.getElementById("case-panel");
+const caseJudgeLabel = document.getElementById("case-judge-label");
+const casePanelEl = document.getElementById("case-panel");
+const casePanelRow = document.getElementById("case-panel-row");
 const caseProsecutor = document.getElementById("case-prosecutor");
-const caseHearings = document.getElementById("case-hearings");
 const caseDefendants = document.getElementById("case-defendants");
 const caseDates = document.getElementById("case-dates");
+const caseStatusEl = document.getElementById("case-status");
 const casePanelContainer = document.getElementById("case-panel-container");
 const casePanelClose = document.getElementById("case-panel-close");
 const casePanelToggle = document.getElementById("case-panel-toggle");
@@ -22,11 +24,15 @@ const caseDetailTitle = document.getElementById("case-detail-title");
 const caseDetailNumber = document.getElementById("case-detail-number");
 const caseDetailCourt = document.getElementById("case-detail-court");
 const caseDetailJudge = document.getElementById("case-detail-judge");
+const caseDetailJudgeLabel = document.getElementById("case-detail-judge-label");
 const caseDetailPanel = document.getElementById("case-detail-panel");
+const caseDetailPanelRow = document.getElementById("case-detail-panel-row");
 const caseDetailProsecutor = document.getElementById("case-detail-prosecutor");
-const caseDetailHearings = document.getElementById("case-detail-hearings");
-const caseDetailStart = document.getElementById("case-detail-start");
-const caseDetailLast = document.getElementById("case-detail-last");
+const caseDetailTrialProsecutor = document.getElementById("case-detail-trial-prosecutor");
+const caseDetailIndictmentDate = document.getElementById("case-detail-indictment-date");
+const caseDetailAcceptanceDate = document.getElementById("case-detail-acceptance-date");
+const caseDetailVerdictDate = document.getElementById("case-detail-verdict-date");
+const caseDetailStatus = document.getElementById("case-detail-status");
 const caseDetailSummary = document.getElementById("case-detail-summary");
 
 const personModal = document.getElementById("person-modal");
@@ -105,28 +111,46 @@ function setEylemOptions(eylemNums) {
 }
 
 function renderCaseInfo(caseData) {
+  const isPanel = caseData.judge_type === "panel";
+  const prosecutor = caseData.indictment_prosecutor || caseData.prosecutor || "—";
+  const judgeName = isPanel
+    ? (caseData.panel_president || "—")
+    : (caseData.judge_name || caseData.judge || "—");
+  const panelMembers = caseData.panel_members || caseData.court_panel || "—";
+  const acceptanceDate = caseData.acceptance_date || caseData.date || "—";
+
   caseTitle.textContent = caseData.title || "—";
   caseNumber.textContent = caseData.case_number || "—";
   caseCourt.textContent = caseData.court_name || "—";
-  caseJudge.textContent = caseData.judge || "—";
-  casePanel.textContent = caseData.court_panel || "—";
-  caseProsecutor.textContent = caseData.prosecutor || "—";
-  caseHearings.textContent = caseData.hearing_count || "—";
+  caseProsecutor.textContent = prosecutor;
+
+  if (caseJudgeLabel) caseJudgeLabel.textContent = isPanel ? "Heyet Başkanı" : "Hakim";
+  caseJudge.textContent = judgeName;
+
+  if (casePanelRow) casePanelRow.style.display = isPanel ? "" : "none";
+  casePanelEl.textContent = panelMembers;
+
   const defendantCount = (caseData.people || []).filter((p) => !p.is_external).length;
   caseDefendants.textContent = defendantCount || "—";
-  const dates = [caseData.start_date, caseData.last_hearing_date].filter(Boolean).join(" • ");
-  caseDates.textContent = dates || "—";
+  caseDates.textContent = acceptanceDate;
+  if (caseStatusEl) caseStatusEl.textContent = caseData.status || "—";
   caseSummaryText.textContent = caseData.summary || "—";
 
   caseDetailTitle.textContent = caseData.title || "—";
   caseDetailNumber.textContent = caseData.case_number || "—";
   caseDetailCourt.textContent = caseData.court_name || "—";
-  caseDetailJudge.textContent = caseData.judge || "—";
-  caseDetailPanel.textContent = caseData.court_panel || "—";
-  caseDetailProsecutor.textContent = caseData.prosecutor || "—";
-  caseDetailHearings.textContent = caseData.hearing_count || "—";
-  caseDetailStart.textContent = caseData.start_date || "—";
-  caseDetailLast.textContent = caseData.last_hearing_date || "—";
+  caseDetailProsecutor.textContent = prosecutor;
+  if (caseDetailTrialProsecutor) caseDetailTrialProsecutor.textContent = caseData.trial_prosecutor || "—";
+
+  if (caseDetailJudgeLabel) caseDetailJudgeLabel.textContent = isPanel ? "Heyet Başkanı" : "Hakim";
+  caseDetailJudge.textContent = judgeName;
+  if (caseDetailPanelRow) caseDetailPanelRow.style.display = isPanel ? "" : "none";
+  caseDetailPanel.textContent = panelMembers;
+
+  if (caseDetailIndictmentDate) caseDetailIndictmentDate.textContent = caseData.indictment_date || "—";
+  if (caseDetailAcceptanceDate) caseDetailAcceptanceDate.textContent = acceptanceDate;
+  if (caseDetailVerdictDate) caseDetailVerdictDate.textContent = caseData.verdict_date || "—";
+  if (caseDetailStatus) caseDetailStatus.textContent = caseData.status || "—";
   caseDetailSummary.textContent = caseData.summary || "—";
 }
 

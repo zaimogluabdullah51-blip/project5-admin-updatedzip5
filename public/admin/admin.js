@@ -209,7 +209,9 @@ function renderLists(data, serverCases, serverPeople) {
     div.className = "list-item";
     const editId = caseForm.querySelector('[name="editId"]').value;
     if (editId === c.id) div.classList.add("list-item-active");
-    div.innerHTML = `<div class="list-item-content"><strong>${c.title}</strong><br /><span class="muted">${c.case_number || c.caseNumber || ''}</span></div><button class="btn-delete" title="Sil">&times;</button>`;
+    const defCount = c.defendantCount || 0;
+    const dateLabel = c.acceptance_date || c.date || "";
+    div.innerHTML = `<div class="list-item-content"><strong>${c.title}</strong><br /><span class="muted">${c.case_number || c.caseNumber || ''}</span><span class="list-item-meta">${defCount} sanık${dateLabel ? ' · Kabul: ' + dateLabel : ''}</span></div><button class="btn-delete" title="Sil">&times;</button>`;
     div.querySelector(".list-item-content").addEventListener("click", () => editCase(c));
     div.querySelector(".btn-delete").addEventListener("click", (e) => { e.stopPropagation(); deleteCase(c.id); });
     caseList.appendChild(div);

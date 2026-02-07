@@ -434,6 +434,44 @@ input[readonly] {
   border-color: var(--accent);
 }
 
+.form-mode-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+
+.form-mode-header h2 {
+  margin: 0;
+}
+
+.list-item {
+  cursor: pointer;
+  transition: border-color 0.15s;
+}
+
+.list-item:hover {
+  border-color: var(--accent);
+}
+
+.list-item-active {
+  border-color: var(--accent) !important;
+  background: rgba(139, 30, 30, 0.08);
+}
+
+.list-item-content {
+  flex: 1;
+  min-width: 0;
+}
+
+.list-item-meta {
+  display: block;
+  font-size: 0.78rem;
+  color: var(--muted);
+  margin-top: 2px;
+}
+
 @media (max-width: 900px) {
   .admin-shell {
     grid-template-columns: 1fr;

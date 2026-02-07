@@ -1,17 +1,22 @@
 const caseSelect = document.getElementById("case-select");
-const tckFilter = document.getElementById("tck-filter");
+const eylemFilter = document.getElementById("eylem-filter");
 const nameSearch = document.getElementById("name-search");
 
 const caseTitle = document.getElementById("case-title");
 const caseNumber = document.getElementById("case-number");
 const caseCourt = document.getElementById("case-court");
 const caseJudge = document.getElementById("case-judge");
-const casePanel = document.getElementById("case-panel");
+const caseJudgeLabel = document.getElementById("case-judge-label");
+const casePanelEl = document.getElementById("case-panel");
+const casePanelRow = document.getElementById("case-panel-row");
 const caseProsecutor = document.getElementById("case-prosecutor");
-const caseHearings = document.getElementById("case-hearings");
 const caseDefendants = document.getElementById("case-defendants");
 const caseDates = document.getElementById("case-dates");
-const caseDetailBtn = document.getElementById("case-detail");
+const caseStatusEl = document.getElementById("case-status");
+const casePanelContainer = document.getElementById("case-panel-container");
+const casePanelClose = document.getElementById("case-panel-close");
+const casePanelToggle = document.getElementById("case-panel-toggle");
+const caseSummaryText = document.getElementById("case-summary-text");
 
 const caseModal = document.getElementById("case-modal");
 const caseClose = document.getElementById("case-close");
@@ -19,26 +24,36 @@ const caseDetailTitle = document.getElementById("case-detail-title");
 const caseDetailNumber = document.getElementById("case-detail-number");
 const caseDetailCourt = document.getElementById("case-detail-court");
 const caseDetailJudge = document.getElementById("case-detail-judge");
+const caseDetailJudgeLabel = document.getElementById("case-detail-judge-label");
 const caseDetailPanel = document.getElementById("case-detail-panel");
+const caseDetailPanelRow = document.getElementById("case-detail-panel-row");
 const caseDetailProsecutor = document.getElementById("case-detail-prosecutor");
-const caseDetailHearings = document.getElementById("case-detail-hearings");
-const caseDetailStart = document.getElementById("case-detail-start");
-const caseDetailLast = document.getElementById("case-detail-last");
+const caseDetailTrialProsecutor = document.getElementById("case-detail-trial-prosecutor");
+const caseDetailIndictmentDate = document.getElementById("case-detail-indictment-date");
+const caseDetailAcceptanceDate = document.getElementById("case-detail-acceptance-date");
+const caseDetailVerdictDate = document.getElementById("case-detail-verdict-date");
+const caseDetailStatus = document.getElementById("case-detail-status");
 const caseDetailSummary = document.getElementById("case-detail-summary");
 
 const personModal = document.getElementById("person-modal");
 const personClose = document.getElementById("person-close");
 const personName = document.getElementById("person-name");
+const personOrg = document.getElementById("person-org");
+const personTitle = document.getElementById("person-title");
 const personRole = document.getElementById("person-role");
+const personSentence = document.getElementById("person-sentence");
+const personSummarySection = document.getElementById("person-summary-section");
+const personSummaryText = document.getElementById("person-summary-text");
 const personPhoto = document.getElementById("person-photo");
-const personAccusationsTag = document.getElementById("person-accusations");
-const personAccusationList = document.getElementById("person-accusation-list");
-const personEvidenceList = document.getElementById("person-evidence-list");
-const personDefenseList = document.getElementById("person-defense-list");
-const personRelatedList = document.getElementById("person-related-list");
 const personActionsList = document.getElementById("person-actions-list");
+const personEditBtn = document.getElementById("person-edit-btn");
+const personEditCancel = document.getElementById("person-edit-cancel");
+const personEditForm = document.getElementById("person-edit-form");
+const personViewMode = document.getElementById("person-view-mode");
+const personEditMode = document.getElementById("person-edit-mode");
 
 
+let currentPerson = null;
 let network = null;
 let cases = [];
 let selectedCase = null;
@@ -87,37 +102,57 @@ function setCaseOptions() {
 }
 
 function setTckOptions(tckArticles) {
-  tckFilter.innerHTML = `<option value="all">Tüm TCK Maddeleri</option>`;
+  if (!eylemFilter) return;
+  eylemFilter.innerHTML = `<option value="all">All TCK Articles</option>`;
   for (const article of tckArticles) {
     const option = document.createElement("option");
     option.value = article.code;
     option.textContent = `TCK ${article.code} - ${article.title}`;
-    tckFilter.appendChild(option);
+    eylemFilter.appendChild(option);
   }
 }
 
 function renderCaseInfo(caseData) {
+  const isPanel = caseData.judge_type === "panel";
+  const prosecutor = caseData.indictment_prosecutor || caseData.prosecutor || "—";
+  const judgeName = isPanel
+    ? (caseData.panel_president || "—")
+    : (caseData.judge_name || caseData.judge || "—");
+  const panelMembers = caseData.panel_members || caseData.court_panel || "—";
+  const acceptanceDate = caseData.acceptance_date || caseData.date || "—";
+
   caseTitle.textContent = caseData.title || "—";
   caseNumber.textContent = caseData.case_number || "—";
   caseCourt.textContent = caseData.court_name || "—";
-  caseJudge.textContent = caseData.judge || "—";
-  casePanel.textContent = caseData.court_panel || "—";
-  caseProsecutor.textContent = caseData.prosecutor || "—";
-  caseHearings.textContent = caseData.hearing_count || "—";
+  caseProsecutor.textContent = prosecutor;
+
+  if (caseJudgeLabel) caseJudgeLabel.textContent = isPanel ? "Panel President" : "Judge";
+  caseJudge.textContent = judgeName;
+
+  if (casePanelRow) casePanelRow.style.display = isPanel ? "" : "none";
+  casePanelEl.textContent = panelMembers;
+
   const defendantCount = (caseData.people || []).filter((p) => !p.is_external).length;
   caseDefendants.textContent = defendantCount || "—";
-  const dates = [caseData.start_date, caseData.last_hearing_date].filter(Boolean).join(" • ");
-  caseDates.textContent = dates || "—";
+  caseDates.textContent = acceptanceDate;
+  if (caseStatusEl) caseStatusEl.textContent = caseData.status || "—";
+  caseSummaryText.textContent = caseData.summary || "—";
 
   caseDetailTitle.textContent = caseData.title || "—";
   caseDetailNumber.textContent = caseData.case_number || "—";
   caseDetailCourt.textContent = caseData.court_name || "—";
-  caseDetailJudge.textContent = caseData.judge || "—";
-  caseDetailPanel.textContent = caseData.court_panel || "—";
-  caseDetailProsecutor.textContent = caseData.prosecutor || "—";
-  caseDetailHearings.textContent = caseData.hearing_count || "—";
-  caseDetailStart.textContent = caseData.start_date || "—";
-  caseDetailLast.textContent = caseData.last_hearing_date || "—";
+  caseDetailProsecutor.textContent = prosecutor;
+  if (caseDetailTrialProsecutor) caseDetailTrialProsecutor.textContent = caseData.trial_prosecutor || "—";
+
+  if (caseDetailJudgeLabel) caseDetailJudgeLabel.textContent = isPanel ? "Panel President" : "Judge";
+  caseDetailJudge.textContent = judgeName;
+  if (caseDetailPanelRow) caseDetailPanelRow.style.display = isPanel ? "" : "none";
+  caseDetailPanel.textContent = panelMembers;
+
+  if (caseDetailIndictmentDate) caseDetailIndictmentDate.textContent = caseData.indictment_date || "—";
+  if (caseDetailAcceptanceDate) caseDetailAcceptanceDate.textContent = acceptanceDate;
+  if (caseDetailVerdictDate) caseDetailVerdictDate.textContent = caseData.verdict_date || "—";
+  if (caseDetailStatus) caseDetailStatus.textContent = caseData.status || "—";
   caseDetailSummary.textContent = caseData.summary || "—";
 }
 
@@ -328,7 +363,7 @@ function buildGraph(caseData) {
 
 function filterGraph() {
   const query = nameSearch.value.toLowerCase().trim();
-  const tck = tckFilter.value;
+  const tck = eylemFilter ? eylemFilter.value : "all";
 
   const nodes = nodesCache.filter((node) => {
     const matchesName = !query || node.label.toLowerCase().includes(query);
@@ -345,85 +380,76 @@ function filterGraph() {
 }
 
 function openPersonModal(person) {
-  const tabs = document.querySelectorAll(".tab");
-  const panels = document.querySelectorAll(".tab-panel");
-  tabs.forEach((tab) => tab.classList.remove("active"));
-  panels.forEach((panel) => panel.classList.remove("active"));
-  if (tabs[0]) tabs[0].classList.add("active");
-  if (panels[0]) panels[0].classList.add("active");
+  currentPerson = person;
+  personViewMode.style.display = "block";
+  personEditMode.style.display = "none";
+  personEditBtn.textContent = "Edit";
 
-  personName.textContent = person.name;
-  personRole.textContent = person.role || "";
+  personName.textContent = person.name || "";
+  personOrg.textContent = person.organization || "";
+  personTitle.textContent = person.title || "";
+  personRole.textContent = roleLabels[person.role] || person.role || "";
+  personSentence.textContent = person.sentence_demand ? `Demand: ${person.sentence_demand}` : "";
   personPhoto.src = person.photo_url || fallbackImage;
-  const accusationText = (person.tck_articles || []).map((code) => `TCK ${code}`).join(" · ");
-  personAccusationsTag.textContent = accusationText || "";
 
-  personAccusationList.innerHTML = "";
-  if (!(person.accusations || []).length) {
-    const li = document.createElement("li");
-    li.textContent = "Suçlama bilgisi yok.";
-    personAccusationList.appendChild(li);
+  const summary = person.charge || person.summary || "";
+  if (summary) {
+    personSummarySection.style.display = "block";
+    personSummaryText.textContent = summary;
   } else {
-    (person.accusations || []).forEach((item) => {
-      const li = document.createElement("li");
-      li.textContent = item;
-      personAccusationList.appendChild(li);
-    });
+    personSummarySection.style.display = "none";
   }
 
-  personEvidenceList.innerHTML = "";
-  if (!(person.evidence_items || []).length) {
-    const li = document.createElement("li");
-    li.textContent = "Delil bilgisi yok.";
-    personEvidenceList.appendChild(li);
-  } else {
-    (person.evidence_items || []).forEach((item) => {
-      const li = document.createElement("li");
-      const ref = item.reference ? ` (${item.reference})` : "";
-      li.textContent = `${item.description}${ref}`;
-      personEvidenceList.appendChild(li);
-    });
-  }
+  personActionsList.innerHTML = "";
 
-  personDefenseList.innerHTML = "";
-  if (!(person.defense || []).length) {
-    const li = document.createElement("li");
-    li.textContent = "Savunma bilgisi yok.";
-    personDefenseList.appendChild(li);
-  } else {
-    (person.defense || []).forEach((item) => {
-      const li = document.createElement("li");
-      li.textContent = item;
-      personDefenseList.appendChild(li);
-    });
-  }
+  const personActions = allActions.filter((a) => a.person_id === person.id);
 
-  personRelatedList.innerHTML = "";
-  const related = person.related_profiles || [];
-  if (!related.length) {
-    const li = document.createElement("li");
-    li.textContent = "İlişkili kişi yok.";
-    personRelatedList.appendChild(li);
+  if (!personActions.length) {
+    const empty = document.createElement("p");
+    empty.className = "muted";
+    empty.textContent = "No action records found for this person.";
+    personActionsList.appendChild(empty);
   } else {
-    related.forEach((id) => {
-      const target = people.find((p) => p.id === id);
-      if (!target) return;
-      const li = document.createElement("li");
-      const btn = document.createElement("button");
-      btn.type = "button";
-      btn.textContent = target.name;
-      btn.addEventListener("click", () => openPersonModal(target));
-      li.appendChild(btn);
-      personRelatedList.appendChild(li);
-    });
-  }
-
-  if (personActionsList) {
-    personActionsList.innerHTML = "";
-    const personActions = allActions.filter((a) => a.person_id === person.id);
     for (const action of personActions) {
       const card = document.createElement("div");
       card.className = "action-card";
+
+      const header = document.createElement("div");
+      header.className = "action-card-header";
+
+      const title = document.createElement("h5");
+      title.textContent = `Action ${action.action_num}${action.title ? " — " + action.title : ""}`;
+      header.appendChild(title);
+
+      const tckCodes = action.tck_codes || [];
+      if (tckCodes.length) {
+        const tckTag = document.createElement("span");
+        tckTag.className = "tag";
+        tckTag.textContent = tckCodes.join(", ");
+        header.appendChild(tckTag);
+      }
+
+      card.appendChild(header);
+
+      if (action.sentence_demand) {
+        const sd = document.createElement("p");
+        sd.className = "action-sentence";
+        sd.textContent = `Sentence demand: ${action.sentence_demand}`;
+        card.appendChild(sd);
+      }
+
+      if (action.claim) {
+        const section = document.createElement("div");
+        section.className = "action-section";
+        const label = document.createElement("span");
+        label.className = "action-label";
+        label.textContent = "Claim";
+        section.appendChild(label);
+        const text = document.createElement("p");
+        text.textContent = action.claim;
+        section.appendChild(text);
+        card.appendChild(section);
+      }
 
       const mentioned = action.mentioned_names || [];
       if (mentioned.length) {
@@ -561,8 +587,7 @@ async function loadData() {
 
 caseSelect.addEventListener("change", (event) => loadCase(event.target.value));
 nameSearch.addEventListener("input", filterGraph);
-tckFilter.addEventListener("change", filterGraph);
-caseDetailBtn.addEventListener("click", () => caseModal.showModal());
+if (eylemFilter) eylemFilter.addEventListener("change", filterGraph);
 caseClose.addEventListener("click", () => caseModal.close());
 personClose.addEventListener("click", () => personModal.close());
 
