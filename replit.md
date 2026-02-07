@@ -123,3 +123,6 @@ When making changes, prefer running Express as the primary server (`node server.
 - TCK page: Modal dialog for inline editing of short description and full legal text
 - TCK page: "Yasal karşılığı henüz eklenmemiş + Ekle" prompt for articles without definitions (admin only)
 - TCK page: Definitions loaded from database instead of hardcoded JS
+- Homepage: Mail icon (info@davatakibi.com) added to header top-right with mailto: link
+- Homepage: "Siz de belge paylaşın" encouragement section added below case grid with document icon, mailto: link, and copy-to-clipboard button
+- Homepage: Footer redesigned with İletişim section (mail address + copy button) and X social link
