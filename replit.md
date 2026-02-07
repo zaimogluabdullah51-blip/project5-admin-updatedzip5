@@ -32,10 +32,11 @@ When making changes, prefer running Express as the primary server (`node server.
 ### Data Layer
 - **SQLite** via the `sqlite3` npm package, with the database file stored at `data/cases.db`.
 - **Database helper functions** in `db.js` wrap SQLite operations in Promises (`run`, `get`, `all`).
-- **Schema** (three tables):
+- **Schema** (four tables):
   - `cases` — id (TEXT PK), title, summary, incident, dossier, date, status, plus additional fields (case_number, court_name, judge, prosecutor, etc.)
   - `people` — profile details including name, role, charges, evidence, photo URL, etc.
   - `case_people` — junction table linking people to cases (many-to-many)
+  - `actions` — id (TEXT PK), case_id, person_id, action_num, title, claim, evidence, defense, tck_codes (JSON array)
 - **Sample data** is seeded on first run via the `init()` function in `db.js`.
 - The `data/` directory is created automatically if it doesn't exist.
 
@@ -75,12 +76,13 @@ When making changes, prefer running Express as the primary server (`node server.
 ## Recent Changes
 
 ### 2026-02-07
+- Added `actions` table to database for storing parsed eylemler (actions) per person per case
+- Each action stores: action_num, title, claim, evidence, defense, and tck_codes (JSON array)
+- POST /api/actions and GET /api/actions endpoints added (GET supports filtering by caseId/personId)
+- Profile form submit now saves each parsed accusation as a separate action record in the database
+- "Ayrıştır" fills the form only; "Kaydet" saves person + links case + creates action records
+- Removed `applyParsedToData` to fix case ID mismatch between localStorage and server
 - Simplified admin sidebar to only "Davalar" and "Profiller" menu items
-- Fixed sidebar layout (flexbox) so menu items appear at top and are immediately visible
-- Added hover effect and transition to menu buttons for better UX
 - Tab switching between Dava Oluştur and Profil Ekle panels works via setSection()
-- Profile form now saves to server API (POST /api/people + POST /api/case-people)
 - Profile case selector loads from server-side cases for correct ID linkage
-- Cleaned up unused CSS for removed Case Info, Actions, Connections sections
-- Fixed main page case cards to properly show separate Hakim and Heyet fields, added Durum row
 - Admin panel uses localStorage with camelCase field names; server/DB uses snake_case — these are separate data models

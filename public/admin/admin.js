@@ -484,14 +484,34 @@ profileForm.addEventListener("submit", async (event) => {
         tck_articles: profileObj.tckCodes
       })
     });
-    if (res.ok && caseId) {
+    if (res.ok) {
       const person = await res.json();
-      await fetch("/api/case-people", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ caseId, personId: person.id })
-      });
-    } else if (!res.ok) {
+      if (caseId) {
+        await fetch("/api/case-people", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ caseId, personId: person.id })
+        });
+      }
+      if (lastParsed && lastParsed.accusations.length > 0) {
+        for (const acc of lastParsed.accusations) {
+          await fetch("/api/actions", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              caseId,
+              personId: person.id,
+              actionNum: acc.actionNum || "",
+              title: acc.title || "",
+              claim: acc.claim || "",
+              evidence: acc.evidence || "",
+              defense: acc.defense || "",
+              tckCodes: acc.tckCodes || []
+            })
+          });
+        }
+      }
+    } else {
       alert("Profil sunucuya kaydedilemedi.");
     }
   } catch (err) {

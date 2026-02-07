@@ -2,7 +2,7 @@ import express from "express";
 import path from "path";
 import { fileURLToPath } from "url";
 import crypto from "crypto";
-import { all, get, run, init, createCase, createPerson, linkPerson } from "./db.js";
+import { all, get, run, init, createCase, createPerson, linkPerson, createAction } from "./db.js";
 
 const app = express();
 const __filename = fileURLToPath(import.meta.url);
@@ -202,6 +202,46 @@ app.post("/api/case-people", requireAuthApi, async (req, res) => {
     res.status(201).json({ ok: true });
   } catch (err) {
     res.status(500).json({ error: "Failed to link person." });
+  }
+});
+
+app.post("/api/actions", requireAuthApi, async (req, res) => {
+  try {
+    const record = await createAction(req.body);
+    res.status(201).json(record);
+  } catch (err) {
+    res.status(500).json({ error: "Eylem kaydedilemedi." });
+  }
+});
+
+app.get("/api/actions", async (req, res) => {
+  try {
+    let rows;
+    if (req.query.caseId && req.query.personId) {
+      rows = await all(
+        "SELECT * FROM actions WHERE case_id = ? AND person_id = ? ORDER BY action_num ASC",
+        [req.query.caseId, req.query.personId]
+      );
+    } else if (req.query.caseId) {
+      rows = await all(
+        "SELECT * FROM actions WHERE case_id = ? ORDER BY action_num ASC",
+        [req.query.caseId]
+      );
+    } else if (req.query.personId) {
+      rows = await all(
+        "SELECT * FROM actions WHERE person_id = ? ORDER BY action_num ASC",
+        [req.query.personId]
+      );
+    } else {
+      rows = await all("SELECT * FROM actions ORDER BY action_num ASC");
+    }
+    const mapped = rows.map((r) => ({
+      ...r,
+      tck_codes: parseJsonField(r.tck_codes, [])
+    }));
+    res.json(mapped);
+  } catch (err) {
+    res.status(500).json({ error: "Eylemler yüklenemedi." });
   }
 });
 

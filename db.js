@@ -88,6 +88,20 @@ async function init() {
     )
   `);
 
+  await run(`
+    CREATE TABLE IF NOT EXISTS actions (
+      id TEXT PRIMARY KEY,
+      case_id TEXT,
+      person_id TEXT,
+      action_num TEXT,
+      title TEXT,
+      claim TEXT,
+      evidence TEXT,
+      defense TEXT,
+      tck_codes TEXT
+    )
+  `);
+
   await ensureColumn("cases", "case_number", "TEXT");
   await ensureColumn("cases", "court_name", "TEXT");
   await ensureColumn("cases", "judge", "TEXT");
@@ -384,4 +398,37 @@ async function linkPerson(caseId, personId, relationship = "") {
   );
 }
 
-export { db, run, get, all, init, createCase, createPerson, linkPerson };
+async function createAction(payload) {
+  const id = nanoid();
+  const record = {
+    id,
+    case_id: payload.case_id || payload.caseId || "",
+    person_id: payload.person_id || payload.personId || "",
+    action_num: payload.action_num || payload.actionNum || "",
+    title: payload.title || "",
+    claim: payload.claim || "",
+    evidence: payload.evidence || "",
+    defense: payload.defense || "",
+    tck_codes: payload.tck_codes || payload.tckCodes || []
+  };
+
+  await run(
+    `INSERT INTO actions (id, case_id, person_id, action_num, title, claim, evidence, defense, tck_codes)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    [
+      record.id,
+      record.case_id,
+      record.person_id,
+      record.action_num,
+      record.title,
+      record.claim,
+      record.evidence,
+      record.defense,
+      JSON.stringify(record.tck_codes)
+    ]
+  );
+
+  return record;
+}
+
+export { db, run, get, all, init, createCase, createPerson, linkPerson, createAction };
