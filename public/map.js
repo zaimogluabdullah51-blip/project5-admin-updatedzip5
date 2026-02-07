@@ -38,7 +38,13 @@ const personSummarySection = document.getElementById("person-summary-section");
 const personSummaryText = document.getElementById("person-summary-text");
 const personPhoto = document.getElementById("person-photo");
 const personActionsList = document.getElementById("person-actions-list");
+const personEditBtn = document.getElementById("person-edit-btn");
+const personEditCancel = document.getElementById("person-edit-cancel");
+const personEditForm = document.getElementById("person-edit-form");
+const personViewMode = document.getElementById("person-view-mode");
+const personEditMode = document.getElementById("person-edit-mode");
 
+let currentPerson = null;
 let network = null;
 let cases = [];
 let selectedCase = null;
@@ -112,16 +118,17 @@ function renderCaseInfo(caseData) {
 }
 
 function buildGraph(caseData) {
-  const actions = caseData.actions || [];
   const peopleList = caseData.people || [];
 
   const eylemNumsSet = new Set();
-  for (const a of actions) {
-    eylemNumsSet.add(String(a.action_num));
-  }
   for (const p of peopleList) {
-    const nums = p.action_numbers || [];
-    for (const n of nums) eylemNumsSet.add(String(n));
+    const raw = p.action_numbers || [];
+    for (const n of raw) {
+      String(n).split(/[,\s]+/).filter(Boolean).forEach((v) => {
+        const trimmed = v.trim();
+        if (trimmed) eylemNumsSet.add(trimmed);
+      });
+    }
   }
 
   const eylemNums = [...eylemNumsSet].sort((a, b) => {
@@ -141,14 +148,9 @@ function buildGraph(caseData) {
   const personNodeMap = new Map();
 
   const bandNodes = eylemNums.map((num, index) => {
-    const actionRecords = actions.filter((a) => String(a.action_num) === num);
-    const tckCodes = [...new Set(actionRecords.flatMap((a) => a.tck_codes || []))];
-    const tckLabel = tckCodes.length ? ` — ${tckCodes.join(", ")}` : "";
-    const titleLabel = actionRecords[0]?.title ? ` — ${actionRecords[0].title}` : "";
-
     return {
       id: `band:${num}`,
-      label: num === "other" ? "Eyleme Atanmamış" : `Eylem ${num}${titleLabel}${tckLabel}`,
+      label: num === "other" ? "Eyleme Atanmamış" : `Eylem ${num}`,
       shape: "box",
       widthConstraint: { minimum: 720, maximum: 960 },
       heightConstraint: { minimum: 36, maximum: 36 },
@@ -167,9 +169,10 @@ function buildGraph(caseData) {
 
   eylemNums.forEach((num, index) => {
     const peopleInEylem = peopleList.filter((p) => {
-      const nums = (p.action_numbers || []).map(String);
-      if (num === "other") return !nums.length;
-      return nums.includes(num);
+      const raw = p.action_numbers || [];
+      const split = raw.flatMap((n) => String(n).split(/[,\s]+/).map((v) => v.trim()).filter(Boolean));
+      if (num === "other") return !split.length;
+      return split.includes(num);
     });
 
     peopleInEylem.forEach((person, idx) => {
@@ -247,6 +250,11 @@ function filterGraph() {
 }
 
 function openPersonModal(person) {
+  currentPerson = person;
+  personViewMode.style.display = "block";
+  personEditMode.style.display = "none";
+  personEditBtn.textContent = "Düzenle";
+
   personName.textContent = person.name || "";
   personOrg.textContent = person.organization || "";
   personTitle.textContent = person.title || "";
@@ -426,6 +434,89 @@ window.addEventListener("keydown", (event) => {
     if (personModal.open) return personModal.close();
     if (caseModal.open) return caseModal.close();
     window.location.href = "/";
+  }
+});
+
+function enterEditMode() {
+  if (!currentPerson) return;
+  personViewMode.style.display = "none";
+  personEditMode.style.display = "block";
+  personEditBtn.textContent = "Görüntüle";
+
+  const form = personEditForm;
+  form.name.value = currentPerson.name || "";
+  form.organization.value = currentPerson.organization || "";
+  form.title.value = currentPerson.title || "";
+  form.role.value = currentPerson.role || "defendant";
+  form.sentenceDemand.value = currentPerson.sentence_demand || "";
+  form.charge.value = currentPerson.charge || currentPerson.summary || "";
+  form.actionNumbers.value = (currentPerson.action_numbers || []).join(", ");
+  form.tckArticles.value = (currentPerson.tck_articles || []).join(", ");
+  form.photoUrl.value = currentPerson.photo_url || "";
+}
+
+function exitEditMode() {
+  personViewMode.style.display = "block";
+  personEditMode.style.display = "none";
+  personEditBtn.textContent = "Düzenle";
+}
+
+personEditBtn.addEventListener("click", () => {
+  if (personEditMode.style.display === "none") {
+    enterEditMode();
+  } else {
+    exitEditMode();
+  }
+});
+
+personEditCancel.addEventListener("click", exitEditMode);
+
+personEditForm.addEventListener("submit", async (e) => {
+  e.preventDefault();
+  if (!currentPerson) return;
+
+  const form = personEditForm;
+  const actionNums = form.actionNumbers.value
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean);
+  const tckArts = form.tckArticles.value
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean);
+
+  const payload = {
+    name: form.name.value,
+    organization: form.organization.value,
+    title: form.title.value,
+    role: form.role.value,
+    sentence_demand: form.sentenceDemand.value,
+    charge: form.charge.value,
+    action_numbers: actionNums,
+    tck_articles: tckArts,
+    photo_url: form.photoUrl.value
+  };
+
+  try {
+    const res = await fetch(`/api/people/${currentPerson.id}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload)
+    });
+    if (!res.ok) throw new Error("Update failed");
+    const updated = await res.json();
+
+    const idx = people.findIndex((p) => p.id === currentPerson.id);
+    if (idx >= 0) people[idx] = { ...people[idx], ...updated };
+
+    exitEditMode();
+    openPersonModal(people[idx] || updated);
+
+    if (selectedCase) {
+      await loadCase(selectedCase.id);
+    }
+  } catch (err) {
+    alert("Profil güncellenirken hata oluştu.");
   }
 });
 

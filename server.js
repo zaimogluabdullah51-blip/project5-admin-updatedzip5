@@ -204,6 +204,57 @@ app.post("/api/people", requireAuthApi, async (req, res) => {
   }
 });
 
+app.put("/api/people/:id", requireAuthApi, async (req, res) => {
+  try {
+    const existing = await get("SELECT * FROM people WHERE id = ?", [req.params.id]);
+    if (!existing) return res.status(404).json({ error: "Person not found." });
+
+    const b = req.body;
+    await run(
+      `UPDATE people SET
+        name = ?, role = ?, charge = ?, claim = ?, evidence = ?, photo_url = ?,
+        tck_articles = ?, accusations = ?, evidence_items = ?, defense = ?,
+        related_profiles = ?, hierarchy = ?, is_external = ?,
+        organization = ?, title = ?, sentence_demand = ?, action_numbers = ?
+       WHERE id = ?`,
+      [
+        b.name ?? existing.name,
+        b.role ?? existing.role,
+        b.charge ?? existing.charge,
+        b.claim ?? existing.claim,
+        b.evidence ?? existing.evidence,
+        b.photo_url ?? existing.photo_url,
+        JSON.stringify(b.tck_articles ?? parseJsonField(existing.tck_articles, [])),
+        JSON.stringify(b.accusations ?? parseJsonField(existing.accusations, [])),
+        JSON.stringify(b.evidence_items ?? parseJsonField(existing.evidence_items, [])),
+        JSON.stringify(b.defense ?? parseJsonField(existing.defense, [])),
+        JSON.stringify(b.related_profiles ?? parseJsonField(existing.related_profiles, [])),
+        JSON.stringify(b.hierarchy ?? parseJsonField(existing.hierarchy, {})),
+        b.is_external ?? existing.is_external,
+        b.organization ?? existing.organization,
+        b.title ?? existing.title,
+        b.sentence_demand ?? existing.sentence_demand,
+        JSON.stringify(b.action_numbers ?? parseJsonField(existing.action_numbers, [])),
+        req.params.id
+      ]
+    );
+
+    const updated = await get("SELECT * FROM people WHERE id = ?", [req.params.id]);
+    res.json({
+      ...updated,
+      tck_articles: parseJsonField(updated.tck_articles, []),
+      action_numbers: parseJsonField(updated.action_numbers, []),
+      accusations: parseJsonField(updated.accusations, []),
+      evidence_items: parseJsonField(updated.evidence_items, []),
+      defense: parseJsonField(updated.defense, []),
+      related_profiles: parseJsonField(updated.related_profiles, []),
+      hierarchy: parseJsonField(updated.hierarchy, {})
+    });
+  } catch (err) {
+    res.status(500).json({ error: "Profil güncellenemedi." });
+  }
+});
+
 app.post("/api/case-people", requireAuthApi, async (req, res) => {
   try {
     const { caseId, personId, relationship } = req.body;
