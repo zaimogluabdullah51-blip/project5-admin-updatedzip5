@@ -1,0 +1,37 @@
+📂 DOSYA NO: 2025/364 Beşiktaş Dosyası 
+⚖️ EYLEM NO: 40, 41, 43 | Sanık: Sencer Hacıoğlu (İSFALT Avrupa Yakası Uygulama Müdürü / Şefi)
+🚩 İddianame Özeti: Savcılık, Sencer Hacıoğlu’nun ihale komisyon üyesi olarak; yaklaşık maliyetin gizliliğini ihlal eden ve rekabeti engelleyen süreçlere göz yumarak "ihaleye fesat karıştırdığını" (TCK 235) iddia etmektedir. Toplam 3 ayrı eylem (Eylem 40, 41, 43) nedeniyle TCK 235/2.a-1, 2.b delaletiyle TCK 235/3.b (Kamu zararı tespit edilemeyen ihaleye fesat) maddesi uyarınca hapis cezası talep edilmektedir.
+
+Savcılık toplamda 2 ana başlıkta suçlamada bulunmaktadır:
+
+🚨 Suçlama 1: İhaleye Fesat Karıştırma 
+İDDİA: Yaklaşık maliyetin gizliliğinin ihlal edildiği ve "adrese teslim" mahiyetindeki projesiz ihale süreçlerine komisyon üyesi olarak onay vererek, gizli verilere sahip örgüt firmalarının (İçkale vb.) ihaleleri kazanmasını sağlamak.
+
+DELİL: Eylem 40, 41 ve 43 numaralı ihalelerde ihale komisyon üyesi olarak dosyada yer alan resmi imzası; 
+Örgüt üyesi İsmail Güven’in telefonunda bulunan birim fiyatların, sanığın üyesi olduğu komisyonun önündeki maliyet tablolarıyla birebir örtüşmesi; Projesi ve metrajı belirsiz ihalelerin, sadece yaklaşık maliyeti önceden bilen firmaları kayırdığına dair teknik görüş; Yıldız Proje ve Şark Organizasyon gibi isteklilerin, "İşin projesi ve metrajı belirsiz, yaklaşık maliyeti bilmeden teklif vermek imkansız" şeklindeki resmi itirazları; Bilgi sızdırma eyleminin kurum danışmanı Mustafa Mutlu üzerinden gerçekleştirildiğine dair savcılık kurgusu.
+
+SAVUNMA: 
+1)  "İSFALT’ta komisyona şahıslar değil, pozisyonlar atanır. O tarihte Uygulama Şefi olduğum için bu komisyonda yer almam rutin bir idari prosedürdür."
+2) "Yaklaşık maliyetin hazırlanması veya fiyat dışı unsurların (puanlama) kurgulanması benim yetki alanımda değildir; bu belgeler Satın Alma Müdürlüğü tarafından hazırlanır."
+3) "İhaleleri en düşük teklifi veren firma kazanmıştır. Ortada bir kamu zararı yoktur, aksine komisyon süreci kamu yararı gözeterek yönetmiştir."
+4) "Kalem kalem gizli maliyet verilerini önceden bilmem mümkün değildir; toplam maliyet rakamını ancak ihale anında herkesle birlikte öğrendim."
+5) İddianamede geçen ve ihalelerle ilişkilendirilen el yazısı notlar şahsıma ait değildir; bu durum bilimsel olarak kanıtlanabilir."
+6) "Özellikle Eylem 40 ve 41 numaralı dosyalarda, yaklaşık maliyetin önceden bilindiğine dair iddianamede hiçbir somut veri bulunmamaktadır; Eylem 43'teki veriler ise şahsımla ilişkilendirilemez."
+
+🚨 Suçlama 2: Fiyat Dışı Unsurların Gerekçelendirilmemesi
+
+İDDİA: İhale dokümanlarında yer alan puanlama kriterleri için yasal olarak zorunlu olan "gerekçeli raporun" hazırlanmamasına göz yumarak şeffaflığı ve rekabeti bozmak.
+
+DELİL: Kamu İhale Kurumu'nun (KİK), gerekçeli rapor eksikliğini "ihaleyi esastan sakatlayan bir usulsüzlük" olarak tanımlayarak ilgili ihaleleri iptal etmesi; Şüphelinin, bu eksikliklere rağmen ihale komisyon kararını "olumlu" yönde imzalamış olması.
+
+SAVUNMA: 
+
+1)"Ben teknik uygulama biriminde çalışan bir mühendisim. Yaklaşık maliyetin hazırlanması veya fiyat dışı unsurların gerekçelendirilmesi konusunda yasal bir yetkim veya görevlendirmem yoktur. Bu belgelerin hazırlanması tamamen Satın Alma Müdürlüğü’nün sorumluluğundadır."
+
+2) "İSFALT’ta ihale komisyonuna kişiler değil, pozisyonlar (Uygulama Şefi vb.) atanır. Bu komisyonlarda şahsi bir inisiyatifle değil, o tarihteki görevim gereği rutin bir prosedür olarak yer aldım."
+
+3) "Söz konusu ihalelerde en düşük teklifi veren firma kazanmıştır. Dolayısıyla iddia edilenin aksine herhangi bir kamu zararı oluşmamış, aksine kurumun menfaatleri korunmuştur."
+
+4) "Yaklaşık maliyetin kalem kalem detaylarını veya puanlama tablolarını ihale anından önce bilmem teknik olarak mümkün değildir; bu veriler satın alma biriminin gizliliğindedir."
+
+5) "İsmail Güven'i tanımıyorum, kendisiyle ihalelerden aylar sonra bir kez tesadüfen karşılaştım. İddianamede geçen ve ihalelerle ilişkilendirilen el yazısı notlar şahsıma ait değildir."
