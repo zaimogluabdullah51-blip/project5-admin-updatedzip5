@@ -55,8 +55,10 @@ function renderCaseGrid() {
         <div class="detail-row"><span class="detail-label">Esas No:</span> <span class="detail-value">${item.case_number || '---'}</span></div>
         <div class="detail-row"><span class="detail-label">Mahkeme:</span> <span class="detail-value">${item.court_name || '---'}</span></div>
         <div class="detail-row"><span class="detail-label">Savcı:</span> <span class="detail-value">${item.prosecutor || '---'}</span></div>
-        <div class="detail-row"><span class="detail-label">Heyet:</span> <span class="detail-value">${item.judge || '---'}</span></div>
+        <div class="detail-row"><span class="detail-label">Hakim:</span> <span class="detail-value">${item.judge || '---'}</span></div>
+        <div class="detail-row"><span class="detail-label">Heyet:</span> <span class="detail-value">${item.court_panel || '---'}</span></div>
         <div class="detail-row"><span class="detail-label">Tarih:</span> <span class="detail-value">${item.date || '---'}</span></div>
+        <div class="detail-row"><span class="detail-label">Durum:</span> <span class="detail-value">${item.status || '---'}</span></div>
         <div class="detail-row"><span class="detail-label">Sanık:</span> <span class="detail-value">${item.defendantCount || '0'}</span></div>
       </div>
       <div class="card-footer">

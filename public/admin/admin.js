@@ -30,6 +30,9 @@ const connectionFromSelect = document.getElementById("connection-from");
 const connectionToSelect = document.getElementById("connection-to");
 const connectionActionSelect = document.getElementById("connection-action");
 
+const infoCaseSelect = document.getElementById("info-case-select");
+const caseInfoDisplay = document.getElementById("case-info-display");
+
 const exportBtn = document.getElementById("export-json");
 const importInput = document.getElementById("import-json");
 
@@ -121,11 +124,86 @@ function renderLists(data) {
   });
 }
 
+function renderCaseInfo(data) {
+  const selectedId = infoCaseSelect.value;
+  if (!selectedId) {
+    caseInfoDisplay.innerHTML = `<p class="muted">Bir dava seçin.</p>`;
+    return;
+  }
+  const c = data.cases.find((item) => item.id === selectedId);
+  if (!c) {
+    caseInfoDisplay.innerHTML = `<p class="muted">Dava bulunamadı.</p>`;
+    return;
+  }
+
+  const statusClass = (c.status || "").toLowerCase().includes("devam") ? "active" : "closed";
+  const panelText = Array.isArray(c.panel) ? c.panel.join(", ") : (c.panel || "");
+
+  caseInfoDisplay.innerHTML = `
+    <div class="locked-notice">
+      <span>&#128274;</span> Bu bilgiler dava oluşturulurken girilmiştir ve değiştirilemez.
+    </div>
+    <div class="info-card">
+      <div class="info-card-header">
+        <div class="info-card-icon">&#9878;</div>
+        <h3>${c.title || "Adsız Dava"}</h3>
+      </div>
+      <div class="info-rows">
+        <div class="info-row">
+          <span class="info-label">Esas No</span>
+          <span class="info-value${c.caseNumber ? '' : ' empty'}">${c.caseNumber || 'Belirtilmemiş'}</span>
+        </div>
+        <div class="info-row">
+          <span class="info-label">Mahkeme</span>
+          <span class="info-value${c.courtName ? '' : ' empty'}">${c.courtName || 'Belirtilmemiş'}</span>
+        </div>
+        <div class="info-row">
+          <span class="info-label">Savcı</span>
+          <span class="info-value${c.prosecutor ? '' : ' empty'}">${c.prosecutor || 'Belirtilmemiş'}</span>
+        </div>
+        <div class="info-row">
+          <span class="info-label">Hakim</span>
+          <span class="info-value${c.judge ? '' : ' empty'}">${c.judge || 'Belirtilmemiş'}</span>
+        </div>
+        <div class="info-row">
+          <span class="info-label">Heyet</span>
+          <span class="info-value${panelText ? '' : ' empty'}">${panelText || 'Belirtilmemiş'}</span>
+        </div>
+        <div class="info-row">
+          <span class="info-label">Tarih</span>
+          <span class="info-value${c.date ? '' : ' empty'}">${c.date || 'Belirtilmemiş'}</span>
+        </div>
+        <div class="info-row">
+          <span class="info-label">Durum</span>
+          <span class="info-value"><span class="info-badge ${statusClass}">${c.status || 'Belirtilmemiş'}</span></span>
+        </div>
+      </div>
+    </div>
+    ${c.summary ? `
+    <div class="info-card">
+      <div class="info-card-header">
+        <div class="info-card-icon">&#128196;</div>
+        <h3>İddianame Özeti</h3>
+      </div>
+      <div class="info-value" style="white-space: pre-line;">${c.summary}</div>
+    </div>` : ''}
+    ${c.sentenceDemand ? `
+    <div class="info-card">
+      <div class="info-card-header">
+        <div class="info-card-icon">&#9881;</div>
+        <h3>Talep Edilen Ceza</h3>
+      </div>
+      <div class="info-value">${c.sentenceDemand}</div>
+    </div>` : ''}
+  `;
+}
+
 function refreshSelectors(data) {
   fillSelect(actionCaseSelect, data.cases, "title");
   fillSelect(profileCaseSelect, data.cases, "title");
   fillSelect(connectionCaseSelect, data.cases, "title");
   fillSelect(activeCaseSelect, data.cases, "title");
+  fillSelect(infoCaseSelect, data.cases, "title");
 
   const selectedCaseId = profileCaseSelect.value || (data.cases[0] && data.cases[0].id);
   const actionsForCase = data.actions.filter((a) => a.caseId === selectedCaseId);
@@ -148,6 +226,7 @@ function sync() {
   const data = loadData();
   renderLists(data);
   refreshSelectors(data);
+  renderCaseInfo(data);
 }
 
 function setInput(form, name, value) {
@@ -532,6 +611,7 @@ actionForm.addEventListener("submit", (event) => {
 
 profileCaseSelect.addEventListener("change", sync);
 connectionCaseSelect.addEventListener("change", sync);
+infoCaseSelect.addEventListener("change", sync);
 
 profileForm.addEventListener("submit", (event) => {
   event.preventDefault();

@@ -2,7 +2,7 @@ import express from "express";
 import path from "path";
 import { fileURLToPath } from "url";
 import crypto from "crypto";
-import { all, get, init, createCase, createPerson, linkPerson } from "./db.js";
+import { all, get, run, init, createCase, createPerson, linkPerson } from "./db.js";
 
 const app = express();
 const __filename = fileURLToPath(import.meta.url);

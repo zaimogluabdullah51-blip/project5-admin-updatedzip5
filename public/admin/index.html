@@ -32,6 +32,7 @@
         </div>
         <nav class="menu">
           <button data-tab="cases" class="menu-item active">Davalar</button>
+          <button data-tab="case-info" class="menu-item">Dava Bilgileri</button>
           <button data-tab="actions" class="menu-item">Eylemler</button>
           <button data-tab="profiles" class="menu-item">Profiller</button>
           <button data-tab="connections" class="menu-item">Bağlantılar</button>
@@ -85,6 +86,17 @@
             <button class="btn primary" type="submit">Kaydet</button>
           </form>
           <div class="list" id="case-list"></div>
+        </section>
+
+        <section class="panel" data-section="case-info" hidden>
+          <h2>Dava Bilgileri</h2>
+          <p class="muted">Dava seçin ve sabit bilgilerini g&ouml;r&uuml;nt&uuml;leyin. Bu bilgiler dava oluşturulduktan sonra değiştirilemez.</p>
+          <label>Dava seç
+            <select id="info-case-select"></select>
+          </label>
+          <div id="case-info-display" class="case-info-grid">
+            <p class="muted">Bir dava seçin.</p>
+          </div>
         </section>
 
         <section class="panel" data-section="actions" hidden>
