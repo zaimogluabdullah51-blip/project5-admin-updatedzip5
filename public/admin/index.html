@@ -32,10 +32,7 @@
         </div>
         <nav class="menu">
           <button data-tab="cases" class="menu-item active">Davalar</button>
-          <button data-tab="case-info" class="menu-item">Dava Bilgileri</button>
-          <button data-tab="actions" class="menu-item">Eylemler</button>
           <button data-tab="profiles" class="menu-item">Profiller</button>
-          <button data-tab="connections" class="menu-item">Bağlantılar</button>
         </nav>
         <div class="menu-footer">
           <button id="export-json" class="btn ghost">JSON Export</button>
@@ -88,34 +85,6 @@
           <div class="list" id="case-list"></div>
         </section>
 
-        <section class="panel" data-section="case-info" hidden>
-          <h2>Dava Bilgileri</h2>
-          <p class="muted">Dava seçin ve sabit bilgilerini g&ouml;r&uuml;nt&uuml;leyin. Bu bilgiler dava oluşturulduktan sonra değiştirilemez.</p>
-          <label>Dava seç
-            <select id="info-case-select"></select>
-          </label>
-          <div id="case-info-display" class="case-info-grid">
-            <p class="muted">Bir dava seçin.</p>
-          </div>
-        </section>
-
-        <section class="panel" data-section="actions" hidden>
-          <h2>Eylem Ekle</h2>
-          <form id="action-form">
-            <label>Dava seç<select name="caseId" id="action-case"></select></label>
-            <label>Eylem başlığı<input name="title" required /></label>
-            <label>Açıklama<textarea name="description" rows="2"></textarea></label>
-            <div class="form-grid">
-              <label>Tarih<input name="date" type="date" /></label>
-              <label>TCK Maddeleri (virgülle ayır)
-                <input name="tckCodes" placeholder="314/2, 220/7" />
-              </label>
-            </div>
-            <button class="btn primary" type="submit">Kaydet</button>
-          </form>
-          <div class="list" id="action-list"></div>
-        </section>
-
         <section class="panel" data-section="profiles" hidden>
           <h2>Profil Ekle</h2>
           <form id="profile-form">
@@ -143,23 +112,6 @@
           <div class="list" id="profile-list"></div>
         </section>
 
-        <section class="panel" data-section="connections" hidden>
-          <h2>Bağlantı Kur</h2>
-          <form id="connection-form">
-            <label>Dava seç<select name="caseId" id="connection-case"></select></label>
-            <label>Profil 1<select name="fromId" id="connection-from"></select></label>
-            <label>Profil 2<select name="toId" id="connection-to"></select></label>
-            <label>Eylem<select name="actionId" id="connection-action"></select></label>
-            <label>Yön
-              <select name="direction">
-                <option value="one-way">Tek yönlü</option>
-                <option value="two-way">Çift yönlü</option>
-              </select>
-            </label>
-            <button class="btn primary" type="submit">Bağlantı Ekle</button>
-          </form>
-          <div class="list" id="connection-list"></div>
-        </section>
       </main>
     </div>
 

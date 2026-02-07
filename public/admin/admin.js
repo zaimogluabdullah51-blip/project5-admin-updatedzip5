@@ -11,25 +11,11 @@ const sections = document.querySelectorAll("[data-section]");
 const caseForm = document.getElementById("case-form");
 const caseList = document.getElementById("case-list");
 
-const actionForm = document.getElementById("action-form");
-const actionList = document.getElementById("action-list");
-const actionCaseSelect = document.getElementById("action-case");
-
 const profileForm = document.getElementById("profile-form");
 const profileList = document.getElementById("profile-list");
 const profileCaseSelect = document.getElementById("profile-case");
 const profileActionsSelect = document.getElementById("profile-actions");
 const profileTckSelect = document.getElementById("profile-tcks");
-
-const connectionForm = document.getElementById("connection-form");
-const connectionList = document.getElementById("connection-list");
-const connectionCaseSelect = document.getElementById("connection-case");
-const connectionFromSelect = document.getElementById("connection-from");
-const connectionToSelect = document.getElementById("connection-to");
-const connectionActionSelect = document.getElementById("connection-action");
-
-const infoCaseSelect = document.getElementById("info-case-select");
-const caseInfoDisplay = document.getElementById("case-info-display");
 
 const exportBtn = document.getElementById("export-json");
 const importInput = document.getElementById("import-json");
@@ -46,14 +32,14 @@ let lastParsed = null;
 function loadData() {
   const raw = localStorage.getItem(STORAGE_KEY);
   if (!raw) {
-    const seed = { cases: [], actions: [], profiles: [], connections: [] };
+    const seed = { cases: [], actions: [], profiles: [] };
     localStorage.setItem(STORAGE_KEY, JSON.stringify(seed));
     return seed;
   }
   try {
     return JSON.parse(raw);
   } catch (err) {
-    return { cases: [], actions: [], profiles: [], connections: [] };
+    return { cases: [], actions: [], profiles: [] };
   }
 }
 
@@ -69,6 +55,7 @@ function setSection(tab) {
 }
 
 function fillSelect(select, items, labelKey = "title") {
+  if (!select) return;
   select.innerHTML = "";
   items.forEach((item) => {
     const option = document.createElement("option");
@@ -79,6 +66,7 @@ function fillSelect(select, items, labelKey = "title") {
 }
 
 function fillMulti(select, items, labelKey = "title") {
+  if (!select) return;
   select.innerHTML = "";
   items.forEach((item) => {
     const option = document.createElement("option");
@@ -93,16 +81,8 @@ function renderLists(data) {
   data.cases.forEach((c) => {
     const div = document.createElement("div");
     div.className = "list-item";
-    div.innerHTML = `<strong>${c.title}</strong><br /><span class="muted">${c.caseNumber}</span>`;
+    div.innerHTML = `<strong>${c.title}</strong><br /><span class="muted">${c.caseNumber || ''}</span>`;
     caseList.appendChild(div);
-  });
-
-  actionList.innerHTML = "";
-  data.actions.forEach((a) => {
-    const div = document.createElement("div");
-    div.className = "list-item";
-    div.innerHTML = `<strong>${a.title}</strong><br /><span class="muted">${a.tckCodes.join(", ")}</span>`;
-    actionList.appendChild(div);
   });
 
   profileList.innerHTML = "";
@@ -112,100 +92,14 @@ function renderLists(data) {
     div.innerHTML = `<strong>${p.name}</strong><br /><span class="muted">${p.role}</span>`;
     profileList.appendChild(div);
   });
-
-  connectionList.innerHTML = "";
-  data.connections.forEach((c) => {
-    const div = document.createElement("div");
-    div.className = "list-item";
-    div.innerHTML = `<strong>${c.fromId} → ${c.toId}</strong><br /><span class="muted">${c.direction}</span>`;
-    connectionList.appendChild(div);
-  });
-}
-
-function renderCaseInfo(data) {
-  const selectedId = infoCaseSelect.value;
-  if (!selectedId) {
-    caseInfoDisplay.innerHTML = `<p class="muted">Bir dava seçin.</p>`;
-    return;
-  }
-  const c = data.cases.find((item) => item.id === selectedId);
-  if (!c) {
-    caseInfoDisplay.innerHTML = `<p class="muted">Dava bulunamadı.</p>`;
-    return;
-  }
-
-  const statusClass = (c.status || "").toLowerCase().includes("devam") ? "active" : "closed";
-  const panelText = Array.isArray(c.panel) ? c.panel.join(", ") : (c.panel || "");
-
-  caseInfoDisplay.innerHTML = `
-    <div class="locked-notice">
-      <span>&#128274;</span> Bu bilgiler dava oluşturulurken girilmiştir ve değiştirilemez.
-    </div>
-    <div class="info-card">
-      <div class="info-card-header">
-        <div class="info-card-icon">&#9878;</div>
-        <h3>${c.title || "Adsız Dava"}</h3>
-      </div>
-      <div class="info-rows">
-        <div class="info-row">
-          <span class="info-label">Esas No</span>
-          <span class="info-value${c.caseNumber ? '' : ' empty'}">${c.caseNumber || 'Belirtilmemiş'}</span>
-        </div>
-        <div class="info-row">
-          <span class="info-label">Mahkeme</span>
-          <span class="info-value${c.courtName ? '' : ' empty'}">${c.courtName || 'Belirtilmemiş'}</span>
-        </div>
-        <div class="info-row">
-          <span class="info-label">Savcı</span>
-          <span class="info-value${c.prosecutor ? '' : ' empty'}">${c.prosecutor || 'Belirtilmemiş'}</span>
-        </div>
-        <div class="info-row">
-          <span class="info-label">Hakim</span>
-          <span class="info-value${c.judge ? '' : ' empty'}">${c.judge || 'Belirtilmemiş'}</span>
-        </div>
-        <div class="info-row">
-          <span class="info-label">Heyet</span>
-          <span class="info-value${panelText ? '' : ' empty'}">${panelText || 'Belirtilmemiş'}</span>
-        </div>
-        <div class="info-row">
-          <span class="info-label">Tarih</span>
-          <span class="info-value${c.date ? '' : ' empty'}">${c.date || 'Belirtilmemiş'}</span>
-        </div>
-        <div class="info-row">
-          <span class="info-label">Durum</span>
-          <span class="info-value"><span class="info-badge ${statusClass}">${c.status || 'Belirtilmemiş'}</span></span>
-        </div>
-      </div>
-    </div>
-    ${c.summary ? `
-    <div class="info-card">
-      <div class="info-card-header">
-        <div class="info-card-icon">&#128196;</div>
-        <h3>İddianame Özeti</h3>
-      </div>
-      <div class="info-value" style="white-space: pre-line;">${c.summary}</div>
-    </div>` : ''}
-    ${c.sentenceDemand ? `
-    <div class="info-card">
-      <div class="info-card-header">
-        <div class="info-card-icon">&#9881;</div>
-        <h3>Talep Edilen Ceza</h3>
-      </div>
-      <div class="info-value">${c.sentenceDemand}</div>
-    </div>` : ''}
-  `;
 }
 
 function refreshSelectors(data) {
-  fillSelect(actionCaseSelect, data.cases, "title");
   fillSelect(profileCaseSelect, data.cases, "title");
-  fillSelect(connectionCaseSelect, data.cases, "title");
   fillSelect(activeCaseSelect, data.cases, "title");
-  fillSelect(infoCaseSelect, data.cases, "title");
 
   const selectedCaseId = profileCaseSelect.value || (data.cases[0] && data.cases[0].id);
-  const actionsForCase = data.actions.filter((a) => a.caseId === selectedCaseId);
-  const profilesForCase = data.profiles.filter((p) => p.caseId === selectedCaseId);
+  const actionsForCase = (data.actions || []).filter((a) => a.caseId === selectedCaseId);
 
   fillMulti(profileActionsSelect, actionsForCase, "title");
   const tckOptions = actionsForCase
@@ -214,17 +108,12 @@ function refreshSelectors(data) {
     .map((code) => ({ id: code, title: code }))
     .filter((v, i, arr) => arr.findIndex((x) => x.id === v.id) === i);
   fillMulti(profileTckSelect, tckOptions, "title");
-
-  fillSelect(connectionActionSelect, actionsForCase, "title");
-  fillSelect(connectionFromSelect, profilesForCase, "name");
-  fillSelect(connectionToSelect, profilesForCase, "name");
 }
 
 function sync() {
   const data = loadData();
   renderLists(data);
   refreshSelectors(data);
-  renderCaseInfo(data);
 }
 
 function setInput(form, name, value) {
@@ -268,7 +157,7 @@ function parsePastedText(text) {
   };
 
   const textBlock = lines.join("\n");
-  const fileLine = lines.find((l) => l.trim().startsWith("📂"));
+  const fileLine = lines.find((l) => l.trim().startsWith("\u{1F4C2}"));
   if (fileLine) {
     const value = fileLine.split(":").slice(1).join(":").trim();
     const match = value.match(/^(\d{4}\/\d+)\s+(.*)$/);
@@ -284,7 +173,7 @@ function parsePastedText(text) {
     }
   }
 
-  const actionLine = lines.find((l) => l.trim().startsWith("⚖️"));
+  const actionLine = lines.find((l) => l.trim().startsWith("\u2696\uFE0F"));
   if (actionLine) {
     const value = actionLine.split(":").slice(1).join(":").trim();
     const [actionsPart] = value.split("|").map((v) => v.trim());
@@ -292,16 +181,16 @@ function parsePastedText(text) {
       const parts = actionsPart.split(/,|&/).map((v) => v.trim()).filter(Boolean);
       result.actionNumbers = parts;
     }
-    if (actionLine.includes("Sanık:")) {
-      const valuePart = actionLine.split("Sanık:").pop().trim();
+    if (actionLine.includes("San\u0131k:")) {
+      const valuePart = actionLine.split("San\u0131k:").pop().trim();
       const roleMatch = valuePart.match(/\(([^)]+)\)/);
-      const role = roleMatch ? roleMatch[1].trim() : "Sanık";
+      const role = roleMatch ? roleMatch[1].trim() : "San\u0131k";
       const name = valuePart.replace(/\(([^)]+)\)/, "").trim();
       result.profiles.push({ name, role });
     }
   }
 
-  const summaryMatch = textBlock.match(/🚩\s*İddianame Özeti:\s*([\s\S]*?)(?=🚨|$)/);
+  const summaryMatch = textBlock.match(/\u{1F6A9}\s*\u0130ddianame \u00D6zeti:\s*([\s\S]*?)(?=\u{1F6A8}|$)/u);
   if (summaryMatch) {
     result.summary = summaryMatch[1].trim();
   }
@@ -313,11 +202,11 @@ function parsePastedText(text) {
   });
   result.actionNumbers = Array.from(new Set(result.actionNumbers));
 
-  const accBlocks = textBlock.split(/🚨\s*Suçlama\s*\d+:/).slice(1);
+  const accBlocks = textBlock.split(/\u{1F6A8}\s*Su\u00E7lama\s*\d+:/u).slice(1);
   accBlocks.forEach((block) => {
     const titleLine = block.split("\n").find((l) => l.trim()).trim();
-    const claimMatch = block.match(/İDDİA:\s*([\s\S]*?)(?=DELİL:|SAVUNMA:|$)/);
-    const evidenceMatch = block.match(/DELİL:\s*([\s\S]*?)(?=SAVUNMA:|$)/);
+    const claimMatch = block.match(/\u0130DD\u0130A:\s*([\s\S]*?)(?=DEL\u0130L:|SAVUNMA:|$)/);
+    const evidenceMatch = block.match(/DEL\u0130L:\s*([\s\S]*?)(?=SAVUNMA:|$)/);
     const defenseMatch = block.match(/SAVUNMA:\s*([\s\S]*?)$/);
     result.accusations.push({
       title: titleLine || "",
@@ -336,7 +225,7 @@ function parsePastedText(text) {
 function applyParsed(parsed) {
   if (!parsed) return;
   setInput(caseForm, "caseNumber", parsed.caseNumber);
-  setInput(caseForm, "title", parsed.title || "Beşiktaş Davası");
+  setInput(caseForm, "title", parsed.title || "");
   setInput(caseForm, "summary", parsed.summary || "");
   setInput(caseForm, "courtName", "");
   setInput(caseForm, "prosecutor", "");
@@ -344,27 +233,20 @@ function applyParsed(parsed) {
   setInput(caseForm, "panel", "");
   setInput(caseForm, "sentenceDemand", parsed.sentenceDemand || "");
 
-  setInput(
-    actionForm,
-    "title",
-    parsed.actionNumbers.length ? `Eylem ${parsed.actionNumbers[0]}` : "Örgüt Toplantısı"
-  );
-  setInput(actionForm, "tckCodes", parsed.tckCodes.join(", "));
-
   if (parsed.profiles[0]) {
-    const rawRole = parsed.profiles[0].role || "Sanık";
-    const nameWithRole = rawRole && !/sanık|tanık|itiraf|mağdur|firari|tutuk/i.test(rawRole)
+    const rawRole = parsed.profiles[0].role || "San\u0131k";
+    const nameWithRole = rawRole && !/san\u0131k|tan\u0131k|itiraf|ma\u011fdur|firari|tutuk/i.test(rawRole)
       ? `${parsed.profiles[0].name} (${rawRole})`
       : parsed.profiles[0].name;
     setInput(profileForm, "name", nameWithRole);
     const roleMap = {
-      Sanık: "defendant",
-      İtirafçı: "informant",
-      Tanık: "witness",
-      "Gizli Tanık": "secretWitness",
-      Mağdur: "victim",
-      Firari: "fugitive",
-      Tutuklu: "detained"
+      "San\u0131k": "defendant",
+      "\u0130tiraf\u00E7\u0131": "informant",
+      "Tan\u0131k": "witness",
+      "Gizli Tan\u0131k": "secretWitness",
+      "Ma\u011fdur": "victim",
+      "Firari": "fugitive",
+      "Tutuklu": "detained"
     };
     setInput(profileForm, "role", roleMap[rawRole] || "defendant");
   }
@@ -399,7 +281,7 @@ function applyParsedToData(parsed) {
   if (!caseItem) {
     caseItem = {
       id: `case_${Date.now()}`,
-      title: parsed.title || "Beşiktaş Dosyası",
+      title: parsed.title || "",
       caseNumber: parsed.caseNumber,
       courtName: "",
       prosecutor: "",
@@ -418,6 +300,7 @@ function applyParsedToData(parsed) {
   }
 
   const actionIds = [];
+  if (!data.actions) data.actions = [];
   parsed.actionNumbers.forEach((num) => {
     const title = `Eylem ${num}`;
     let action = data.actions.find((a) => a.caseId === caseItem.id && a.title === title);
@@ -438,20 +321,20 @@ function applyParsedToData(parsed) {
   });
 
   if (parsed.profiles[0]) {
-    const rawRole = parsed.profiles[0].role || "Sanık";
+    const rawRole = parsed.profiles[0].role || "San\u0131k";
     const roleMap = {
-      Sanık: "defendant",
-      İtirafçı: "informant",
-      Tanık: "witness",
-      "Gizli Tanık": "secretWitness",
-      Mağdur: "victim",
-      Firari: "fugitive",
-      Tutuklu: "detained"
+      "San\u0131k": "defendant",
+      "\u0130tiraf\u00E7\u0131": "informant",
+      "Tan\u0131k": "witness",
+      "Gizli Tan\u0131k": "secretWitness",
+      "Ma\u011fdur": "victim",
+      "Firari": "fugitive",
+      "Tutuklu": "detained"
     };
     const roleCode = roleMap[rawRole] || "defendant";
     const name = parsed.profiles[0].name;
     const displayName =
-      rawRole && !/sanık|tanık|itiraf|mağdur|firari|tutuk/i.test(rawRole)
+      rawRole && !/san\u0131k|tan\u0131k|itiraf|ma\u011fdur|firari|tutuk/i.test(rawRole)
         ? `${name} (${rawRole})`
         : name;
     let profile = data.profiles.find((p) => p.caseId === caseItem.id && p.name === displayName);
@@ -497,11 +380,11 @@ function renderParseResults(parsed) {
   const info = document.createElement("div");
   info.className = "list-item";
   info.innerHTML = `
-    <strong>Özet</strong><br />
-    <span class="muted">Dosya: ${parsed.caseNumber || "—"} · ${parsed.title || ""}</span><br />
-    <span class="muted">Eylem: ${parsed.actionNumbers.join(", ") || "—"}</span><br />
-    <span class="muted">TCK: ${parsed.tckCodes.join(", ") || "—"}</span><br />
-    <span class="muted">Suçlama sayısı: ${parsed.accusations.length}</span>
+    <strong>\u00D6zet</strong><br />
+    <span class="muted">Dosya: ${parsed.caseNumber || "\u2014"} \u00B7 ${parsed.title || ""}</span><br />
+    <span class="muted">Eylem: ${parsed.actionNumbers.join(", ") || "\u2014"}</span><br />
+    <span class="muted">TCK: ${parsed.tckCodes.join(", ") || "\u2014"}</span><br />
+    <span class="muted">Su\u00E7lama say\u0131s\u0131: ${parsed.accusations.length}</span>
   `;
   parseResults.appendChild(info);
 
@@ -528,10 +411,10 @@ loginForm.addEventListener("submit", async (event) => {
       localStorage.setItem("dcc_admin_authed", "1");
       loginScreen.style.display = "none";
     } else {
-      loginError.textContent = "Hatalı kullanıcı adı veya şifre.";
+      loginError.textContent = "Hatal\u0131 kullan\u0131c\u0131 ad\u0131 veya \u015fifre.";
     }
   } catch (err) {
-    loginError.textContent = "Sunucuya bağlanılamadı.";
+    loginError.textContent = "Sunucuya ba\u011flan\u0131lamad\u0131.";
   }
 });
 
@@ -555,8 +438,8 @@ applyBtn.addEventListener("click", () => {
   const ok = window.confirm(
     `Dosya: ${lastParsed.caseNumber || "-"} ${lastParsed.title || ""}\n` +
       `Eylemler: ${lastParsed.actionNumbers.join(", ") || "-"}\n` +
-      `Sanık: ${lastParsed.profiles[0] ? lastParsed.profiles[0].name : "-"}\n` +
-      `TCK: ${lastParsed.tckCodes.join(", ") || "-"}\n\nUygulansın mı?`
+      `San\u0131k: ${lastParsed.profiles[0] ? lastParsed.profiles[0].name : "-"}\n` +
+      `TCK: ${lastParsed.tckCodes.join(", ") || "-"}\n\nUygulans\u0131n m\u0131?`
   );
   if (ok) {
     applyParsed(lastParsed);
@@ -611,40 +494,17 @@ caseForm.addEventListener("submit", async (event) => {
       })
     });
     if (!res.ok) {
-      alert("Dava sunucuya kaydedilemedi. Lütfen tekrar giriş yapın.");
+      alert("Dava sunucuya kaydedilemedi. L\u00FCtfen tekrar giri\u015f yap\u0131n.");
     }
   } catch (err) {
-    alert("Sunucuya bağlantı hatası. Dava yerel olarak kaydedildi ancak ana sayfada görünmeyebilir.");
+    alert("Sunucuya ba\u011flant\u0131 hatas\u0131. Dava yerel olarak kaydedildi ancak ana sayfada g\u00F6r\u00FCnmeyebilir.");
   }
 
   caseForm.reset();
   sync();
 });
 
-actionForm.addEventListener("submit", (event) => {
-  event.preventDefault();
-  const data = loadData();
-  const formData = new FormData(actionForm);
-  const id = `action_${Date.now()}`;
-  const tckCodes = formData.get("tckCodes")
-    ? formData.get("tckCodes").split(",").map((v) => v.trim()).filter(Boolean)
-    : [];
-  data.actions.push({
-    id,
-    caseId: formData.get("caseId"),
-    title: formData.get("title"),
-    description: formData.get("description"),
-    date: formData.get("date"),
-    tckCodes
-  });
-  saveData(data);
-  actionForm.reset();
-  sync();
-});
-
 profileCaseSelect.addEventListener("change", sync);
-connectionCaseSelect.addEventListener("change", sync);
-infoCaseSelect.addEventListener("change", sync);
 
 profileForm.addEventListener("submit", (event) => {
   event.preventDefault();
@@ -670,24 +530,6 @@ profileForm.addEventListener("submit", (event) => {
   sync();
 });
 
-connectionForm.addEventListener("submit", (event) => {
-  event.preventDefault();
-  const data = loadData();
-  const formData = new FormData(connectionForm);
-  const id = `connection_${Date.now()}`;
-  data.connections.push({
-    id,
-    caseId: formData.get("caseId"),
-    fromId: formData.get("fromId"),
-    toId: formData.get("toId"),
-    actionId: formData.get("actionId"),
-    direction: formData.get("direction")
-  });
-  saveData(data);
-  connectionForm.reset();
-  sync();
-});
-
 exportBtn.addEventListener("click", () => {
   const data = loadData();
   const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
@@ -708,7 +550,7 @@ importInput.addEventListener("change", async (event) => {
     saveData(parsed);
     sync();
   } catch (err) {
-    alert("JSON okunamadı.");
+    alert("JSON okunamad\u0131.");
   }
 });
 
