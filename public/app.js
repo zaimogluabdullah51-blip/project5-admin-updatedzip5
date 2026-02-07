@@ -4,8 +4,11 @@ const statCases = document.getElementById("stat-cases");
 const statDefendants = document.getElementById("stat-defendants");
 const previewMap = document.getElementById("preview-map");
 const openFull = document.getElementById("open-full");
+const indictmentGrid = document.getElementById("indictment-grid");
+const indictmentSection = document.getElementById("indictment-section");
 
 let cases = [];
+let indictments = [];
 let previewNetwork = null;
 let selectedCaseId = null;
 
@@ -67,6 +70,45 @@ function renderCaseGrid() {
       window.location.href = `/map.html?caseId=${item.id}`;
     });
     caseGrid.appendChild(card);
+  }
+}
+
+function renderIndictmentGrid() {
+  if (!indictmentGrid || !indictmentSection) return;
+  if (indictments.length === 0) {
+    indictmentSection.style.display = "none";
+    return;
+  }
+  indictmentSection.style.display = "block";
+  indictmentGrid.innerHTML = "";
+
+  for (const ind of indictments) {
+    const caseObj = cases.find(c => c.id === ind.case_id);
+    const caseTitle = caseObj ? caseObj.title : "—";
+    const actionCount = ind.actions ? ind.actions.length : 0;
+
+    const card = document.createElement("div");
+    card.className = "case-card indictment-card";
+    card.innerHTML = `
+      <div class="file-tab indictment-tab">
+        <span class="file-tab-text">İDDİANAME</span>
+      </div>
+      <div class="status-badge indictment-badge">İddianame Aşamasında</div>
+      <h4>${caseTitle}</h4>
+      <div class="case-details">
+        <div class="detail-row"><span class="detail-label">Özet:</span> <span class="detail-value">${ind.summary ? ind.summary.substring(0, 120) + (ind.summary.length > 120 ? '...' : '') : '—'}</span></div>
+        <div class="detail-row"><span class="detail-label">Eylem:</span> <span class="detail-value">${actionCount}</span></div>
+      </div>
+      <div class="card-footer">
+        <div class="btn-map">Haritaya geç</div>
+      </div>
+    `;
+    if (caseObj) {
+      card.addEventListener("click", () => {
+        window.location.href = `/map.html?caseId=${caseObj.id}`;
+      });
+    }
+    indictmentGrid.appendChild(card);
   }
 }
 
@@ -134,6 +176,15 @@ async function loadData() {
   cases = Array.isArray(data) ? data : (data.cases || []);
   renderCaseGrid();
   updateStats();
+
+  try {
+    const indData = await fetchJSON("/api/indictments");
+    indictments = Array.isArray(indData) ? indData : [];
+  } catch (e) {
+    indictments = [];
+  }
+  renderIndictmentGrid();
+
   if (cases[0]) {
     await selectCase(cases[0].id);
   }

@@ -6,7 +6,8 @@ const loginError = document.getElementById("login-error");
 const menuItems = document.querySelectorAll(".menu-item[data-tab]");
 const tabPanels = {
   cases: document.getElementById("tab-cases"),
-  profiles: document.getElementById("tab-profiles")
+  profiles: document.getElementById("tab-profiles"),
+  indictments: document.getElementById("tab-indictments")
 };
 
 const caseForm = document.getElementById("case-form");
@@ -37,11 +38,22 @@ const actionInput = document.getElementById("action-input");
 const actionAddBtn = document.getElementById("action-add-btn");
 const actionChips = document.getElementById("action-chips");
 
+const indictmentForm = document.getElementById("indictment-form");
+const indictmentList = document.getElementById("indictment-list");
+const indictmentFormTitle = document.getElementById("indictment-form-title");
+const indictmentFormReset = document.getElementById("indictment-form-reset");
+const indictmentCaseSelect = document.getElementById("indictment-case-select");
+const indictmentActionsContainer = document.getElementById("indictment-actions-container");
+const addIndictmentActionBtn = document.getElementById("add-indictment-action");
+const indictmentSubmitBtn = document.getElementById("indictment-submit-btn");
+
 let lastParsed = null;
 let currentTckCodes = [];
 let currentActionNums = [];
 let cachedServerCases = [];
 let cachedServerPeople = [];
+let cachedIndictments = [];
+let indictmentActionCount = 0;
 
 function loadData() {
   const raw = localStorage.getItem(STORAGE_KEY);
@@ -251,19 +263,30 @@ async function sync() {
   const data = loadData();
   cachedServerCases = await loadServerCases();
   cachedServerPeople = await loadServerPeople();
+  cachedIndictments = await loadServerIndictments();
 
   renderLists(data, cachedServerCases, cachedServerPeople);
+  renderIndictmentList();
 
-  if (cachedServerCases.length > 0) {
+  const casesToUse = cachedServerCases.length > 0 ? cachedServerCases : data.cases;
+
+  if (casesToUse.length > 0) {
     activeCaseSelect.innerHTML = "";
-    cachedServerCases.forEach((c) => {
-      const option = document.createElement("option");
-      option.value = c.id;
-      option.textContent = c.title;
-      activeCaseSelect.appendChild(option);
+    indictmentCaseSelect.innerHTML = "";
+    casesToUse.forEach((c) => {
+      const option1 = document.createElement("option");
+      option1.value = c.id;
+      option1.textContent = c.title;
+      activeCaseSelect.appendChild(option1);
+
+      const option2 = document.createElement("option");
+      option2.value = c.id;
+      option2.textContent = c.title;
+      indictmentCaseSelect.appendChild(option2);
     });
   } else {
     fillSelect(activeCaseSelect, data.cases, "title");
+    fillSelect(indictmentCaseSelect, data.cases, "title");
   }
 }
 
@@ -810,7 +833,36 @@ caseForm.addEventListener("submit", async (event) => {
         body: JSON.stringify(payload)
       });
     }
-    if (!res.ok) {
+    if (res.ok) {
+      const savedCase = await res.json();
+      const caseId = editId || savedCase.id;
+
+      const officialNames = [
+        { name: payload.indictment_prosecutor, role: "indictment_prosecutor" },
+        { name: payload.trial_prosecutor, role: "trial_prosecutor" },
+        { name: payload.judge_name, role: "judge" },
+        { name: payload.panel_president, role: "panel_president" }
+      ];
+      for (const o of officialNames) {
+        if (o.name && o.name.trim()) {
+          try {
+            const oRes = await fetch("/api/officials", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ name: o.name.trim(), role: o.role, institution: payload.court_name || "" })
+            });
+            if (oRes.ok) {
+              const official = await oRes.json();
+              await fetch("/api/case-officials", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ caseId, officialId: official.id, roleInCase: o.role })
+              });
+            }
+          } catch (e) {}
+        }
+      }
+    } else {
       alert("Dava sunucuya kaydedilemedi. Lütfen tekrar giriş yapın.");
     }
   } catch (err) {
@@ -891,6 +943,208 @@ profileForm.addEventListener("submit", async (event) => {
   }
 
   resetProfileForm();
+  sync();
+});
+
+// ── İddianame Functions ──
+
+function addIndictmentActionCard(action) {
+  indictmentActionCount++;
+  const idx = indictmentActionCount;
+  const card = document.createElement("div");
+  card.className = "accusation-card indictment-action-card";
+  card.dataset.idx = idx;
+  card.innerHTML = `
+    <div class="accusation-card-header">
+      <span class="accusation-num">Eylem ${idx}</span>
+      <button type="button" class="chip-remove remove-ind-action" title="Kaldır">&times;</button>
+    </div>
+    <div class="accusation-card-body">
+      <label>Eylem Başlığı<input name="ind-action-title-${idx}" value="${action ? (action.title || '') : ''}" placeholder="Örn: Örgüt üyeliği" /></label>
+      <label>TCK Maddeleri
+        <div class="tck-input-row">
+          <input id="ind-tck-input-${idx}" placeholder="Örn: TCK 314/2" />
+          <button type="button" class="btn ghost ind-tck-add" data-idx="${idx}">Ekle</button>
+        </div>
+        <div id="ind-tck-chips-${idx}" class="chips-container"></div>
+      </label>
+      <label>Deliller<textarea name="ind-action-evidence-${idx}" rows="3" placeholder="Deliller...">${action ? (action.evidence || '') : ''}</textarea></label>
+    </div>
+  `;
+  indictmentActionsContainer.appendChild(card);
+
+  const tckCodes = action && action.tck_codes ? [...action.tck_codes] : [];
+  card._tckCodes = tckCodes;
+  renderIndTckChips(card, idx);
+
+  card.querySelector(".remove-ind-action").addEventListener("click", () => {
+    card.remove();
+  });
+
+  card.querySelector(`.ind-tck-add`).addEventListener("click", () => {
+    const input = card.querySelector(`#ind-tck-input-${idx}`);
+    let val = input.value.trim();
+    if (!val) return;
+    val = val.replace(/^TCK\s*/i, "").trim();
+    val = `TCK ${val}`;
+    if (!card._tckCodes.includes(val)) {
+      card._tckCodes.push(val);
+      renderIndTckChips(card, idx);
+    }
+    input.value = "";
+  });
+
+  const tckInputEl = card.querySelector(`#ind-tck-input-${idx}`);
+  tckInputEl.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      card.querySelector(`.ind-tck-add`).click();
+    }
+  });
+}
+
+function renderIndTckChips(card, idx) {
+  const container = card.querySelector(`#ind-tck-chips-${idx}`);
+  container.innerHTML = "";
+  card._tckCodes.forEach((code, i) => {
+    const chip = document.createElement("span");
+    chip.className = "chip";
+    chip.innerHTML = `${code} <button type="button" class="chip-remove">&times;</button>`;
+    chip.querySelector(".chip-remove").addEventListener("click", () => {
+      card._tckCodes.splice(i, 1);
+      renderIndTckChips(card, idx);
+    });
+    container.appendChild(chip);
+  });
+}
+
+function collectIndictmentActions() {
+  const cards = indictmentActionsContainer.querySelectorAll(".indictment-action-card");
+  const actions = [];
+  cards.forEach((card) => {
+    const idx = card.dataset.idx;
+    const title = card.querySelector(`[name="ind-action-title-${idx}"]`)?.value || "";
+    const evidence = card.querySelector(`[name="ind-action-evidence-${idx}"]`)?.value || "";
+    const tckCodes = card._tckCodes || [];
+    actions.push({
+      action_num: String(actions.length + 1),
+      title,
+      tck_codes: tckCodes.map(c => c.replace(/^TCK\s*/i, "").trim()),
+      evidence
+    });
+  });
+  return actions;
+}
+
+function editIndictment(ind) {
+  indictmentFormTitle.textContent = `Düzenleniyor: İddianame`;
+  indictmentFormReset.style.display = "inline-block";
+  indictmentSubmitBtn.textContent = "Güncelle";
+
+  setInput(indictmentForm, "editId", ind.id);
+  setInput(indictmentForm, "summary", ind.summary || "");
+
+  if (indictmentCaseSelect) indictmentCaseSelect.value = ind.case_id || "";
+
+  indictmentActionsContainer.innerHTML = "";
+  indictmentActionCount = 0;
+  if (ind.actions && ind.actions.length > 0) {
+    ind.actions.forEach(act => {
+      const codes = (act.tck_codes || []).map(c => `TCK ${c}`);
+      addIndictmentActionCard({ ...act, tck_codes: codes });
+    });
+  }
+
+  indictmentForm.scrollIntoView({ behavior: "smooth", block: "start" });
+}
+
+function resetIndictmentForm() {
+  indictmentForm.reset();
+  setInput(indictmentForm, "editId", "");
+  indictmentFormTitle.textContent = "İddianame Girişi";
+  indictmentFormReset.style.display = "none";
+  indictmentSubmitBtn.textContent = "Kaydet";
+  indictmentActionsContainer.innerHTML = "";
+  indictmentActionCount = 0;
+}
+
+async function deleteIndictment(id) {
+  if (!confirm("Bu iddianameyi silmek istediğinize emin misiniz?")) return;
+  try {
+    await fetch(`/api/indictments/${id}`, { method: "DELETE" });
+  } catch (e) {}
+  resetIndictmentForm();
+  sync();
+}
+
+async function loadServerIndictments() {
+  try {
+    const res = await fetch("/api/indictments");
+    if (res.ok) return await res.json();
+  } catch (e) {}
+  return [];
+}
+
+function renderIndictmentList() {
+  indictmentList.innerHTML = "";
+  cachedIndictments.forEach((ind) => {
+    const div = document.createElement("div");
+    div.className = "list-item";
+    const editId = indictmentForm.querySelector('[name="editId"]').value;
+    if (editId === ind.id) div.classList.add("list-item-active");
+    const caseObj = cachedServerCases.find(c => c.id === ind.case_id);
+    const caseTitle = caseObj ? caseObj.title : "—";
+    const actionCount = ind.actions ? ind.actions.length : 0;
+    div.innerHTML = `<div class="list-item-content"><strong>${caseTitle}</strong><br /><span class="muted">${ind.summary ? ind.summary.substring(0, 60) + '...' : '—'}</span><span class="list-item-meta">${actionCount} eylem</span></div><button class="btn-delete" title="Sil">&times;</button>`;
+    div.querySelector(".list-item-content").addEventListener("click", () => editIndictment(ind));
+    div.querySelector(".btn-delete").addEventListener("click", (e) => { e.stopPropagation(); deleteIndictment(ind.id); });
+    indictmentList.appendChild(div);
+  });
+}
+
+indictmentFormReset.addEventListener("click", resetIndictmentForm);
+
+addIndictmentActionBtn.addEventListener("click", () => {
+  addIndictmentActionCard(null);
+});
+
+indictmentForm.addEventListener("submit", async (event) => {
+  event.preventDefault();
+  const formData = new FormData(indictmentForm);
+  const editId = formData.get("editId");
+  const caseId = formData.get("caseId");
+  const summary = formData.get("summary");
+  const actions = collectIndictmentActions();
+
+  const payload = {
+    case_id: caseId,
+    summary,
+    actions
+  };
+
+  try {
+    let res;
+    if (editId) {
+      res = await fetch(`/api/indictments/${editId}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload)
+      });
+    } else {
+      res = await fetch("/api/indictments", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload)
+      });
+    }
+    if (!res.ok) {
+      alert("İddianame kaydedilemedi.");
+    }
+  } catch (err) {
+    alert("Sunucuya bağlantı hatası.");
+  }
+
+  resetIndictmentForm();
   sync();
 });
 

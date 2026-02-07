@@ -472,6 +472,30 @@ input[readonly] {
   margin-top: 2px;
 }
 
+.indictment-action-card .accusation-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.indictment-action-card .remove-ind-action {
+  background: none;
+  border: none;
+  color: #ef4444;
+  font-size: 1.2rem;
+  cursor: pointer;
+  padding: 0 4px;
+}
+
+#indictment-actions-container {
+  display: grid;
+  gap: 12px;
+}
+
+#add-indictment-action {
+  margin-top: 4px;
+}
+
 @media (max-width: 900px) {
   .admin-shell {
     grid-template-columns: 1fr;

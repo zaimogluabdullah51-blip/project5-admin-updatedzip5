@@ -35,6 +35,7 @@
         <nav class="menu">
           <button data-tab="cases" class="menu-item active">Davalar</button>
           <button data-tab="profiles" class="menu-item">Profiller</button>
+          <button data-tab="indictments" class="menu-item">İddianame</button>
           <a href="/" class="menu-item home-link">Ana Sayfaya Dön</a>
         </nav>
       </aside>
@@ -75,6 +76,7 @@
               <label>Durum
                 <select name="status">
                   <option value="Soruşturma">Soruşturma</option>
+                  <option value="İddianame Aşamasında">İddianame Aşamasında</option>
                   <option value="Kovuşturma (Devam Ediyor)">Kovuşturma (Devam Ediyor)</option>
                   <option value="Karar Verildi">Karar Verildi</option>
                   <option value="İstinaf">İstinaf</option>
@@ -153,6 +155,27 @@
             <button class="btn primary" type="submit">Kaydet</button>
           </form>
           <div class="list" id="profile-list"></div>
+        </section>
+
+        <section class="panel tab-panel" id="tab-indictments">
+          <div class="form-mode-header">
+            <h2 id="indictment-form-title">İddianame Girişi</h2>
+            <button id="indictment-form-reset" class="btn ghost" type="button" style="display:none">+ Yeni İddianame</button>
+          </div>
+          <form id="indictment-form">
+            <input type="hidden" name="editId" />
+            <label>Dava Seç
+              <select id="indictment-case-select" name="caseId" required></select>
+            </label>
+            <label>İddia Özeti (Kısa)
+              <textarea name="summary" rows="4" placeholder="İddianamenin 3-4 cümlelik kısa özeti..." required></textarea>
+            </label>
+            <h3 class="accusations-heading">Eylemler</h3>
+            <div id="indictment-actions-container"></div>
+            <button type="button" id="add-indictment-action" class="btn ghost">+ Eylem Ekle</button>
+            <button class="btn primary" type="submit" id="indictment-submit-btn">Kaydet</button>
+          </form>
+          <div class="list" id="indictment-list"></div>
         </section>
 
       </main>

@@ -120,6 +120,44 @@ async function init() {
     )
   `);
 
+  await run(`
+    CREATE TABLE IF NOT EXISTS officials (
+      id TEXT PRIMARY KEY,
+      name TEXT NOT NULL,
+      role TEXT,
+      institution TEXT
+    )
+  `);
+
+  await run(`
+    CREATE TABLE IF NOT EXISTS case_officials (
+      case_id TEXT NOT NULL,
+      official_id TEXT NOT NULL,
+      role_in_case TEXT,
+      PRIMARY KEY (case_id, official_id)
+    )
+  `);
+
+  await run(`
+    CREATE TABLE IF NOT EXISTS indictments (
+      id TEXT PRIMARY KEY,
+      case_id TEXT NOT NULL,
+      summary TEXT,
+      created_at TEXT
+    )
+  `);
+
+  await run(`
+    CREATE TABLE IF NOT EXISTS indictment_actions (
+      id TEXT PRIMARY KEY,
+      indictment_id TEXT NOT NULL,
+      action_num TEXT,
+      title TEXT,
+      tck_codes TEXT,
+      evidence TEXT
+    )
+  `);
+
   await ensureColumn("cases", "case_number", "TEXT");
   await ensureColumn("cases", "court_name", "TEXT");
   await ensureColumn("cases", "judge", "TEXT");
@@ -598,4 +636,77 @@ async function createAction(payload) {
   return record;
 }
 
-export { db, run, get, all, init, createCase, updateCase, createPerson, linkPerson, createAction };
+async function createIndictment(payload) {
+  const id = nanoid();
+  const record = {
+    id,
+    case_id: payload.case_id || payload.caseId || "",
+    summary: payload.summary || "",
+    created_at: new Date().toISOString()
+  };
+  await run(
+    "INSERT INTO indictments (id, case_id, summary, created_at) VALUES (?, ?, ?, ?)",
+    [record.id, record.case_id, record.summary, record.created_at]
+  );
+  return record;
+}
+
+async function updateIndictment(id, payload) {
+  const existing = await get("SELECT * FROM indictments WHERE id = ?", [id]);
+  if (!existing) return null;
+  await run(
+    "UPDATE indictments SET summary = ?, case_id = ? WHERE id = ?",
+    [payload.summary ?? existing.summary, payload.case_id ?? existing.case_id, id]
+  );
+  return await get("SELECT * FROM indictments WHERE id = ?", [id]);
+}
+
+async function createIndictmentAction(payload) {
+  const id = nanoid();
+  const record = {
+    id,
+    indictment_id: payload.indictment_id || payload.indictmentId || "",
+    action_num: payload.action_num || payload.actionNum || "",
+    title: payload.title || "",
+    tck_codes: payload.tck_codes || payload.tckCodes || [],
+    evidence: payload.evidence || ""
+  };
+  await run(
+    "INSERT INTO indictment_actions (id, indictment_id, action_num, title, tck_codes, evidence) VALUES (?, ?, ?, ?, ?, ?)",
+    [record.id, record.indictment_id, record.action_num, record.title, JSON.stringify(record.tck_codes), record.evidence]
+  );
+  return record;
+}
+
+async function createOfficial(payload) {
+  const name = (payload.name || "").trim();
+  const role = (payload.role || "").trim();
+  const institution = (payload.institution || "").trim();
+  const existing = await get(
+    "SELECT * FROM officials WHERE name = ? AND role = ?",
+    [name, role]
+  );
+  if (existing) {
+    if (institution && institution !== existing.institution) {
+      await run("UPDATE officials SET institution = ? WHERE id = ?", [institution, existing.id]);
+      existing.institution = institution;
+    }
+    return existing;
+  }
+  const id = nanoid();
+  const record = { id, name, role, institution };
+  await run(
+    "INSERT INTO officials (id, name, role, institution) VALUES (?, ?, ?, ?)",
+    [record.id, record.name, record.role, record.institution]
+  );
+  return record;
+}
+
+async function linkOfficial(caseId, officialId, roleInCase) {
+  await run(
+    "INSERT OR REPLACE INTO case_officials (case_id, official_id, role_in_case) VALUES (?, ?, ?)",
+    [caseId, officialId, roleInCase || ""]
+  );
+}
+
+export { db, run, get, all, init, createCase, updateCase, createPerson, linkPerson, createAction, createIndictment, updateIndictment, createIndictmentAction, createOfficial, linkOfficial };

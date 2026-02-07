@@ -890,3 +890,33 @@ textarea:focus {
     justify-content: center;
   }
 }
+
+.indictment-card {
+  border-color: rgba(59, 130, 246, 0.3);
+}
+
+.indictment-card:hover {
+  border-color: rgba(59, 130, 246, 0.7);
+}
+
+.indictment-card .file-tab,
+.indictment-tab {
+  background: #3b82f6;
+}
+
+.indictment-tab .file-tab-text {
+  color: #fff;
+}
+
+.indictment-card .status-badge,
+.indictment-badge {
+  background: #1d4ed8;
+}
+
+.indictment-card .btn-map {
+  background: #1d4ed8;
+}
+
+.indictment-card:hover .btn-map {
+  background: #2563eb;
+}

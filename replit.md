@@ -32,11 +32,15 @@ When making changes, prefer running Express as the primary server (`node server.
 ### Data Layer
 - **SQLite** via the `sqlite3` npm package, with the database file stored at `data/cases.db`.
 - **Database helper functions** in `db.js` wrap SQLite operations in Promises (`run`, `get`, `all`).
-- **Schema** (four tables):
-  - `cases` — id (TEXT PK), title, summary, incident, dossier, date, status, plus additional fields (case_number, court_name, judge, prosecutor, etc.)
+- **Schema** (eight tables):
+  - `cases` — id (TEXT PK), title, summary, incident, dossier, date, status, plus additional fields (case_number, court_name, judge, prosecutor, etc.). Status values: Soruşturma, İddianame Aşamasında, Kovuşturma, Karar, Temyiz, Kesinleşme
   - `people` — profile details including name, role, charges, evidence, photo URL, etc.
   - `case_people` — junction table linking people to cases (many-to-many)
   - `actions` — id (TEXT PK), case_id, person_id, action_num, title, claim, evidence, defense, tck_codes (JSON array)
+  - `indictments` — id (TEXT PK), case_id (FK to cases), summary, created_at. Stores indictment metadata per case.
+  - `indictment_actions` — id (TEXT PK), indictment_id (FK to indictments), action_num, title, tck_codes (JSON array), evidence. Individual charges within an indictment.
+  - `officials` — id (TEXT PK), name, role, institution. Stores judges, prosecutors, court names for historical reference. Deduplication by name+role on create.
+  - `case_officials` — junction table linking officials to cases (case_id, official_id, role_in_case). Uses INSERT OR REPLACE for idempotent linking.
 - **Sample data** is seeded on first run via the `init()` function in `db.js`.
 - The `data/` directory is created automatically if it doesn't exist.
 
