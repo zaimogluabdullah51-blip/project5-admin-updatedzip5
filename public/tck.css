@@ -1,5 +1,8 @@
 .tck-header {
   padding: 20px clamp(24px, 6vw, 80px) 10px;
+  max-width: 1200px;
+  margin: 0 auto;
+  width: 100%;
 }
 
 .tck-header-top {
@@ -15,6 +18,9 @@
 
 .tck-main {
   padding: 20px clamp(24px, 6vw, 80px) 60px;
+  max-width: 1200px;
+  margin: 0 auto;
+  width: 100%;
 }
 
 .tck-search-bar {

@@ -531,6 +531,9 @@ textarea:focus {
   gap: 16px;
   padding: 40px clamp(24px, 6vw, 80px) 20px;
   position: relative;
+  max-width: 1200px;
+  margin: 0 auto;
+  width: 100%;
 }
 
 .hero-copy {
@@ -584,6 +587,9 @@ textarea:focus {
 
 .home-main {
   padding: 0 clamp(24px, 6vw, 80px) 80px;
+  max-width: 1200px;
+  margin: 0 auto;
+  width: 100%;
 }
 
 .feature-strip {
@@ -591,6 +597,9 @@ textarea:focus {
   grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
   gap: 16px;
   padding: 0 clamp(24px, 6vw, 80px) 32px;
+  max-width: 1200px;
+  margin: 0 auto;
+  width: 100%;
 }
 
 .feature-card {
@@ -800,6 +809,9 @@ textarea:focus {
   flex-direction: column;
   align-items: center;
   gap: 16px;
+  max-width: 1200px;
+  margin: 0 auto;
+  width: 100%;
 }
 
 .footer-contact h4 {
