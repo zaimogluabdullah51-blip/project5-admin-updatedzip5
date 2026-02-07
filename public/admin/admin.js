@@ -74,20 +74,46 @@ function fillSelect(select, items, labelKey = "title") {
   });
 }
 
-function renderLists(data) {
+async function deleteCase(id) {
+  if (!confirm("Bu davayı silmek istediğinize emin misiniz?")) return;
+  try {
+    await fetch(`/api/cases/${id}`, { method: "DELETE" });
+  } catch (e) {}
+  const data = loadData();
+  data.cases = data.cases.filter((c) => c.id !== id);
+  saveData(data);
+  sync();
+}
+
+async function deleteProfile(id) {
+  if (!confirm("Bu profili silmek istediğinize emin misiniz?")) return;
+  try {
+    await fetch(`/api/people/${id}`, { method: "DELETE" });
+  } catch (e) {}
+  const data = loadData();
+  data.profiles = data.profiles.filter((p) => p.id !== id);
+  saveData(data);
+  sync();
+}
+
+function renderLists(data, serverCases, serverPeople) {
   caseList.innerHTML = "";
-  data.cases.forEach((c) => {
+  const casesToRender = serverCases && serverCases.length > 0 ? serverCases : data.cases;
+  casesToRender.forEach((c) => {
     const div = document.createElement("div");
     div.className = "list-item";
-    div.innerHTML = `<strong>${c.title}</strong><br /><span class="muted">${c.caseNumber || ''}</span>`;
+    div.innerHTML = `<div class="list-item-content"><strong>${c.title}</strong><br /><span class="muted">${c.case_number || c.caseNumber || ''}</span></div><button class="btn-delete" title="Sil">&times;</button>`;
+    div.querySelector(".btn-delete").addEventListener("click", () => deleteCase(c.id));
     caseList.appendChild(div);
   });
 
   profileList.innerHTML = "";
-  data.profiles.forEach((p) => {
+  const profilesToRender = serverPeople && serverPeople.length > 0 ? serverPeople : data.profiles;
+  profilesToRender.forEach((p) => {
     const div = document.createElement("div");
     div.className = "list-item";
-    div.innerHTML = `<strong>${p.name}</strong><br /><span class="muted">${p.role}</span>`;
+    div.innerHTML = `<div class="list-item-content"><strong>${p.name}</strong><br /><span class="muted">${p.role || ''}</span></div><button class="btn-delete" title="Sil">&times;</button>`;
+    div.querySelector(".btn-delete").addEventListener("click", () => deleteProfile(p.id));
     profileList.appendChild(div);
   });
 }
@@ -100,11 +126,21 @@ async function loadServerCases() {
   return [];
 }
 
+async function loadServerPeople() {
+  try {
+    const res = await fetch("/api/people");
+    if (res.ok) return await res.json();
+  } catch (e) {}
+  return [];
+}
+
 async function sync() {
   const data = loadData();
-  renderLists(data);
-
   const serverCases = await loadServerCases();
+  const serverPeople = await loadServerPeople();
+
+  renderLists(data, serverCases, serverPeople);
+
   if (serverCases.length > 0) {
     activeCaseSelect.innerHTML = "";
     serverCases.forEach((c) => {
