@@ -703,6 +703,157 @@ textarea:focus {
   font-family: "JetBrains Mono", monospace;
 }
 
+.share-docs-section {
+  margin-top: 32px;
+}
+
+.share-docs-card {
+  display: flex;
+  gap: 20px;
+  align-items: flex-start;
+  background: linear-gradient(135deg, rgba(139, 30, 30, 0.15), rgba(139, 30, 30, 0.05));
+  border: 1px solid rgba(139, 30, 30, 0.3);
+  border-radius: 20px;
+  padding: 28px;
+  transition: border-color 0.2s;
+}
+
+.share-docs-card:hover {
+  border-color: rgba(139, 30, 30, 0.5);
+}
+
+.share-docs-icon {
+  flex-shrink: 0;
+  width: 56px;
+  height: 56px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(139, 30, 30, 0.2);
+  border-radius: 14px;
+  color: #e57373;
+}
+
+.share-docs-content h3 {
+  font-family: "Libre Baskerville", serif;
+  font-size: 1.15rem;
+  margin-bottom: 8px;
+}
+
+.share-docs-content p {
+  color: var(--muted);
+  font-size: 0.9rem;
+  line-height: 1.6;
+  margin-bottom: 16px;
+}
+
+.share-docs-email {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.email-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: #e57373;
+  text-decoration: none;
+  font-family: "JetBrains Mono", monospace;
+  font-size: 0.9rem;
+  padding: 8px 16px;
+  background: rgba(139, 30, 30, 0.15);
+  border: 1px solid rgba(139, 30, 30, 0.3);
+  border-radius: 10px;
+  transition: background 0.2s, border-color 0.2s;
+}
+
+.email-link:hover {
+  background: rgba(139, 30, 30, 0.25);
+  border-color: rgba(139, 30, 30, 0.5);
+}
+
+.copy-email-btn {
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  color: var(--muted);
+  padding: 8px 14px;
+  border-radius: 10px;
+  cursor: pointer;
+  font-size: 0.8rem;
+  font-family: inherit;
+  transition: background 0.2s, color 0.2s;
+  white-space: nowrap;
+}
+
+.copy-email-btn:hover {
+  background: rgba(255, 255, 255, 0.15);
+  color: var(--text);
+}
+
+.site-footer {
+  text-align: center;
+  padding: 40px 24px 32px;
+  border-top: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+}
+
+.footer-contact h4 {
+  font-family: "Libre Baskerville", serif;
+  font-size: 0.95rem;
+  margin-bottom: 10px;
+  color: var(--text);
+}
+
+.footer-email-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+.footer-email-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: #e57373;
+  text-decoration: none;
+  font-family: "JetBrains Mono", monospace;
+  font-size: 0.85rem;
+  padding: 8px 16px;
+  background: rgba(139, 30, 30, 0.12);
+  border: 1px solid rgba(139, 30, 30, 0.25);
+  border-radius: 999px;
+  transition: background 0.2s;
+}
+
+.footer-email-link:hover {
+  background: rgba(139, 30, 30, 0.22);
+}
+
+.footer-social-link {
+  color: var(--text);
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 16px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  transition: background 0.2s;
+  font-size: 0.85rem;
+}
+
+.footer-social-link:hover {
+  background: rgba(255, 255, 255, 0.15);
+}
+
 @media (max-width: 900px) {
   .home-header {
     flex-direction: column;
@@ -715,5 +866,15 @@ textarea:focus {
 
   .case-grid {
     grid-template-columns: repeat(1, minmax(0, 1fr));
+  }
+
+  .share-docs-card {
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+  }
+
+  .share-docs-email {
+    justify-content: center;
   }
 }

@@ -13,6 +13,9 @@
         <a class="btn ghost small" href="/admin">Admin Girişi</a>
       </div>
       <div style="position: absolute; top: 12px; right: 12px; z-index: 100; display: flex; align-items: center; gap: 8px;">
+        <a href="mailto:info@davatakibi.com" title="info@davatakibi.com" style="background: rgba(255, 255, 255, 0.15); backdrop-filter: blur(4px); border: 1px solid rgba(255, 255, 255, 0.2); color: #fff; text-decoration: none; padding: 4px 10px; font-size: 0.7rem; border-radius: 999px; display: flex; align-items: center; gap: 5px;">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/></svg>
+        </a>
         <a href="https://x.com/Istanbul_Dava" target="_blank" rel="noopener" style="background: rgba(255, 255, 255, 0.15); backdrop-filter: blur(4px); border: 1px solid rgba(255, 255, 255, 0.2); color: #fff; text-decoration: none; padding: 4px 10px; font-size: 0.7rem; border-radius: 999px; display: flex; align-items: center; gap: 5px;">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
         </a>
@@ -63,6 +66,25 @@
         <div id="case-grid" class="case-grid"></div>
       </section>
 
+      <section class="share-docs-section">
+        <div class="share-docs-card">
+          <div class="share-docs-icon">
+            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><line x1="9" y1="15" x2="15" y2="15"/></svg>
+          </div>
+          <div class="share-docs-content">
+            <h3>Siz de belge paylaşın</h3>
+            <p>Elinizde bu davaya ait belgeler, iddianameler veya mahkeme kararları varsa bizimle paylaşabilirsiniz. Tüm bilgiler gizlilik içinde değerlendirilir.</p>
+            <div class="share-docs-email">
+              <a href="mailto:info@davatakibi.com" class="email-link">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/></svg>
+                info@davatakibi.com
+              </a>
+              <button class="copy-email-btn" onclick="navigator.clipboard.writeText('info@davatakibi.com').then(()=>{this.textContent='Kopyalandı!';setTimeout(()=>{this.textContent='Kopyala'},2000)})" title="E-posta adresini kopyala">Kopyala</button>
+            </div>
+          </div>
+        </div>
+      </section>
+
       <section id="preview-section" class="panel preview-panel">
         <div class="panel-header">
           <div>
@@ -79,11 +101,23 @@
       </section>
     </main>
 
-    <footer style="text-align: center; padding: 32px 24px; color: var(--muted); font-size: 0.85rem;">
-      <a href="https://x.com/Istanbul_Dava" target="_blank" rel="noopener" style="color: var(--text); text-decoration: none; display: inline-flex; align-items: center; gap: 6px; padding: 8px 16px; border-radius: 999px; background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.1); transition: background 0.2s;">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
-        @Istanbul_Dava
-      </a>
+    <footer class="site-footer">
+      <div class="footer-contact">
+        <h4>İletişim</h4>
+        <div class="footer-email-row">
+          <a href="mailto:info@davatakibi.com" class="footer-email-link">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/></svg>
+            info@davatakibi.com
+          </a>
+          <button class="copy-email-btn" onclick="navigator.clipboard.writeText('info@davatakibi.com').then(()=>{this.textContent='Kopyalandı!';setTimeout(()=>{this.textContent='Kopyala'},2000)})" title="E-posta adresini kopyala">Kopyala</button>
+        </div>
+      </div>
+      <div class="footer-social">
+        <a href="https://x.com/Istanbul_Dava" target="_blank" rel="noopener" class="footer-social-link">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
+          @Istanbul_Dava
+        </a>
+      </div>
     </footer>
 
     <script src="https://unpkg.com/vis-network/standalone/umd/vis-network.min.js"></script>
