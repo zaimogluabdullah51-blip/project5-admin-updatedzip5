@@ -624,6 +624,7 @@ textarea:focus {
   background-size: 32px 32px;
   text-decoration: none;
   display: block;
+  cursor: pointer;
 }
 
 .network.preview {
@@ -634,21 +635,40 @@ textarea:focus {
     linear-gradient(rgba(255, 255, 255, 0.03) 1px, transparent 1px),
     linear-gradient(90deg, rgba(255, 255, 255, 0.03) 1px, transparent 1px);
   background-size: 20px 20px;
+  filter: blur(4px);
+  transition: filter 0.3s ease;
+}
+
+.preview-wrap:hover .network.preview {
+  filter: blur(2px);
 }
 
 .preview-overlay {
   position: absolute;
-  inset: 16px auto auto 16px;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+  background: rgba(14, 20, 27, 0.4);
+}
+
+.preview-wrap:hover .preview-overlay {
+  opacity: 1;
 }
 
 .preview-cta {
-  color: #8b1e1e;
+  color: #fff;
   font-weight: 600;
-  background: rgba(15, 23, 42, 0.8);
-  padding: 6px 10px;
+  background: rgba(139, 30, 30, 0.85);
+  padding: 12px 24px;
   border-radius: 999px;
-  border: 1px solid rgba(139, 30, 30, 0.5);
+  border: 1px solid rgba(139, 30, 30, 0.7);
   display: inline-block;
+  font-size: 1rem;
+  letter-spacing: 0.02em;
+  box-shadow: 0 4px 20px rgba(139, 30, 30, 0.4);
 }
 
 .case-card.placeholder {
