@@ -128,3 +128,10 @@ When making changes, prefer running Express as the primary server (`node server.
 - Homepage: Footer redesigned with İletişim section (mail address + copy button) and X social link
 - Layout: Homepage and TCK page content constrained to max-width 1200px with auto centering for a narrower, more readable layout
 - Layout: Admin page unchanged (already has sidebar layout constraining content naturally)
+- SEO: Meta description, Open Graph, Twitter Card tags added to all public pages (TR + EN)
+- SEO: Canonical URLs pointing to www.davatakibi.com for all pages
+- SEO: hreflang alternates (tr/en) on homepage for language switching signals
+- SEO: Admin pages marked with noindex/nofollow to prevent search engine indexing
+- SEO: Favicon (SVG) created and linked on all pages
+- SEO: English map.html lang attribute fixed from "tr" to "en"
+- SEO: Keywords meta tag added to homepages (TR + EN)
