@@ -9,6 +9,18 @@ let cases = [];
 let previewNetwork = null;
 let selectedCaseId = null;
 
+function getStatusClass(status) {
+  if (!status) return "";
+  const s = status.toLowerCase();
+  if (s.includes("soruşturma") && !s.includes("iddianame")) return "status-sorusturma";
+  if (s.includes("iddianame")) return "status-iddianame";
+  if (s.includes("kovuşturma")) return "status-kovusturma";
+  if (s.includes("karar")) return "status-karar";
+  if (s.includes("temyiz")) return "status-temyiz";
+  if (s.includes("kesinleşme")) return "status-kesinlesme";
+  return "";
+}
+
 async function fetchJSON(url, options) {
   const response = await fetch(url, options);
   const data = await response.json().catch(() => ({}));
@@ -45,11 +57,12 @@ function renderCaseGrid() {
   for (const item of displayCases) {
     const card = document.createElement("div");
     card.className = "case-card";
+    const statusClass = getStatusClass(item.status);
     card.innerHTML = `
       <div class="file-tab">
         <span class="file-tab-text"></span>
       </div>
-      <div class="status-badge">${item.status === 'Devam Ediyor' ? 'Ongoing' : (item.status === 'Karara Bağlandı' ? 'Decided' : item.status || 'Ongoing')}</div>
+      <div class="status-badge ${statusClass}">${item.status === 'Devam Ediyor' ? 'Ongoing' : (item.status === 'Karara Bağlandı' ? 'Decided' : item.status || 'Ongoing')}</div>
       <h4>${item.title || "Untitled Case"}</h4>
       <div class="case-details">
         <div class="detail-row"><span class="detail-label">File No:</span> <span class="detail-value">${item.case_number || '---'}</span></div>

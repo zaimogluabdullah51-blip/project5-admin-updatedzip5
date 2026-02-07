@@ -180,8 +180,8 @@ textarea:focus {
   content: "";
   position: absolute;
   inset: 0;
-  background: inherit;
-  border: inherit;
+  background: rgba(55, 65, 81, 0.7);
+  border: 1px solid rgba(255, 255, 255, 0.06);
   border-radius: inherit;
   z-index: -1;
   transition: all 0.3s ease;
@@ -189,12 +189,13 @@ textarea:focus {
 
 .case-card::before {
   transform: translate(6px, 6px);
-  opacity: 0.6;
+  opacity: 0.8;
 }
 
 .case-card::after {
   transform: translate(12px, 12px);
-  opacity: 0.3;
+  background: rgba(75, 85, 99, 0.5);
+  opacity: 0.7;
 }
 
 /* File Tab */
@@ -224,13 +225,32 @@ textarea:focus {
   align-self: flex-start;
   padding: 4px 12px;
   border-radius: 999px;
-  background: #b45309; /* Amber/Gold */
+  background: #b45309;
   color: #fff;
   font-size: 0.7rem;
   font-weight: 600;
   margin-bottom: 16px;
   text-transform: uppercase;
   letter-spacing: 0.05em;
+}
+
+.case-card .status-badge.status-sorusturma {
+  background: #6366f1;
+}
+.case-card .status-badge.status-iddianame {
+  background: #d97706;
+}
+.case-card .status-badge.status-kovusturma {
+  background: #8b1e1e;
+}
+.case-card .status-badge.status-karar {
+  background: #0d9488;
+}
+.case-card .status-badge.status-temyiz {
+  background: #7c3aed;
+}
+.case-card .status-badge.status-kesinlesme {
+  background: #16a34a;
 }
 
 .case-card h4 {
