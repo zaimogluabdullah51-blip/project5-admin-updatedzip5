@@ -76,13 +76,13 @@ When making changes, prefer running Express as the primary server (`node server.
 ## Recent Changes
 
 ### 2026-02-07
-- Added `actions` table to database for storing parsed eylemler (actions) per person per case
-- Each action stores: action_num, title, claim, evidence, defense, and tck_codes (JSON array)
-- POST /api/actions and GET /api/actions endpoints added (GET supports filtering by caseId/personId)
-- Profile form submit now saves each parsed accusation as a separate action record in the database
-- "Ayrıştır" fills the form only; "Kaydet" saves person + links case + creates action records
-- Removed `applyParsedToData` to fix case ID mismatch between localStorage and server
-- Simplified admin sidebar to only "Davalar" and "Profiller" menu items
-- Tab switching between Dava Oluştur and Profil Ekle panels works via setSection()
-- Profile case selector loads from server-side cases for correct ID linkage
-- Admin panel uses localStorage with camelCase field names; server/DB uses snake_case — these are separate data models
+- Redesigned Profil Ekle section with structured layout:
+  - Top section: İsim Soyad/Ünvan (editable), İddianame Özeti (readonly), Toplam Talep Edilen Ceza (readonly), Rol, Suçlanan Eylemler (readonly), Fotoğraf URL
+  - Per-accusation cards: Suçlama başlığı, İddia, Deliller, Savunma, Eylem numaraları, TCK maddeleri
+- Improved parser to extract: name + ünvan separately, role keywords, per-accusation action numbers (actionNums array), sentence demand from summary text
+- Added `actions` table with sentence_demand column for storing parsed eylemler per person per case
+- Each action stores: action_num, title, claim, evidence, defense, tck_codes (JSON), sentence_demand
+- POST /api/actions and GET /api/actions endpoints (GET supports filtering by caseId/personId)
+- Profile form submit saves person + links case + creates action records with TCK codes and sentence demand
+- "Ayrıştır" fills form only; "Kaydet" saves to server and localStorage
+- Admin panel uses localStorage with camelCase field names; server/DB uses snake_case

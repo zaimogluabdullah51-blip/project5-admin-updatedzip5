@@ -144,12 +144,15 @@ function parsePastedText(text) {
     caseNumber: "",
     title: "",
     summary: "",
+    sentenceDemand: "",
     actionNumbers: [],
     profiles: [],
-    accusations: []
+    accusations: [],
+    tckCodes: []
   };
 
   const textBlock = lines.join("\n");
+
   const fileLine = lines.find((l) => l.trim().startsWith("\u{1F4C2}"));
   if (fileLine) {
     const value = fileLine.split(":").slice(1).join(":").trim();
@@ -174,18 +177,63 @@ function parsePastedText(text) {
       const parts = actionsPart.split(/,|&/).map((v) => v.trim()).filter(Boolean);
       result.actionNumbers = parts;
     }
-    if (actionLine.includes("San\u0131k:")) {
-      const valuePart = actionLine.split("San\u0131k:").pop().trim();
-      const roleMatch = valuePart.match(/\(([^)]+)\)/);
-      const role = roleMatch ? roleMatch[1].trim() : "San\u0131k";
-      const name = valuePart.replace(/\(([^)]+)\)/, "").trim();
-      result.profiles.push({ name, role });
+
+    const roleKeywords = ["San\u0131k", "\u0130tiraf\u00E7\u0131", "Tan\u0131k", "Gizli Tan\u0131k", "Ma\u011fdur", "Firari", "Tutuklu"];
+    let foundRole = "";
+    let personPart = "";
+    for (const keyword of roleKeywords) {
+      const roleIdx = actionLine.indexOf(keyword + ":");
+      if (roleIdx !== -1) {
+        foundRole = keyword;
+        personPart = actionLine.slice(roleIdx + keyword.length + 1).trim();
+        break;
+      }
+    }
+    if (!foundRole) {
+      const pipeIdx = actionLine.indexOf("|");
+      if (pipeIdx !== -1) {
+        personPart = actionLine.slice(pipeIdx + 1).trim();
+        const colonIdx = personPart.indexOf(":");
+        if (colonIdx !== -1) {
+          foundRole = personPart.slice(0, colonIdx).trim();
+          personPart = personPart.slice(colonIdx + 1).trim();
+        }
+      }
+    }
+    if (personPart) {
+      const unvanMatch = personPart.match(/^([^(]+)\(([^)]+)\)/);
+      if (unvanMatch) {
+        result.profiles.push({
+          name: unvanMatch[1].trim(),
+          role: foundRole || "San\u0131k",
+          unvan: unvanMatch[2].trim()
+        });
+      } else {
+        result.profiles.push({
+          name: personPart.trim(),
+          role: foundRole || "San\u0131k",
+          unvan: ""
+        });
+      }
     }
   }
 
   const summaryMatch = textBlock.match(/\u{1F6A9}\s*\u0130ddianame \u00D6zeti:\s*([\s\S]*?)(?=\u{1F6A8}|$)/u);
   if (summaryMatch) {
     result.summary = summaryMatch[1].trim();
+  }
+
+  const sentencePatterns = [
+    /Talep edilen ceza:\s*([^\n]+)/i,
+    /(\d+[-\u2013]\d+\s*y\u0131l(?:\s*(?:ve|ile)\s*\d+[-\u2013]\d+\s*ay)?\s*(?:hapis|a\u011f\u0131r hapis)(?:\s*cezas\u0131)?)/i,
+    /hapis cezas\u0131 talep/i
+  ];
+  for (const pat of sentencePatterns) {
+    const m = textBlock.match(pat);
+    if (m) {
+      result.sentenceDemand = m[1] ? m[1].trim() : m[0].trim();
+      break;
+    }
   }
 
   const actionMentions = textBlock.match(/Eylem\s*\d+/gi) || [];
@@ -204,21 +252,22 @@ function parsePastedText(text) {
 
     const blockTckCodes = parseTck(block);
 
-    const actionMatch = titleLine ? titleLine.match(/Eylem\s*(\d+)/i) : null;
-    const actionNum = actionMatch ? actionMatch[1] : "";
+    const blockActionNums = [];
+    const actionRefs = block.match(/Eylem\s*(\d+)/gi) || [];
+    actionRefs.forEach((ref) => {
+      const n = ref.replace(/Eylem/i, "").trim();
+      if (n) blockActionNums.push(n);
+    });
 
     result.accusations.push({
       title: titleLine || "",
-      actionNum,
+      actionNums: Array.from(new Set(blockActionNums)),
       tckCodes: blockTckCodes,
       claim: claimMatch ? claimMatch[1].trim() : "",
       evidence: evidenceMatch ? evidenceMatch[1].trim() : "",
       defense: defenseMatch ? defenseMatch[1].trim() : ""
     });
   });
-
-  const sentenceMatch = textBlock.match(/Talep edilen ceza:\s*([^\n]+)/i);
-  result.sentenceDemand = sentenceMatch ? sentenceMatch[1].trim() : "";
 
   result.tckCodes = parseTck(text);
   return result;
@@ -230,19 +279,36 @@ function renderActionCards(parsed) {
 
   parsed.accusations.forEach((acc, idx) => {
     const card = document.createElement("div");
-    card.className = "action-card";
+    card.className = "accusation-card";
 
-    const actionLabel = acc.actionNum ? `Eylem ${acc.actionNum}` : `Suçlama ${idx + 1}`;
+    const num = idx + 1;
+    const actionsLabel = acc.actionNums && acc.actionNums.length > 0
+      ? acc.actionNums.map((n) => `Eylem ${n}`).join(", ")
+      : "\u2014";
     const tckList = acc.tckCodes.length > 0 ? acc.tckCodes.join(", ") : "\u2014";
 
     card.innerHTML = `
-      <div class="action-card-header">
-        <strong>${actionLabel}</strong>
-        <span class="muted">${acc.title || ""}</span>
+      <div class="accusation-card-header">
+        <span class="accusation-num">Su\u00E7lama ${num}</span>
+        <span class="accusation-title">${acc.title || ""}</span>
       </div>
-      <div class="action-card-body">
-        <span class="action-tck-label">TCK:</span>
-        <span class="action-tck-codes">${tckList}</span>
+      <div class="accusation-card-body">
+        <div class="accusation-row">
+          <span class="accusation-label">\u0130ddia</span>
+          <p class="accusation-text">${acc.claim || "\u2014"}</p>
+        </div>
+        <div class="accusation-row">
+          <span class="accusation-label">Deliller</span>
+          <p class="accusation-text">${acc.evidence || "\u2014"}</p>
+        </div>
+        <div class="accusation-row">
+          <span class="accusation-label">Savunma</span>
+          <p class="accusation-text">${acc.defense || "\u2014"}</p>
+        </div>
+        <div class="accusation-meta">
+          <span class="accusation-meta-item"><strong>Eylem:</strong> ${actionsLabel}</span>
+          <span class="accusation-meta-item"><strong>TCK:</strong> <span class="tck-highlight">${tckList}</span></span>
+        </div>
       </div>
     `;
     actionsContainer.appendChild(card);
@@ -255,18 +321,13 @@ function applyParsedToForm(parsed) {
   setInput(profileForm, "summary", parsed.summary || "");
 
   if (parsed.profiles[0]) {
-    const rawRole = parsed.profiles[0].role || "San\u0131k";
-    const name = parsed.profiles[0].name;
-    const displayName =
-      rawRole && !/san\u0131k|tan\u0131k|itiraf|ma\u011fdur|firari|tutuk/i.test(rawRole)
-        ? `${name} (${rawRole})`
-        : name;
+    const profile = parsed.profiles[0];
+    const rawRole = profile.role || "San\u0131k";
 
-    if (parsed.title) {
-      setInput(profileForm, "name", `${displayName} — ${parsed.title}`);
-    } else {
-      setInput(profileForm, "name", displayName);
-    }
+    const nameWithUnvan = profile.unvan
+      ? `${profile.name} (${profile.unvan})`
+      : profile.name;
+    setInput(profileForm, "name", nameWithUnvan);
 
     const roleMap = {
       "San\u0131k": "defendant",
@@ -282,42 +343,16 @@ function applyParsedToForm(parsed) {
 
   setInput(profileForm, "sentenceDemand", parsed.sentenceDemand || "");
 
+  const actionsText = parsed.actionNumbers.length > 0
+    ? parsed.actionNumbers.map((n) => `Eylem ${n}`).join(", ")
+    : "";
+  setInput(profileForm, "actionNums", actionsText);
+
   renderActionCards(parsed);
 }
 
 function renderParseResults(parsed) {
   parseResults.innerHTML = "";
-  if (!parsed) return;
-
-  const info = document.createElement("div");
-  info.className = "list-item";
-
-  let tckSummary = "";
-  if (parsed.accusations.length > 0) {
-    tckSummary = parsed.accusations.map((acc, idx) => {
-      const label = acc.actionNum ? `Eylem ${acc.actionNum}` : `Suçlama ${idx + 1}`;
-      const codes = acc.tckCodes.length > 0 ? acc.tckCodes.join(", ") : "\u2014";
-      return `${label}: ${codes}`;
-    }).join("<br />");
-  } else {
-    tckSummary = parsed.tckCodes.join(", ") || "\u2014";
-  }
-
-  info.innerHTML = `
-    <strong>\u00D6zet</strong><br />
-    <span class="muted">Dosya: ${parsed.caseNumber || "\u2014"} \u00B7 ${parsed.title || ""}</span><br />
-    <span class="muted">Eylem: ${parsed.actionNumbers.join(", ") || "\u2014"}</span><br />
-    <span class="muted">TCK:<br />${tckSummary}</span><br />
-    <span class="muted">Su\u00E7lama say\u0131s\u0131: ${parsed.accusations.length}</span>
-  `;
-  parseResults.appendChild(info);
-
-  parsed.profiles.forEach((p) => {
-    const div = document.createElement("div");
-    div.className = "list-item";
-    div.innerHTML = `<strong>${p.name}</strong><br /><span class="muted">${p.role}</span>`;
-    parseResults.appendChild(div);
-  });
 }
 
 loginForm.addEventListener("submit", async (event) => {
@@ -431,7 +466,7 @@ profileForm.addEventListener("submit", async (event) => {
 
   const actionsWithTck = lastParsed
     ? lastParsed.accusations.map((acc, idx) => ({
-        actionNum: acc.actionNum || String(idx + 1),
+        actionNums: acc.actionNums || [],
         tckCodes: acc.tckCodes
       }))
     : [];
@@ -474,12 +509,13 @@ profileForm.addEventListener("submit", async (event) => {
             body: JSON.stringify({
               caseId,
               personId: person.id,
-              actionNum: acc.actionNum || "",
+              actionNum: (acc.actionNums || []).join(", "),
               title: acc.title || "",
               claim: acc.claim || "",
               evidence: acc.evidence || "",
               defense: acc.defense || "",
-              tckCodes: acc.tckCodes || []
+              tckCodes: acc.tckCodes || [],
+              sentenceDemand: lastParsed.sentenceDemand || ""
             })
           });
         }

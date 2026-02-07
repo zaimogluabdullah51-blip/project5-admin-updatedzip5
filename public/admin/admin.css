@@ -143,38 +143,81 @@ body {
 
 #actions-container {
   display: grid;
-  gap: 8px;
+  gap: 12px;
 }
 
-.action-card {
+.accusation-card {
   border: 1px solid var(--border);
-  border-radius: 10px;
-  padding: 10px 14px;
+  border-radius: 12px;
+  overflow: hidden;
   background: var(--panel-light);
 }
 
-.action-card-header {
+.accusation-card-header {
   display: flex;
-  justify-content: space-between;
   align-items: center;
-  margin-bottom: 6px;
+  gap: 12px;
+  padding: 10px 14px;
+  background: rgba(139, 30, 30, 0.12);
+  border-bottom: 1px solid var(--border);
 }
 
-.action-card-header strong {
+.accusation-num {
+  font-weight: 600;
+  font-size: 0.85rem;
   color: #ef4444;
-  font-size: 0.85rem;
+  white-space: nowrap;
 }
 
-.action-card-body {
+.accusation-title {
   font-size: 0.85rem;
-}
-
-.action-tck-label {
   color: var(--muted);
-  margin-right: 6px;
 }
 
-.action-tck-codes {
+.accusation-card-body {
+  padding: 12px 14px;
+  display: grid;
+  gap: 10px;
+}
+
+.accusation-row {
+  display: grid;
+  gap: 4px;
+}
+
+.accusation-label {
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--muted);
+}
+
+.accusation-text {
+  font-size: 0.85rem;
+  line-height: 1.5;
+  color: var(--text);
+  white-space: pre-line;
+}
+
+.accusation-meta {
+  display: flex;
+  gap: 16px;
+  flex-wrap: wrap;
+  padding-top: 8px;
+  border-top: 1px solid var(--border);
+  font-size: 0.8rem;
+}
+
+.accusation-meta-item {
+  color: var(--muted);
+}
+
+.accusation-meta-item strong {
+  color: var(--text);
+}
+
+.tck-highlight {
   color: #fbbf24;
 }
 
@@ -201,11 +244,24 @@ textarea {
   border-radius: 10px;
 }
 
-textarea[readonly] {
+textarea[readonly],
+input[readonly] {
   opacity: 0.85;
   cursor: default;
   background: rgba(31, 41, 55, 0.6);
   border-style: dashed;
+}
+
+.profile-header-section {
+  display: grid;
+  gap: 12px;
+}
+
+.accusations-heading {
+  font-size: 1rem;
+  color: var(--text);
+  padding-top: 8px;
+  border-top: 1px solid var(--border);
 }
 
 .btn {

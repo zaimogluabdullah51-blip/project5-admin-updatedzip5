@@ -86,22 +86,28 @@
             <div id="parse-results" class="list"></div>
           </div>
           <form id="profile-form">
-            <label>İddianame Özeti<textarea name="summary" rows="3" readonly></textarea></label>
-            <label>İsim Soyad / Ünvan<input name="name" required /></label>
-            <label>Fotoğraf URL<input name="photo" placeholder="https://..." /></label>
-            <label>Rol
-              <select name="role">
-                <option value="defendant">Sanık</option>
-                <option value="informant">İtirafçı</option>
-                <option value="witness">Tanık</option>
-                <option value="secretWitness">Gizli Tanık</option>
-                <option value="victim">Mağdur</option>
-                <option value="fugitive">Firari</option>
-                <option value="detained">Tutuklu</option>
-              </select>
-            </label>
+            <div class="profile-header-section">
+              <label>İsim Soyad / Ünvan<input name="name" required /></label>
+              <label>İddianame Özeti<textarea name="summary" rows="3" readonly></textarea></label>
+              <div class="form-grid">
+                <label>Toplam Talep Edilen Ceza<input name="sentenceDemand" readonly /></label>
+                <label>Rol
+                  <select name="role">
+                    <option value="defendant">Sanık</option>
+                    <option value="informant">İtirafçı</option>
+                    <option value="witness">Tanık</option>
+                    <option value="secretWitness">Gizli Tanık</option>
+                    <option value="victim">Mağdur</option>
+                    <option value="fugitive">Firari</option>
+                    <option value="detained">Tutuklu</option>
+                  </select>
+                </label>
+              </div>
+              <label>Suçlanan Eylemler<input name="actionNums" readonly /></label>
+              <label>Fotoğraf URL<input name="photo" placeholder="https://..." /></label>
+            </div>
+            <h3 class="accusations-heading">Suçlamalar</h3>
             <div id="actions-container"></div>
-            <label>Talep Edilen Ceza<input name="sentenceDemand" placeholder="5-12 yıl / 12 yıl" /></label>
             <button class="btn primary" type="submit">Kaydet</button>
           </form>
           <div class="list" id="profile-list"></div>
