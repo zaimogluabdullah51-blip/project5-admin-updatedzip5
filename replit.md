@@ -126,3 +126,5 @@ When making changes, prefer running Express as the primary server (`node server.
 - Homepage: Mail icon (info@davatakibi.com) added to header top-right with mailto: link
 - Homepage: "Siz de belge paylaşın" encouragement section added below case grid with document icon, mailto: link, and copy-to-clipboard button
 - Homepage: Footer redesigned with İletişim section (mail address + copy button) and X social link
+- Layout: Homepage and TCK page content constrained to max-width 1200px with auto centering for a narrower, more readable layout
+- Layout: Admin page unchanged (already has sidebar layout constraining content naturally)
