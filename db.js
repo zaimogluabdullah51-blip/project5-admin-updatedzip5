@@ -182,6 +182,8 @@ async function init() {
   await ensureColumn("cases", "indictment_date", "TEXT");
   await ensureColumn("cases", "acceptance_date", "TEXT");
   await ensureColumn("cases", "verdict_date", "TEXT");
+  await ensureColumn("cases", "sorusturma_no", "TEXT");
+  await ensureColumn("cases", "iddianame_no", "TEXT");
   await ensureColumn("people", "photo_url", "TEXT");
   await ensureColumn("people", "tck_articles", "TEXT");
   await ensureColumn("people", "accusations", "TEXT");
@@ -196,13 +198,6 @@ async function init() {
   await ensureColumn("people", "action_numbers", "TEXT");
   await ensureColumn("actions", "sentence_demand", "TEXT");
   await ensureColumn("actions", "mentioned_names", "TEXT");
-  await ensureColumn("indictments", "sorusturma_no", "TEXT");
-  await ensureColumn("indictments", "esas_no", "TEXT");
-  await ensureColumn("indictments", "iddianame_no", "TEXT");
-  await ensureColumn("indictments", "mahkeme", "TEXT");
-  await ensureColumn("indictments", "iddianame_tarihi", "TEXT");
-  await ensureColumn("indictments", "kabul_tarihi", "TEXT");
-
   await seedTckDefinitions();
 
   const row = await get("SELECT COUNT(*) as count FROM cases");
@@ -468,13 +463,15 @@ async function createCase(payload) {
     panel_members: payload.panel_members || payload.panelMembers || "",
     indictment_date: payload.indictment_date || payload.indictmentDate || "",
     acceptance_date: payload.acceptance_date || payload.acceptanceDate || "",
-    verdict_date: payload.verdict_date || payload.verdictDate || ""
+    verdict_date: payload.verdict_date || payload.verdictDate || "",
+    sorusturma_no: payload.sorusturma_no || payload.sorusturmaNo || "",
+    iddianame_no: payload.iddianame_no || payload.iddianameNo || ""
   };
 
   await run(
     `INSERT INTO cases
-      (id, title, summary, incident, dossier, date, status, case_number, court_name, judge, court_panel, prosecutor, hearing_count, start_date, last_hearing_date, tck_articles, indictment_prosecutor, trial_prosecutor, judge_type, judge_name, panel_president, panel_members, indictment_date, acceptance_date, verdict_date)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      (id, title, summary, incident, dossier, date, status, case_number, court_name, judge, court_panel, prosecutor, hearing_count, start_date, last_hearing_date, tck_articles, indictment_prosecutor, trial_prosecutor, judge_type, judge_name, panel_president, panel_members, indictment_date, acceptance_date, verdict_date, sorusturma_no, iddianame_no)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     [
       record.id,
       record.title,
@@ -500,7 +497,9 @@ async function createCase(payload) {
       record.panel_members,
       record.indictment_date,
       record.acceptance_date,
-      record.verdict_date
+      record.verdict_date,
+      record.sorusturma_no,
+      record.iddianame_no
     ]
   );
 
@@ -518,7 +517,8 @@ async function updateCase(id, payload) {
       case_number = ?, court_name = ?, judge = ?, court_panel = ?, prosecutor = ?,
       hearing_count = ?, start_date = ?, last_hearing_date = ?, tck_articles = ?,
       indictment_prosecutor = ?, trial_prosecutor = ?, judge_type = ?, judge_name = ?,
-      panel_president = ?, panel_members = ?, indictment_date = ?, acceptance_date = ?, verdict_date = ?
+      panel_president = ?, panel_members = ?, indictment_date = ?, acceptance_date = ?, verdict_date = ?,
+      sorusturma_no = ?, iddianame_no = ?
      WHERE id = ?`,
     [
       b.title ?? existing.title,
@@ -545,6 +545,8 @@ async function updateCase(id, payload) {
       b.indictment_date ?? existing.indictment_date,
       b.acceptance_date ?? existing.acceptance_date,
       b.verdict_date ?? existing.verdict_date,
+      b.sorusturma_no ?? existing.sorusturma_no,
+      b.iddianame_no ?? existing.iddianame_no,
       id
     ]
   );
@@ -648,64 +650,6 @@ async function createAction(payload) {
   return record;
 }
 
-async function createIndictment(payload) {
-  const id = nanoid();
-  const record = {
-    id,
-    case_id: payload.case_id || payload.caseId || "",
-    summary: payload.summary || "",
-    sorusturma_no: payload.sorusturma_no || "",
-    esas_no: payload.esas_no || "",
-    iddianame_no: payload.iddianame_no || "",
-    mahkeme: payload.mahkeme || "",
-    iddianame_tarihi: payload.iddianame_tarihi || "",
-    kabul_tarihi: payload.kabul_tarihi || "",
-    created_at: new Date().toISOString()
-  };
-  await run(
-    "INSERT INTO indictments (id, case_id, summary, sorusturma_no, esas_no, iddianame_no, mahkeme, iddianame_tarihi, kabul_tarihi, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-    [record.id, record.case_id, record.summary, record.sorusturma_no, record.esas_no, record.iddianame_no, record.mahkeme, record.iddianame_tarihi, record.kabul_tarihi, record.created_at]
-  );
-  return record;
-}
-
-async function updateIndictment(id, payload) {
-  const existing = await get("SELECT * FROM indictments WHERE id = ?", [id]);
-  if (!existing) return null;
-  await run(
-    `UPDATE indictments SET summary = ?, case_id = ?, sorusturma_no = ?, esas_no = ?, iddianame_no = ?, mahkeme = ?, iddianame_tarihi = ?, kabul_tarihi = ? WHERE id = ?`,
-    [
-      payload.summary ?? existing.summary,
-      payload.case_id ?? existing.case_id,
-      payload.sorusturma_no ?? existing.sorusturma_no,
-      payload.esas_no ?? existing.esas_no,
-      payload.iddianame_no ?? existing.iddianame_no,
-      payload.mahkeme ?? existing.mahkeme,
-      payload.iddianame_tarihi ?? existing.iddianame_tarihi,
-      payload.kabul_tarihi ?? existing.kabul_tarihi,
-      id
-    ]
-  );
-  return await get("SELECT * FROM indictments WHERE id = ?", [id]);
-}
-
-async function createIndictmentAction(payload) {
-  const id = nanoid();
-  const record = {
-    id,
-    indictment_id: payload.indictment_id || payload.indictmentId || "",
-    action_num: payload.action_num || payload.actionNum || "",
-    title: payload.title || "",
-    tck_codes: payload.tck_codes || payload.tckCodes || [],
-    evidence: payload.evidence || ""
-  };
-  await run(
-    "INSERT INTO indictment_actions (id, indictment_id, action_num, title, tck_codes, evidence) VALUES (?, ?, ?, ?, ?, ?)",
-    [record.id, record.indictment_id, record.action_num, record.title, JSON.stringify(record.tck_codes), record.evidence]
-  );
-  return record;
-}
-
 async function createOfficial(payload) {
   const name = (payload.name || "").trim();
   const role = (payload.role || "").trim();
@@ -737,4 +681,4 @@ async function linkOfficial(caseId, officialId, roleInCase) {
   );
 }
 
-export { db, run, get, all, init, createCase, updateCase, createPerson, linkPerson, createAction, createIndictment, updateIndictment, createIndictmentAction, createOfficial, linkOfficial };
+export { db, run, get, all, init, createCase, updateCase, createPerson, linkPerson, createAction, createOfficial, linkOfficial };

@@ -2,7 +2,7 @@ import express from "express";
 import path from "path";
 import { fileURLToPath } from "url";
 import crypto from "crypto";
-import { all, get, run, init, createCase, updateCase, createPerson, linkPerson, createAction, createIndictment, updateIndictment, createIndictmentAction, createOfficial, linkOfficial } from "./db.js";
+import { all, get, run, init, createCase, updateCase, createPerson, linkPerson, createAction, createOfficial, linkOfficial } from "./db.js";
 
 const app = express();
 const __filename = fileURLToPath(import.meta.url);
@@ -569,103 +569,6 @@ app.delete("/api/tck-definitions/:code", requireAuthApi, async (req, res) => {
   }
 });
 
-// ── Indictments ──
-
-app.get("/api/indictments", async (req, res) => {
-  try {
-    let rows;
-    if (req.query.caseId) {
-      rows = await all("SELECT * FROM indictments WHERE case_id = ? ORDER BY created_at DESC", [req.query.caseId]);
-    } else {
-      rows = await all("SELECT * FROM indictments ORDER BY created_at DESC");
-    }
-    for (const row of rows) {
-      const actions = await all(
-        "SELECT * FROM indictment_actions WHERE indictment_id = ? ORDER BY action_num ASC",
-        [row.id]
-      );
-      row.actions = actions.map(a => ({ ...a, tck_codes: parseJsonField(a.tck_codes, []) }));
-    }
-    res.json(rows);
-  } catch (err) {
-    console.error("Indictments error:", err);
-    res.status(500).json({ error: "İddianameler yüklenemedi." });
-  }
-});
-
-app.get("/api/indictments/:id", async (req, res) => {
-  try {
-    const row = await get("SELECT * FROM indictments WHERE id = ?", [req.params.id]);
-    if (!row) return res.status(404).json({ error: "İddianame bulunamadı." });
-    const actions = await all(
-      "SELECT * FROM indictment_actions WHERE indictment_id = ? ORDER BY action_num ASC",
-      [row.id]
-    );
-    row.actions = actions.map(a => ({ ...a, tck_codes: parseJsonField(a.tck_codes, []) }));
-    res.json(row);
-  } catch (err) {
-    res.status(500).json({ error: "İddianame yüklenemedi." });
-  }
-});
-
-app.post("/api/indictments", requireAuthApi, async (req, res) => {
-  try {
-    const record = await createIndictment(req.body);
-
-    if (Array.isArray(req.body.actions)) {
-      for (const act of req.body.actions) {
-        await createIndictmentAction({ ...act, indictment_id: record.id });
-      }
-    }
-
-    const caseId = req.body.case_id || req.body.caseId;
-    if (caseId) {
-      const existingCase = await get("SELECT status FROM cases WHERE id = ?", [caseId]);
-      if (existingCase && (!existingCase.status || existingCase.status === "Soruşturma")) {
-        await run("UPDATE cases SET status = ? WHERE id = ?", ["İddianame Aşamasında", caseId]);
-      }
-    }
-
-    res.status(201).json(record);
-  } catch (err) {
-    console.error("Indictment create error:", err);
-    res.status(500).json({ error: "İddianame kaydedilemedi." });
-  }
-});
-
-app.put("/api/indictments/:id", requireAuthApi, async (req, res) => {
-  try {
-    const updated = await updateIndictment(req.params.id, req.body);
-    if (!updated) return res.status(404).json({ error: "İddianame bulunamadı." });
-
-    if (Array.isArray(req.body.actions)) {
-      await run("DELETE FROM indictment_actions WHERE indictment_id = ?", [req.params.id]);
-      for (const act of req.body.actions) {
-        await createIndictmentAction({ ...act, indictment_id: req.params.id });
-      }
-    }
-
-    const actions = await all(
-      "SELECT * FROM indictment_actions WHERE indictment_id = ? ORDER BY action_num ASC",
-      [req.params.id]
-    );
-    updated.actions = actions.map(a => ({ ...a, tck_codes: parseJsonField(a.tck_codes, []) }));
-    res.json(updated);
-  } catch (err) {
-    res.status(500).json({ error: "İddianame güncellenemedi." });
-  }
-});
-
-app.delete("/api/indictments/:id", requireAuthApi, async (req, res) => {
-  try {
-    await run("DELETE FROM indictment_actions WHERE indictment_id = ?", [req.params.id]);
-    await run("DELETE FROM indictments WHERE id = ?", [req.params.id]);
-    res.json({ ok: true });
-  } catch (err) {
-    res.status(500).json({ error: "İddianame silinemedi." });
-  }
-});
-
 // ── Officials ──
 
 app.get("/api/officials", async (req, res) => {
@@ -731,11 +634,6 @@ app.use("/admin", requireAuthPage, express.static(path.join(__dirname, "public",
 
 app.delete("/api/cases/:id", requireAuthApi, async (req, res) => {
   try {
-    const indictments = await all("SELECT id FROM indictments WHERE case_id = ?", [req.params.id]);
-    for (const ind of indictments) {
-      await run("DELETE FROM indictment_actions WHERE indictment_id = ?", [ind.id]);
-    }
-    await run("DELETE FROM indictments WHERE case_id = ?", [req.params.id]);
     await run("DELETE FROM case_officials WHERE case_id = ?", [req.params.id]);
     await run("DELETE FROM actions WHERE case_id = ?", [req.params.id]);
     await run("DELETE FROM case_people WHERE case_id = ?", [req.params.id]);
