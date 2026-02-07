@@ -399,6 +399,101 @@ app.get("/api/graph", async (req, res) => {
   }
 });
 
+app.get("/api/tck-summary", async (req, res) => {
+  try {
+    const actions = await all("SELECT * FROM actions ORDER BY action_num ASC");
+    const people = await all("SELECT * FROM people ORDER BY name ASC");
+    const casePeople = await all("SELECT * FROM case_people");
+    const cases = await all("SELECT id, title FROM cases");
+
+    const caseMap = new Map(cases.map(c => [c.id, c.title]));
+    const personMap = new Map(people.map(p => [p.id, p]));
+
+    const personCases = new Map();
+    for (const cp of casePeople) {
+      if (!personCases.has(cp.person_id)) personCases.set(cp.person_id, new Set());
+      personCases.get(cp.person_id).add(cp.case_id);
+    }
+
+    const tckData = new Map();
+
+    for (const action of actions) {
+      const codes = parseJsonField(action.tck_codes, []);
+      for (const code of codes) {
+        if (!code) continue;
+        const normalized = String(code).trim();
+        if (!tckData.has(normalized)) {
+          tckData.set(normalized, { article: normalized, profiles: [] });
+        }
+        const person = personMap.get(action.person_id);
+        if (!person) continue;
+
+        const caseIds = personCases.get(action.person_id);
+        const actionCaseTitle = caseMap.get(action.case_id) || (caseIds ? caseMap.get([...caseIds][0]) || "" : "");
+        const actionCaseId = action.case_id || (caseIds ? [...caseIds][0] || "" : "");
+
+        tckData.get(normalized).profiles.push({
+          personId: person.id,
+          name: person.name,
+          role: person.role,
+          organization: person.organization,
+          actionNum: action.action_num,
+          actionTitle: action.title,
+          claim: action.claim,
+          evidence: action.evidence,
+          defense: action.defense,
+          sentenceDemand: action.sentence_demand || person.sentence_demand,
+          caseId: actionCaseId,
+          caseTitle: actionCaseTitle
+        });
+      }
+    }
+
+    for (const person of people) {
+      const articles = parseJsonField(person.tck_articles, []);
+      for (const code of articles) {
+        if (!code) continue;
+        const normalized = String(code).trim();
+        if (!tckData.has(normalized)) {
+          tckData.set(normalized, { article: normalized, profiles: [] });
+        }
+        const existing = tckData.get(normalized).profiles;
+        if (existing.some(p => p.personId === person.id)) continue;
+
+        const caseIds = personCases.get(person.id);
+        const caseTitle = caseIds ? caseMap.get([...caseIds][0]) || "" : "";
+        const caseId = caseIds ? [...caseIds][0] || "" : "";
+
+        existing.push({
+          personId: person.id,
+          name: person.name,
+          role: person.role,
+          organization: person.organization,
+          actionNum: null,
+          actionTitle: null,
+          claim: person.charge,
+          evidence: person.evidence,
+          defense: null,
+          sentenceDemand: person.sentence_demand,
+          caseId,
+          caseTitle
+        });
+      }
+    }
+
+    const result = Array.from(tckData.values()).sort((a, b) => {
+      const na = parseInt(a.article) || 0;
+      const nb = parseInt(b.article) || 0;
+      return na - nb || a.article.localeCompare(b.article);
+    });
+
+    res.json(result);
+  } catch (err) {
+    console.error("TCK summary error:", err);
+    res.status(500).json({ error: "TCK verileri yüklenemedi." });
+  }
+});
+
 app.get("/admin", (req, res) => {
   if (!isAuthed(req)) return res.redirect("/admin/login.html");
   res.redirect("/admin/index.html");

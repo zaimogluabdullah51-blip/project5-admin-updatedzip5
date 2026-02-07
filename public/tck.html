@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="tr">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>TCK Analizi · CourtCase Clarity</title>
+    <link rel="stylesheet" href="/styles.css" />
+    <link rel="stylesheet" href="/tck.css" />
+  </head>
+  <body class="home-body">
+    <div class="ambient"></div>
+
+    <header class="tck-header">
+      <div class="tck-header-top">
+        <a href="/" class="btn ghost small">Ana Sayfa</a>
+        <div style="display: flex; align-items: center; gap: 8px;">
+          <a href="https://x.com/Istanbul_Dava" target="_blank" rel="noopener" class="btn ghost small" style="padding: 4px 10px;">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
+          </a>
+        </div>
+      </div>
+      <div class="tck-hero">
+        <p class="eyebrow">CourtCase Clarity</p>
+        <h1>TCK Madde Analizi</h1>
+        <p class="subhead">Türk Ceza Kanunu maddelerine göre yapılandırılmış suçlama, delil, savunma ve hüküm bilgileri.</p>
+      </div>
+    </header>
+
+    <main class="tck-main">
+      <div class="tck-search-bar">
+        <input id="tck-search" type="search" placeholder="TCK maddesi ara (örn: 314, 220)" />
+      </div>
+
+      <div id="tck-list" class="tck-list">
+        <div class="tck-loading">Yükleniyor...</div>
+      </div>
+    </main>
+
+    <footer style="text-align: center; padding: 32px 24px; color: var(--muted); font-size: 0.85rem;">
+      <a href="https://x.com/Istanbul_Dava" target="_blank" rel="noopener" style="color: var(--text); text-decoration: none; display: inline-flex; align-items: center; gap: 6px; padding: 8px 16px; border-radius: 999px; background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.1); transition: background 0.2s;">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
+        @Istanbul_Dava
+      </a>
+    </footer>
+
+    <script src="/tck.js"></script>
+  </body>
+</html>

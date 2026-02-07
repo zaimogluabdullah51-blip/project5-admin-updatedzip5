@@ -54,6 +54,9 @@ When making changes, prefer running Express as the primary server (`node server.
 │   ├── map.html       # Network map view
 │   ├── map.js         # Map logic (vis-network)
 │   ├── map.css        # Map styles
+│   ├── tck.html       # TCK analysis page
+│   ├── tck.js         # TCK page logic
+│   ├── tck.css        # TCK page styles
 │   └── admin/
 │       ├── index.html # Admin dashboard
 │       ├── admin.js   # Admin logic
@@ -106,3 +109,11 @@ When making changes, prefer running Express as the primary server (`node server.
 - Map: Ghost node click opens simple info card showing name + role + "not registered" message
 - Map: Person modal action cards show "Geçen İsimler" with role labels (e.g., "Ahmet Yılmaz (İtirafçı)")
 - English map.html (public/en/map.html) synced with ghost modal and script reference fixed to /en/map.js
+- Homepage: Removed "Dava Seç" button, updated 3 feature cards (İlişki Haritası, Dava Arşivi, TCK Kümeleri) with accent red styling and clickable links
+- Homepage: İlişki Haritası links to #preview-section, Dava Arşivi links to #case-grid, TCK Kümeleri links to /tck.html
+- Homepage: Preview map section blurred by default with "Tam sayfa için tıklayınız" overlay on hover
+- Homepage: X (Twitter) social media link added to header and footer (@Istanbul_Dava)
+- New TCK Analysis page (tck.html): Searchable accordion list of TCK articles with profiles, claims, evidence, defense, sentence demands
+- API: GET /api/tck-summary endpoint aggregates TCK articles from actions.tck_codes and people.tck_articles
+- TCK page: Each article card expandable, showing official description, per-profile detail boxes (Suçlama, Deliller, Savunma), sentence demand, and "Haritada Gör" link
+- TCK page: XSS protection via HTML escaping of all user-provided data

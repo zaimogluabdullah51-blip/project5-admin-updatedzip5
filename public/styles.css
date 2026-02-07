@@ -601,11 +601,34 @@ textarea:focus {
   display: grid;
   gap: 8px;
   box-shadow: var(--shadow);
+  text-decoration: none;
+  color: var(--text);
+  transition: transform 0.2s ease, border-color 0.2s ease, background 0.2s ease;
+}
+
+.feature-card:hover {
+  transform: translateY(-4px);
+}
+
+.feature-card--accent {
+  background: rgba(139, 30, 30, 0.12);
+  border-color: rgba(139, 30, 30, 0.3);
+}
+
+.feature-card--accent:hover {
+  background: rgba(139, 30, 30, 0.22);
+  border-color: rgba(139, 30, 30, 0.5);
 }
 
 .feature-card h3 {
   font-family: "Libre Baskerville", serif;
   font-size: 1rem;
+}
+
+.feature-card p {
+  color: var(--muted);
+  line-height: 1.5;
+  font-size: 0.9rem;
 }
 
 .preview-panel {
