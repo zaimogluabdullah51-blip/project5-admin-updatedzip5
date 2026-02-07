@@ -52,3 +52,8 @@ The project is structured with `server.js` and `db.js` at the root, alongside `v
 - Admin: parseSanikKimligi extracts name, organization (from "bünyesinde"), title (from "olarak görev"), multiple roles ([Sanık][Tutuklu]), sentence demand, eylem numbers, TCK codes
 - Admin: parseMentionedNames extracts name [Role]: context from 👥 section, auto-maps Turkish roles to English, stops at emoji boundaries
 - Admin: Multiple roles preserved through full chain (parser → form → API → map)
+- Admin: Parser now extracts ⚖️ SAVCILIK SUÇLAMALARI section → fills "Savcılık Suçlamaları" textarea in form
+- Admin: Parser extracts 🖼️ FOTOĞRAF link → fills photo URL field
+- Admin: Eylem range format (e.g., "Eylem 39-43") now expanded to individual numbers [39,40,41,42,43]
+- Admin: 📂 line parsing works with or without [SANIK KARTI] prefix
+- Admin: parseSanikKimligi boundary improved — stops at ⚖️, 🖼️ emojis to prevent content bleed
