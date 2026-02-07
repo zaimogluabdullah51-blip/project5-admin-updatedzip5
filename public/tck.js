@@ -1,103 +1,8 @@
-const TCK_DESCRIPTIONS = {
-  "220": {
-    short: "Suç İşlemek Amacıyla Örgüt Kurma",
-    full: "Kanunun suç saydığı fiilleri işlemek amacıyla örgüt kuranlar veya yönetenler, örgütün yapısı, sahip bulunduğu üye sayısı ile araç ve gereç bakımından amaç suçları işlemeye elverişli olması hâlinde cezalandırılır. Örgüt üyeliği, örgütün hiyerarşik yapısına dahil olmayı ve örgüte bilerek ve isteyerek katılmayı gerektirir."
-  },
-  "220/6": {
-    short: "Örgüte Bilerek ve İsteyerek Yardım Etme",
-    full: "Örgüte üye olmamakla birlikte örgüt adına suç işleyen kişi, ayrıca örgüte üye olmak suçundan da cezalandırılır. Örgüte bilerek ve isteyerek yardım eden kişi, örgüt üyesi olarak cezalandırılır."
-  },
-  "220/7": {
-    short: "Örgüt Propagandası Yapma",
-    full: "Örgütün cebir, şiddet veya tehdit içeren yöntemlerini meşru gösterecek ya da övecek ya da bu yöntemlere başvurmayı teşvik edecek şekilde propagandasını yapan kişi cezalandırılır."
-  },
-  "220/8": {
-    short: "Örgütün Hiyerarşik Yapısına Dahil Olmamakla Birlikte Örgüt Adına Suç İşleme",
-    full: "Örgütün hiyerarşik yapısına dahil olmamakla birlikte, örgüt adına suç işleyen kişi, ayrıca örgüte üye olmak suçundan da cezalandırılır."
-  },
-  "252": {
-    short: "Zimmet",
-    full: "Görevi nedeniyle zilyedliği kendisine devredilmiş olan veya koruma ve gözetimiyle yükümlü olduğu malı kendisinin veya başkasının zimmetine geçiren kamu görevlisi cezalandırılır. Suçun, zimmetin açığa çıkmamasını sağlamaya yönelik hileli davranışlarla işlenmesi hâlinde ceza artırılır."
-  },
-  "271": {
-    short: "Suç Uydurma",
-    full: "İşlenmediğini bildiği bir suçu, yetkili makamlara işlenmiş gibi ihbar eden ya da işlenmeyen bir suçun delil veya emarelerini soruşturma yapılmasını sağlayacak biçimde uyduran kimseye ceza verilir."
-  },
-  "285": {
-    short: "Devletin Güvenliğine İlişkin Bilgileri Temin Etme",
-    full: "Devletin güvenliği veya iç veya dış siyasal yararları bakımından niteliği itibarıyla gizli kalması gereken bilgileri temin eden kimseye ceza verilir."
-  },
-  "299": {
-    short: "Cumhurbaşkanına Hakaret",
-    full: "Cumhurbaşkanına hakaret eden kişi cezalandırılır. Suçun alenen işlenmesi hâlinde ceza artırılır. Bu suçtan dolayı kovuşturma yapılması, Adalet Bakanının iznine bağlıdır."
-  },
-  "301": {
-    short: "Türklüğü Aşağılama",
-    full: "Türk Milletini, Türkiye Cumhuriyeti Devletini, Devletin kurum ve organlarını aşağılayan kişi cezalandırılır. Türklüğü aşağılamanın yabancı bir ülkede bir Türk vatandaşı tarafından işlenmesi hâlinde ceza artırılır."
-  },
-  "302": {
-    short: "Devletin Birliğini ve Ülke Bütünlüğünü Bozmak",
-    full: "Devletin topraklarının tamamını veya bir kısmını yabancı bir devletin egemenliği altına koymaya veya Devletin bağımsızlığını zayıflatmaya veya birliğini bozmaya veya Devletin egemenliği altında bulunan topraklardan bir kısmını Devlet idaresinden ayırmaya yönelik bir fiil işleyen kimse, ağırlaştırılmış müebbet hapis cezası ile cezalandırılır."
-  },
-  "309": {
-    short: "Anayasayı İhlal",
-    full: "Cebir ve şiddet kullanarak Türkiye Cumhuriyeti Anayasasının öngördüğü düzeni ortadan kaldırmaya veya bu düzen yerine başka bir düzen getirmeye veya bu düzenin fiilen uygulanmasını önlemeye teşebbüs edenler ağırlaştırılmış müebbet hapis cezası ile cezalandırılır."
-  },
-  "311": {
-    short: "Yasama Organına Karşı Suç",
-    full: "Cebir ve şiddet kullanarak Türkiye Büyük Millet Meclisini ortadan kaldırmaya veya Türkiye Büyük Millet Meclisinin görevlerini kısmen veya tamamen yapmasını engellemeye teşebbüs edenler ağırlaştırılmış müebbet hapis cezası ile cezalandırılır."
-  },
-  "312": {
-    short: "Hükûmete Karşı Suç",
-    full: "Cebir ve şiddet kullanarak Türkiye Cumhuriyeti Hükûmetini ortadan kaldırmaya veya görevlerini yapmasını kısmen veya tamamen engellemeye teşebbüs eden kimseye ağırlaştırılmış müebbet hapis cezası verilir."
-  },
-  "314": {
-    short: "Silahlı Örgüt Kurma veya Üye Olma",
-    full: "Bu kısmın dördüncü ve beşinci bölümlerinde yer alan suçları işlemek amacıyla silahlı örgüt kuran veya yöneten kişi, on yıldan on beş yıla kadar hapis cezası ile cezalandırılır. Örgüte üye olanlara beş yıldan on yıla kadar hapis cezası verilir."
-  },
-  "314/1": {
-    short: "Silahlı Örgüt Kurma veya Yönetme",
-    full: "Bu kısmın dördüncü ve beşinci bölümlerinde yer alan suçları işlemek amacıyla silahlı örgüt kuran veya yöneten kişi, on yıldan on beş yıla kadar hapis cezası ile cezalandırılır."
-  },
-  "314/2": {
-    short: "Silahlı Örgüt Üyeliği",
-    full: "Bu kısmın dördüncü ve beşinci bölümlerinde yer alan suçları işlemek amacıyla kurulmuş olan silahlı örgüte üye olanlara beş yıldan on yıla kadar hapis cezası verilir. Örgüte üye olmamakla birlikte örgüt adına suç işleyen kişi de örgüt üyesi olarak cezalandırılır."
-  },
-  "315": {
-    short: "Silah Sağlama",
-    full: "Yukarıdaki maddede tanımlanan örgütlere silah sağlayan kişi, on yıldan on beş yıla kadar hapis cezası ile cezalandırılır."
-  },
-  "316": {
-    short: "Suç İçin Anlaşma",
-    full: "Bu kısmın dördüncü ve beşinci bölümlerinde yer alan suçlardan herhangi birinin işlenmesi için anlaşan kişiler, ilgili suça ilişkin cezanın üçte biri oranında cezalandırılır."
-  },
-  "318": {
-    short: "Halkı Askerlikten Soğutma",
-    full: "Halkı askerlikten soğutacak etkinlikte teşvik veya telkinde bulunan veya propaganda yapan kimseye ceza verilir."
-  },
-  "327": {
-    short: "Devletin Güvenliğine İlişkin Belgeleri Temin Etme",
-    full: "Devletin güvenliği veya iç veya dış siyasal yararları bakımından, niteliği itibarıyla gizli kalması gereken bilgileri veya belgeleri temin eden kimse cezalandırılır."
-  },
-  "328": {
-    short: "Siyasal veya Askeri Casusluk",
-    full: "Devletin güvenliği veya iç veya dış siyasal yararları bakımından niteliği itibarıyla gizli kalması gereken bilgileri, siyasal veya askeri casusluk maksadıyla temin eden kimseye ağırlaştırılmış müebbet hapis cezası verilir."
-  },
-  "334": {
-    short: "Yasaklanan Bilgileri Açıklama",
-    full: "Yetkili makamların kanun ve düzenleyici işlemlere göre açıklanmasını yasakladığı ve niteliği bakımından gizli kalması gereken bilgileri açıklayan kimseye ceza verilir."
-  },
-  "339": {
-    short: "Devlet Sırlarından Yararlanma",
-    full: "Görevi veya sıfatı gereği vakıf olduğu Devlet sırlarından yararlanarak ekonomik çıkar sağlayan kimseye ceza verilir."
-  },
-  "3713/5": {
-    short: "Terörle Mücadele Kanunu Md. 5 – Terör Örgütü Üyeliği (Cezayı Ağırlaştırma)",
-    full: "3713 sayılı Terörle Mücadele Kanunu'nun 5. maddesi uyarınca, terör suçlarından dolayı verilecek cezalar yarı oranında artırılır. Bu düzenleme, TCK kapsamındaki terör örgütü suçlarında cezanın ağırlaştırılmasını öngörmektedir."
-  }
-};
-
 const PROFILES_INITIAL_SHOW = 5;
+
+let tckDefinitions = {};
+let isAdmin = false;
+let allData = [];
 
 function esc(str) {
   if (!str) return "";
@@ -106,11 +11,55 @@ function esc(str) {
   return d.innerHTML;
 }
 
-let allData = [];
+async function checkAdmin() {
+  try {
+    const res = await fetch("/api/me");
+    const data = await res.json();
+    isAdmin = data.authed === true;
+  } catch { isAdmin = false; }
+  updateAdminUI();
+}
+
+function updateAdminUI() {
+  const adminArea = document.getElementById("admin-area");
+  if (!adminArea) return;
+  if (isAdmin) {
+    adminArea.innerHTML = `
+      <span class="admin-status">Admin ✓</span>
+      <button class="btn ghost small" onclick="doLogout()">Çıkış</button>
+    `;
+  } else {
+    adminArea.innerHTML = `
+      <a href="/admin/login.html" class="btn ghost small">Admin Girişi</a>
+    `;
+  }
+}
+
+async function doLogout() {
+  await fetch("/api/logout", { method: "POST" });
+  isAdmin = false;
+  updateAdminUI();
+  renderList(allData);
+}
+
+async function loadDefinitions() {
+  try {
+    const res = await fetch("/api/tck-definitions");
+    if (!res.ok) throw new Error("API error");
+    const rows = await res.json();
+    tckDefinitions = {};
+    for (const r of rows) {
+      tckDefinitions[r.code] = { short: r.short_desc || "", full: r.full_text || "" };
+    }
+  } catch {
+    tckDefinitions = {};
+  }
+}
 
 async function loadTCK() {
   const listEl = document.getElementById("tck-list");
   try {
+    await Promise.all([loadDefinitions(), checkAdmin()]);
     const res = await fetch("/api/tck-summary");
     if (!res.ok) throw new Error("API error");
     allData = await res.json();
@@ -132,12 +81,15 @@ function renderList(data) {
     const descObj = getDescription(item.article);
     const profileCount = item.profiles.length;
 
+    const editBtn = isAdmin ? `<button class="tck-edit-btn" onclick="openEditDefinition('${esc(item.article)}', event)" title="Düzenle">✎</button>` : "";
+
     return `
       <div class="tck-article-card" data-index="${idx}">
         <div class="tck-article-header" onclick="toggleCard(${idx})">
           <div class="tck-article-title">
             <span class="tck-article-num">${item.article.startsWith("TCK") ? item.article : "TCK " + item.article}</span>
-            <span class="tck-article-desc">${descObj.short}</span>
+            <span class="tck-article-desc">${esc(descObj.short) || "—"}</span>
+            ${editBtn}
           </div>
           <span class="tck-article-count">${profileCount} profil</span>
           <span class="tck-article-chevron">▼</span>
@@ -151,7 +103,14 @@ function renderList(data) {
               </div>
               <div class="tck-legal-text">${esc(descObj.full)}</div>
             </div>
-          ` : ""}
+          ` : (isAdmin ? `
+            <div class="tck-legal-section tck-legal-empty">
+              <div class="tck-legal-header" onclick="openEditDefinition('${esc(item.article)}', event)">
+                <span class="tck-legal-title" style="opacity:0.5;">Yasal karşılığı henüz eklenmemiş</span>
+                <span class="tck-legal-toggle" style="color:#e57373;">+ Ekle</span>
+              </div>
+            </div>
+          ` : "")}
           <div class="tck-profiles">
             ${renderProfiles(item.profiles, idx)}
           </div>
@@ -162,10 +121,10 @@ function renderList(data) {
 }
 
 function getDescription(article) {
-  if (TCK_DESCRIPTIONS[article]) return TCK_DESCRIPTIONS[article];
+  if (tckDefinitions[article]) return tckDefinitions[article];
   const base = article.split("/")[0];
-  if (TCK_DESCRIPTIONS[base]) return TCK_DESCRIPTIONS[base];
-  return { short: "—", full: "" };
+  if (tckDefinitions[base]) return tckDefinitions[base];
+  return { short: "", full: "" };
 }
 
 function renderProfiles(profiles, cardIdx) {
@@ -277,6 +236,66 @@ function toggleMoreProfiles(cardIdx, btn) {
   } else {
     const count = moreEl.querySelectorAll(".tck-profile-card").length;
     btn.textContent = `+${count} profil daha göster`;
+  }
+}
+
+function openEditDefinition(code, event) {
+  if (event) event.stopPropagation();
+  if (!isAdmin) return;
+
+  const existing = tckDefinitions[code] || { short: "", full: "" };
+
+  const overlay = document.createElement("div");
+  overlay.className = "tck-modal-overlay";
+  overlay.onclick = (e) => { if (e.target === overlay) overlay.remove(); };
+
+  overlay.innerHTML = `
+    <div class="tck-modal">
+      <div class="tck-modal-header">
+        <h3>TCK ${esc(code)} — Tanım Düzenle</h3>
+        <button class="tck-modal-close" onclick="this.closest('.tck-modal-overlay').remove()">✕</button>
+      </div>
+      <div class="tck-modal-body">
+        <label class="tck-modal-label">Kısa Açıklama</label>
+        <input type="text" id="edit-short-desc" class="tck-modal-input" value="${esc(existing.short)}" placeholder="Örn: Silahlı Örgüt Üyeliği" />
+        <label class="tck-modal-label">Yasal Karşılığı (Detaylı Metin)</label>
+        <textarea id="edit-full-text" class="tck-modal-textarea" rows="8" placeholder="TCK maddesinin tam yasal açıklaması...">${esc(existing.full)}</textarea>
+      </div>
+      <div class="tck-modal-footer">
+        <button class="btn ghost small" onclick="this.closest('.tck-modal-overlay').remove()">İptal</button>
+        <button class="tck-modal-save" onclick="saveDefinition('${esc(code)}')">Kaydet</button>
+      </div>
+    </div>
+  `;
+
+  document.body.appendChild(overlay);
+}
+
+async function saveDefinition(code) {
+  const shortDesc = document.getElementById("edit-short-desc").value.trim();
+  const fullText = document.getElementById("edit-full-text").value.trim();
+
+  const saveBtn = document.querySelector(".tck-modal-save");
+  if (saveBtn) { saveBtn.disabled = true; saveBtn.textContent = "Kaydediliyor..."; }
+
+  try {
+    const res = await fetch(`/api/tck-definitions/${encodeURIComponent(code)}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ short_desc: shortDesc, full_text: fullText })
+    });
+
+    if (!res.ok) throw new Error("Save failed");
+
+    tckDefinitions[code] = { short: shortDesc, full: fullText };
+
+    const overlay = document.querySelector(".tck-modal-overlay");
+    if (overlay) overlay.remove();
+
+    renderList(allData);
+  } catch (err) {
+    if (saveBtn) { saveBtn.disabled = false; saveBtn.textContent = "Kaydet"; }
+    alert("Kaydetme başarısız oldu. Lütfen tekrar deneyin.");
   }
 }
 

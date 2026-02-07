@@ -117,3 +117,9 @@ When making changes, prefer running Express as the primary server (`node server.
 - API: GET /api/tck-summary endpoint aggregates TCK articles from actions.tck_codes and people.tck_articles
 - TCK page: Each article card expandable, showing official description, per-profile detail boxes (Suçlama, Deliller, Savunma), sentence demand, and "Haritada Gör" link
 - TCK page: XSS protection via HTML escaping of all user-provided data
+- DB: `tck_definitions` table (code TEXT PK, short_desc TEXT, full_text TEXT) for editable TCK article descriptions
+- API: GET /api/tck-definitions (public), PUT/POST/DELETE /api/tck-definitions/:code (admin-only)
+- TCK page: Admin login/logout button at top-left, edit (✎) button on each article when admin is logged in
+- TCK page: Modal dialog for inline editing of short description and full legal text
+- TCK page: "Yasal karşılığı henüz eklenmemiş + Ekle" prompt for articles without definitions (admin only)
+- TCK page: Definitions loaded from database instead of hardcoded JS

@@ -360,6 +360,180 @@
   border-bottom: none;
 }
 
+.admin-area {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.admin-status {
+  font-size: 0.8rem;
+  color: #4ade80;
+  padding: 4px 12px;
+  border-radius: 999px;
+  background: rgba(74, 222, 128, 0.1);
+  border: 1px solid rgba(74, 222, 128, 0.25);
+}
+
+.tck-edit-btn {
+  background: rgba(139, 30, 30, 0.15);
+  border: 1px solid rgba(139, 30, 30, 0.3);
+  color: #e57373;
+  font-size: 0.85rem;
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.2s;
+  flex-shrink: 0;
+}
+
+.tck-edit-btn:hover {
+  background: rgba(139, 30, 30, 0.3);
+}
+
+.tck-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.7);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+  padding: 20px;
+}
+
+.tck-modal {
+  background: var(--panel, #1a1a2e);
+  border: 1px solid var(--border, #333);
+  border-radius: 20px;
+  width: 100%;
+  max-width: 600px;
+  max-height: 80vh;
+  overflow-y: auto;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+}
+
+.tck-modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 20px 24px;
+  border-bottom: 1px solid var(--border, #333);
+}
+
+.tck-modal-header h3 {
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--text, #fff);
+  margin: 0;
+}
+
+.tck-modal-close {
+  background: none;
+  border: none;
+  color: var(--muted, #888);
+  font-size: 1.2rem;
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 8px;
+  transition: background 0.2s;
+}
+
+.tck-modal-close:hover {
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--text, #fff);
+}
+
+.tck-modal-body {
+  padding: 20px 24px;
+  display: grid;
+  gap: 12px;
+}
+
+.tck-modal-label {
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--muted, #888);
+  font-weight: 600;
+}
+
+.tck-modal-input {
+  width: 100%;
+  padding: 10px 14px;
+  font-size: 0.9rem;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--border, #333);
+  border-radius: 10px;
+  color: var(--text, #fff);
+  font-family: inherit;
+  box-sizing: border-box;
+}
+
+.tck-modal-input:focus {
+  outline: none;
+  border-color: rgba(139, 30, 30, 0.5);
+}
+
+.tck-modal-textarea {
+  width: 100%;
+  padding: 12px 14px;
+  font-size: 0.88rem;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--border, #333);
+  border-radius: 10px;
+  color: var(--text, #fff);
+  font-family: inherit;
+  line-height: 1.6;
+  resize: vertical;
+  min-height: 120px;
+  box-sizing: border-box;
+}
+
+.tck-modal-textarea:focus {
+  outline: none;
+  border-color: rgba(139, 30, 30, 0.5);
+}
+
+.tck-modal-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  padding: 16px 24px;
+  border-top: 1px solid var(--border, #333);
+}
+
+.tck-modal-save {
+  background: linear-gradient(135deg, #8b1e1e, #a52a2a);
+  color: #fff;
+  border: none;
+  padding: 10px 24px;
+  border-radius: 10px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: opacity 0.2s;
+}
+
+.tck-modal-save:hover {
+  opacity: 0.9;
+}
+
+.tck-modal-save:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.tck-legal-empty .tck-legal-header {
+  border-style: dashed;
+  border-color: rgba(139, 30, 30, 0.2);
+}
+
 @media (max-width: 700px) {
   .tck-detail-grid {
     grid-template-columns: 1fr;

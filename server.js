@@ -494,6 +494,68 @@ app.get("/api/tck-summary", async (req, res) => {
   }
 });
 
+app.get("/api/tck-definitions", async (req, res) => {
+  try {
+    const rows = await all("SELECT code, short_desc, full_text FROM tck_definitions ORDER BY code ASC");
+    res.json(rows);
+  } catch (err) {
+    console.error("TCK definitions error:", err);
+    res.status(500).json({ error: "TCK tanımları yüklenemedi." });
+  }
+});
+
+app.put("/api/tck-definitions/:code", requireAuthApi, async (req, res) => {
+  try {
+    const { code } = req.params;
+    const { short_desc, full_text } = req.body || {};
+    const existing = await get("SELECT code FROM tck_definitions WHERE code = ?", [code]);
+    if (existing) {
+      await run(
+        "UPDATE tck_definitions SET short_desc = ?, full_text = ? WHERE code = ?",
+        [short_desc || "", full_text || "", code]
+      );
+    } else {
+      await run(
+        "INSERT INTO tck_definitions (code, short_desc, full_text) VALUES (?, ?, ?)",
+        [code, short_desc || "", full_text || ""]
+      );
+    }
+    res.json({ ok: true });
+  } catch (err) {
+    console.error("TCK definition update error:", err);
+    res.status(500).json({ error: "TCK tanımı güncellenemedi." });
+  }
+});
+
+app.post("/api/tck-definitions", requireAuthApi, async (req, res) => {
+  try {
+    const { code, short_desc, full_text } = req.body || {};
+    if (!code) return res.status(400).json({ error: "Madde kodu gerekli." });
+    const existing = await get("SELECT code FROM tck_definitions WHERE code = ?", [code]);
+    if (existing) {
+      return res.status(409).json({ error: "Bu madde zaten mevcut." });
+    }
+    await run(
+      "INSERT INTO tck_definitions (code, short_desc, full_text) VALUES (?, ?, ?)",
+      [code, short_desc || "", full_text || ""]
+    );
+    res.json({ ok: true, code });
+  } catch (err) {
+    console.error("TCK definition create error:", err);
+    res.status(500).json({ error: "TCK tanımı oluşturulamadı." });
+  }
+});
+
+app.delete("/api/tck-definitions/:code", requireAuthApi, async (req, res) => {
+  try {
+    await run("DELETE FROM tck_definitions WHERE code = ?", [req.params.code]);
+    res.json({ ok: true });
+  } catch (err) {
+    console.error("TCK definition delete error:", err);
+    res.status(500).json({ error: "TCK tanımı silinemedi." });
+  }
+});
+
 app.get("/admin", (req, res) => {
   if (!isAuthed(req)) return res.redirect("/admin/login.html");
   res.redirect("/admin/index.html");

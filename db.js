@@ -103,6 +103,14 @@ async function init() {
     )
   `);
 
+  await run(`
+    CREATE TABLE IF NOT EXISTS tck_definitions (
+      code TEXT PRIMARY KEY,
+      short_desc TEXT NOT NULL,
+      full_text TEXT
+    )
+  `);
+
   await ensureColumn("cases", "case_number", "TEXT");
   await ensureColumn("cases", "court_name", "TEXT");
   await ensureColumn("cases", "judge", "TEXT");
@@ -126,6 +134,8 @@ async function init() {
   await ensureColumn("people", "action_numbers", "TEXT");
   await ensureColumn("actions", "sentence_demand", "TEXT");
   await ensureColumn("actions", "mentioned_names", "TEXT");
+
+  await seedTckDefinitions();
 
   const row = await get("SELECT COUNT(*) as count FROM cases");
   if (row && row.count > 0) return;
@@ -186,6 +196,45 @@ async function init() {
     await run(
       "INSERT INTO case_people (case_id, person_id, relationship) VALUES (?, ?, ?)",
       [link.caseId, link.personId, link.relationship]
+    );
+  }
+}
+
+async function seedTckDefinitions() {
+  const existing = await get("SELECT COUNT(*) as count FROM tck_definitions");
+  if (existing && existing.count > 0) return;
+
+  const defs = [
+    { code: "220", short_desc: "Suç İşlemek Amacıyla Örgüt Kurma", full_text: "Kanunun suç saydığı fiilleri işlemek amacıyla örgüt kuranlar veya yönetenler, örgütün yapısı, sahip bulunduğu üye sayısı ile araç ve gereç bakımından amaç suçları işlemeye elverişli olması hâlinde cezalandırılır. Örgüt üyeliği, örgütün hiyerarşik yapısına dahil olmayı ve örgüte bilerek ve isteyerek katılmayı gerektirir." },
+    { code: "220/6", short_desc: "Örgüte Bilerek ve İsteyerek Yardım Etme", full_text: "Örgüte üye olmamakla birlikte örgüt adına suç işleyen kişi, ayrıca örgüte üye olmak suçundan da cezalandırılır. Örgüte bilerek ve isteyerek yardım eden kişi, örgüt üyesi olarak cezalandırılır." },
+    { code: "220/7", short_desc: "Örgüt Propagandası Yapma", full_text: "Örgütün cebir, şiddet veya tehdit içeren yöntemlerini meşru gösterecek ya da övecek ya da bu yöntemlere başvurmayı teşvik edecek şekilde propagandasını yapan kişi cezalandırılır." },
+    { code: "220/8", short_desc: "Örgütün Hiyerarşik Yapısına Dahil Olmamakla Birlikte Örgüt Adına Suç İşleme", full_text: "Örgütün hiyerarşik yapısına dahil olmamakla birlikte, örgüt adına suç işleyen kişi, ayrıca örgüte üye olmak suçundan da cezalandırılır." },
+    { code: "252", short_desc: "Zimmet", full_text: "Görevi nedeniyle zilyedliği kendisine devredilmiş olan veya koruma ve gözetimiyle yükümlü olduğu malı kendisinin veya başkasının zimmetine geçiren kamu görevlisi cezalandırılır. Suçun, zimmetin açığa çıkmamasını sağlamaya yönelik hileli davranışlarla işlenmesi hâlinde ceza artırılır." },
+    { code: "271", short_desc: "Suç Uydurma", full_text: "İşlenmediğini bildiği bir suçu, yetkili makamlara işlenmiş gibi ihbar eden ya da işlenmeyen bir suçun delil veya emarelerini soruşturma yapılmasını sağlayacak biçimde uyduran kimseye ceza verilir." },
+    { code: "285", short_desc: "Devletin Güvenliğine İlişkin Bilgileri Temin Etme", full_text: "Devletin güvenliği veya iç veya dış siyasal yararları bakımından niteliği itibarıyla gizli kalması gereken bilgileri temin eden kimseye ceza verilir." },
+    { code: "299", short_desc: "Cumhurbaşkanına Hakaret", full_text: "Cumhurbaşkanına hakaret eden kişi cezalandırılır. Suçun alenen işlenmesi hâlinde ceza artırılır. Bu suçtan dolayı kovuşturma yapılması, Adalet Bakanının iznine bağlıdır." },
+    { code: "301", short_desc: "Türklüğü Aşağılama", full_text: "Türk Milletini, Türkiye Cumhuriyeti Devletini, Devletin kurum ve organlarını aşağılayan kişi cezalandırılır. Türklüğü aşağılamanın yabancı bir ülkede bir Türk vatandaşı tarafından işlenmesi hâlinde ceza artırılır." },
+    { code: "302", short_desc: "Devletin Birliğini ve Ülke Bütünlüğünü Bozmak", full_text: "Devletin topraklarının tamamını veya bir kısmını yabancı bir devletin egemenliği altına koymaya veya Devletin bağımsızlığını zayıflatmaya veya birliğini bozmaya veya Devletin egemenliği altında bulunan topraklardan bir kısmını Devlet idaresinden ayırmaya yönelik bir fiil işleyen kimse, ağırlaştırılmış müebbet hapis cezası ile cezalandırılır." },
+    { code: "309", short_desc: "Anayasayı İhlal", full_text: "Cebir ve şiddet kullanarak Türkiye Cumhuriyeti Anayasasının öngördüğü düzeni ortadan kaldırmaya veya bu düzen yerine başka bir düzen getirmeye veya bu düzenin fiilen uygulanmasını önlemeye teşebbüs edenler ağırlaştırılmış müebbet hapis cezası ile cezalandırılır." },
+    { code: "311", short_desc: "Yasama Organına Karşı Suç", full_text: "Cebir ve şiddet kullanarak Türkiye Büyük Millet Meclisini ortadan kaldırmaya veya Türkiye Büyük Millet Meclisinin görevlerini kısmen veya tamamen yapmasını engellemeye teşebbüs edenler ağırlaştırılmış müebbet hapis cezası ile cezalandırılır." },
+    { code: "312", short_desc: "Hükûmete Karşı Suç", full_text: "Cebir ve şiddet kullanarak Türkiye Cumhuriyeti Hükûmetini ortadan kaldırmaya veya görevlerini yapmasını kısmen veya tamamen engellemeye teşebbüs eden kimseye ağırlaştırılmış müebbet hapis cezası verilir." },
+    { code: "314", short_desc: "Silahlı Örgüt Kurma veya Üye Olma", full_text: "Bu kısmın dördüncü ve beşinci bölümlerinde yer alan suçları işlemek amacıyla silahlı örgüt kuran veya yöneten kişi, on yıldan on beş yıla kadar hapis cezası ile cezalandırılır. Örgüte üye olanlara beş yıldan on yıla kadar hapis cezası verilir." },
+    { code: "314/1", short_desc: "Silahlı Örgüt Kurma veya Yönetme", full_text: "Bu kısmın dördüncü ve beşinci bölümlerinde yer alan suçları işlemek amacıyla silahlı örgüt kuran veya yöneten kişi, on yıldan on beş yıla kadar hapis cezası ile cezalandırılır." },
+    { code: "314/2", short_desc: "Silahlı Örgüt Üyeliği", full_text: "Bu kısmın dördüncü ve beşinci bölümlerinde yer alan suçları işlemek amacıyla kurulmuş olan silahlı örgüte üye olanlara beş yıldan on yıla kadar hapis cezası verilir. Örgüte üye olmamakla birlikte örgüt adına suç işleyen kişi de örgüt üyesi olarak cezalandırılır." },
+    { code: "315", short_desc: "Silah Sağlama", full_text: "Yukarıdaki maddede tanımlanan örgütlere silah sağlayan kişi, on yıldan on beş yıla kadar hapis cezası ile cezalandırılır." },
+    { code: "316", short_desc: "Suç İçin Anlaşma", full_text: "Bu kısmın dördüncü ve beşinci bölümlerinde yer alan suçlardan herhangi birinin işlenmesi için anlaşan kişiler, ilgili suça ilişkin cezanın üçte biri oranında cezalandırılır." },
+    { code: "318", short_desc: "Halkı Askerlikten Soğutma", full_text: "Halkı askerlikten soğutacak etkinlikte teşvik veya telkinde bulunan veya propaganda yapan kimseye ceza verilir." },
+    { code: "327", short_desc: "Devletin Güvenliğine İlişkin Belgeleri Temin Etme", full_text: "Devletin güvenliği veya iç veya dış siyasal yararları bakımından, niteliği itibarıyla gizli kalması gereken bilgileri veya belgeleri temin eden kimse cezalandırılır." },
+    { code: "328", short_desc: "Siyasal veya Askeri Casusluk", full_text: "Devletin güvenliği veya iç veya dış siyasal yararları bakımından niteliği itibarıyla gizli kalması gereken bilgileri, siyasal veya askeri casusluk maksadıyla temin eden kimseye ağırlaştırılmış müebbet hapis cezası verilir." },
+    { code: "334", short_desc: "Yasaklanan Bilgileri Açıklama", full_text: "Yetkili makamların kanun ve düzenleyici işlemlere göre açıklanmasını yasakladığı ve niteliği bakımından gizli kalması gereken bilgileri açıklayan kimseye ceza verilir." },
+    { code: "339", short_desc: "Devlet Sırlarından Yararlanma", full_text: "Görevi veya sıfatı gereği vakıf olduğu Devlet sırlarından yararlanarak ekonomik çıkar sağlayan kimseye ceza verilir." },
+    { code: "3713/5", short_desc: "Terörle Mücadele Kanunu Md. 5 – Terör Örgütü Üyeliği (Cezayı Ağırlaştırma)", full_text: "3713 sayılı Terörle Mücadele Kanunu'nun 5. maddesi uyarınca, terör suçlarından dolayı verilecek cezalar yarı oranında artırılır. Bu düzenleme, TCK kapsamındaki terör örgütü suçlarında cezanın ağırlaştırılmasını öngörmektedir." }
+  ];
+
+  for (const d of defs) {
+    await run(
+      "INSERT OR IGNORE INTO tck_definitions (code, short_desc, full_text) VALUES (?, ?, ?)",
+      [d.code, d.short_desc, d.full_text]
     );
   }
 }
