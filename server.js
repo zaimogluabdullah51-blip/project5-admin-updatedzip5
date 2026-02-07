@@ -345,6 +345,7 @@ app.use("/admin", requireAuthPage, express.static(path.join(__dirname, "public",
 
 app.delete("/api/cases/:id", requireAuthApi, async (req, res) => {
   try {
+    await run("DELETE FROM actions WHERE case_id = ?", [req.params.id]);
     await run("DELETE FROM case_people WHERE case_id = ?", [req.params.id]);
     await run("DELETE FROM cases WHERE id = ?", [req.params.id]);
     res.json({ ok: true });
@@ -355,6 +356,7 @@ app.delete("/api/cases/:id", requireAuthApi, async (req, res) => {
 
 app.delete("/api/people/:id", requireAuthApi, async (req, res) => {
   try {
+    await run("DELETE FROM actions WHERE person_id = ?", [req.params.id]);
     await run("DELETE FROM case_people WHERE person_id = ?", [req.params.id]);
     await run("DELETE FROM people WHERE id = ?", [req.params.id]);
     res.json({ ok: true });

@@ -75,7 +75,7 @@ function fillSelect(select, items, labelKey = "title") {
 }
 
 async function deleteCase(id) {
-  if (!confirm("Bu davayı silmek istediğinize emin misiniz?")) return;
+  if (!confirm("Bu davayı silmek istediğinize emin misiniz?\nDavaya bağlı tüm profil bağlantıları ve suçlama kayıtları da silinecektir.")) return;
   try {
     await fetch(`/api/cases/${id}`, { method: "DELETE" });
   } catch (e) {}
