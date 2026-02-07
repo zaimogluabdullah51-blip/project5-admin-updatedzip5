@@ -1,5 +1,3 @@
-const LOGIN_USER = "admin";
-const LOGIN_PASS = "Couragea1!";
 const STORAGE_KEY = "dcc_data";
 
 const loginScreen = document.getElementById("login-screen");
@@ -515,20 +513,30 @@ function renderParseResults(parsed) {
   });
 }
 
-loginForm.addEventListener("submit", (event) => {
+loginForm.addEventListener("submit", async (event) => {
   event.preventDefault();
   const formData = new FormData(loginForm);
   const username = formData.get("username");
   const password = formData.get("password");
-  if (username === LOGIN_USER && password === LOGIN_PASS) {
-    localStorage.setItem("dcc_admin_authed", "1");
-    loginScreen.style.display = "none";
-  } else {
-    loginError.textContent = "Hatalı kullanıcı adı veya şifre.";
+  try {
+    const res = await fetch("/api/login", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ username, password })
+    });
+    if (res.ok) {
+      localStorage.setItem("dcc_admin_authed", "1");
+      loginScreen.style.display = "none";
+    } else {
+      loginError.textContent = "Hatalı kullanıcı adı veya şifre.";
+    }
+  } catch (err) {
+    loginError.textContent = "Sunucuya bağlanılamadı.";
   }
 });
 
-logoutBtn.addEventListener("click", () => {
+logoutBtn.addEventListener("click", async () => {
+  try { await fetch("/api/logout", { method: "POST" }); } catch (e) {}
   localStorage.removeItem("dcc_admin_authed");
   loginScreen.style.display = "grid";
 });
@@ -562,7 +570,7 @@ clearBtn.addEventListener("click", () => {
   parseResults.innerHTML = "";
 });
 
-caseForm.addEventListener("submit", (event) => {
+caseForm.addEventListener("submit", async (event) => {
   event.preventDefault();
   const data = loadData();
   const formData = new FormData(caseForm);
@@ -570,7 +578,7 @@ caseForm.addEventListener("submit", (event) => {
   const panel = formData.get("panel")
     ? formData.get("panel").split(",").map((v) => v.trim()).filter(Boolean)
     : [];
-  data.cases.push({
+  const caseObj = {
     id,
     title: formData.get("title"),
     caseNumber: formData.get("caseNumber"),
@@ -582,8 +590,33 @@ caseForm.addEventListener("submit", (event) => {
     status: formData.get("status"),
     summary: formData.get("summary"),
     sentenceDemand: formData.get("sentenceDemand")
-  });
+  };
+  data.cases.push(caseObj);
   saveData(data);
+
+  try {
+    const res = await fetch("/api/cases", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        title: caseObj.title,
+        summary: caseObj.summary,
+        date: caseObj.date,
+        status: caseObj.status,
+        case_number: caseObj.caseNumber,
+        court_name: caseObj.courtName,
+        judge: caseObj.judge,
+        court_panel: panel.join(", "),
+        prosecutor: caseObj.prosecutor
+      })
+    });
+    if (!res.ok) {
+      alert("Dava sunucuya kaydedilemedi. Lütfen tekrar giriş yapın.");
+    }
+  } catch (err) {
+    alert("Sunucuya bağlantı hatası. Dava yerel olarak kaydedildi ancak ana sayfada görünmeyebilir.");
+  }
+
   caseForm.reset();
   sync();
 });
@@ -679,9 +712,20 @@ importInput.addEventListener("change", async (event) => {
   }
 });
 
-function initAuth() {
-  const authed = localStorage.getItem("dcc_admin_authed") === "1";
-  loginScreen.style.display = authed ? "none" : "grid";
+async function initAuth() {
+  const localAuthed = localStorage.getItem("dcc_admin_authed") === "1";
+  if (localAuthed) {
+    try {
+      const res = await fetch("/api/me");
+      const data = await res.json();
+      if (data.authed) {
+        loginScreen.style.display = "none";
+        return;
+      }
+    } catch (e) {}
+    localStorage.removeItem("dcc_admin_authed");
+  }
+  loginScreen.style.display = "grid";
 }
 
 initAuth();
