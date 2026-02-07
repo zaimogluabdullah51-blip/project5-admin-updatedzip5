@@ -102,10 +102,14 @@ body {
   background: rgba(139, 30, 30, 0.1);
 }
 
-.menu-footer {
-  display: grid;
-  gap: 10px;
+.home-link {
   margin-top: auto;
+  text-align: center;
+  text-decoration: none;
+  color: var(--muted);
+}
+.home-link:hover {
+  color: var(--fg);
 }
 
 .content {

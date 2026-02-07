@@ -3,9 +3,7 @@ const STORAGE_KEY = "dcc_data";
 const loginScreen = document.getElementById("login-screen");
 const loginForm = document.getElementById("login-form");
 const loginError = document.getElementById("login-error");
-const logoutBtn = document.getElementById("logout");
-
-const menuItems = document.querySelectorAll(".menu-item");
+const menuItems = document.querySelectorAll(".menu-item[data-tab]");
 const tabPanels = {
   cases: document.getElementById("tab-cases"),
   profiles: document.getElementById("tab-profiles")
@@ -17,9 +15,6 @@ const caseList = document.getElementById("case-list");
 const profileForm = document.getElementById("profile-form");
 const profileList = document.getElementById("profile-list");
 const actionsContainer = document.getElementById("actions-container");
-
-const exportBtn = document.getElementById("export-json");
-const importInput = document.getElementById("import-json");
 
 const parseInput = document.getElementById("parse-input");
 const parseBtn = document.getElementById("parse-btn");
@@ -554,12 +549,6 @@ loginForm.addEventListener("submit", async (event) => {
   }
 });
 
-logoutBtn.addEventListener("click", async () => {
-  try { await fetch("/api/logout", { method: "POST" }); } catch (e) {}
-  localStorage.removeItem("dcc_admin_authed");
-  loginScreen.style.display = "grid";
-});
-
 menuItems.forEach((btn) => {
   btn.addEventListener("click", () => setSection(btn.dataset.tab));
 });
@@ -720,30 +709,6 @@ profileForm.addEventListener("submit", async (event) => {
   renderTckChips();
   renderActionChips();
   sync();
-});
-
-exportBtn.addEventListener("click", () => {
-  const data = loadData();
-  const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement("a");
-  link.href = url;
-  link.download = "dava-analiz.json";
-  link.click();
-  URL.revokeObjectURL(url);
-});
-
-importInput.addEventListener("change", async (event) => {
-  const file = event.target.files[0];
-  if (!file) return;
-  const text = await file.text();
-  try {
-    const parsed = JSON.parse(text);
-    saveData(parsed);
-    sync();
-  } catch (err) {
-    alert("JSON okunamad\u0131.");
-  }
 });
 
 async function initAuth() {
