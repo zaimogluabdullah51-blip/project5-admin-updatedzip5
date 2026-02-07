@@ -71,3 +71,11 @@ When making changes, prefer running Express as the primary server (`node server.
 - **Google Fonts** — Loaded via CDN for typography (Libre Baskerville, Inter, JetBrains Mono, Fraunces, Space Grotesk)
 - No external database service — SQLite stores everything locally in `data/cases.db`
 - No third-party auth service — custom cookie-based authentication
+
+## Recent Changes
+
+### 2026-02-07
+- Added "Dava Bilgileri" (Case Info) tab to admin panel sidebar — displays read-only case metadata (Mahkeme, Savcı, Hakim, Heyet, Tarih, Durum) that cannot be changed after creation
+- Fixed main page case cards to properly show separate Hakim and Heyet fields, added Durum row
+- Fixed missing `run` import in server.js for delete endpoints
+- Admin panel uses localStorage with camelCase field names; server/DB uses snake_case — these are separate data models
