@@ -10,8 +10,8 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "express": "^4.19.2",
-    "nanoid": "^5.0.7",
+    "express": "^4.22.1",
+    "nanoid": "^5.1.6",
     "sqlite3": "^5.1.7"
   },
   "devDependencies": {
