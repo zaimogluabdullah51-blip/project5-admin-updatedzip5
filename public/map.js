@@ -303,11 +303,14 @@ function buildGraph(caseData) {
         totalMentions += (a.mentioned_names || []).length;
       }
       personMentionCounts.set(action.person_id, totalMentions);
-      personMentionAngles.set(action.person_id, 0);
+      const spread = Math.min(Math.PI, Math.PI * 0.15 * totalMentions);
+      const start = totalMentions === 1 ? Math.PI / 2 : (Math.PI / 2) - (spread / 2);
+      personMentionAngles.set(action.person_id, start);
     }
 
     const totalMentions = personMentionCounts.get(action.person_id);
-    const angleStep = totalMentions > 0 ? (2 * Math.PI) / totalMentions : 0;
+    const fanSpread = Math.min(Math.PI, Math.PI * 0.15 * totalMentions);
+    const angleStep = totalMentions > 1 ? fanSpread / (totalMentions - 1) : 0;
 
     for (const mn of mentionedNames) {
       const entry = typeof mn === "string" ? { name: mn, role: "unknown" } : mn;
@@ -339,7 +342,7 @@ function buildGraph(caseData) {
           const ghostId = `ghost:${ghostCounter}`;
           const ghostColorSet = roleColors[mentionedRole] || roleColors.defendant;
 
-          const currentAngle = personMentionAngles.get(action.person_id) || 0;
+          const currentAngle = personMentionAngles.get(action.person_id);
           const ghostX = parentNode.x + Math.cos(currentAngle) * mentionRadius;
           const ghostY = parentNode.y + Math.sin(currentAngle) * mentionRadius;
           personMentionAngles.set(action.person_id, currentAngle + angleStep);
@@ -368,7 +371,8 @@ function buildGraph(caseData) {
           ghostNodes.set(ghostKey, { id: ghostId, parentId: action.person_id });
           nodes.push(ghostNode);
         } else {
-          personMentionAngles.set(action.person_id, (personMentionAngles.get(action.person_id) || 0) + angleStep);
+          const skipAngle = personMentionAngles.get(action.person_id);
+          personMentionAngles.set(action.person_id, skipAngle + angleStep);
         }
 
         const ghostInfo = ghostNodes.get(ghostKey);
