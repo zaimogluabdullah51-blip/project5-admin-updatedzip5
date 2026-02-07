@@ -83,6 +83,14 @@ When making changes, prefer running Express as the primary server (`node server.
 ## Recent Changes
 
 ### 2026-02-07
+- Admin: Accusation cards (suçlama kartları) now fully editable — title, claim (İddia), evidence (Deliller), defense (Savunma) rendered as textareas/inputs with real-time sync to lastParsed
+- Admin: Mentioned names (Geçen İsimler) in each accusation card now support: remove (X button), add new name with role selector
+- Admin: editProfile loads existing actions from server (/api/actions?personId=X) and populates editable cards for existing profiles
+- Admin: Profile save flow handles updates: deletes old actions then re-creates from edited data for existing profiles
+- API: DELETE /api/actions endpoint supporting ?personId=X&caseId=Y for clearing actions before re-save
+- Homepage: Status badge colors per case status (Soruşturma=indigo, İddianame=amber, Kovuşturma=dark red, Karar=teal, Temyiz=purple, Kesinleşme=green)
+- Homepage: "Toplam dava" → "Toplam Dosya" (TR), "Total cases" → "Total Files" (EN)
+- Homepage: Case card stacked layers made lighter for better visual effect
 - Redesigned Profil Ekle section with structured layout:
   - Separate fields: İsim Soyad (editable), Kurum (editable), Ünvan (editable)
   - Savcılık Suçlamaları (editable, was İddianame Özeti)
