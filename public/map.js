@@ -1,5 +1,5 @@
 const caseSelect = document.getElementById("case-select");
-const tckFilter = document.getElementById("tck-filter");
+const eylemFilter = document.getElementById("eylem-filter");
 const nameSearch = document.getElementById("name-search");
 const mapClose = document.getElementById("map-close");
 
@@ -30,23 +30,34 @@ const caseDetailSummary = document.getElementById("case-detail-summary");
 const personModal = document.getElementById("person-modal");
 const personClose = document.getElementById("person-close");
 const personName = document.getElementById("person-name");
+const personOrg = document.getElementById("person-org");
+const personTitle = document.getElementById("person-title");
 const personRole = document.getElementById("person-role");
+const personSentence = document.getElementById("person-sentence");
+const personSummarySection = document.getElementById("person-summary-section");
+const personSummaryText = document.getElementById("person-summary-text");
 const personPhoto = document.getElementById("person-photo");
-const personAccusationsTag = document.getElementById("person-accusations");
-const personAccusationList = document.getElementById("person-accusation-list");
-const personEvidenceList = document.getElementById("person-evidence-list");
-const personDefenseList = document.getElementById("person-defense-list");
-const personRelatedList = document.getElementById("person-related-list");
-
+const personActionsList = document.getElementById("person-actions-list");
 
 let network = null;
 let cases = [];
 let selectedCase = null;
 let people = [];
+let allActions = [];
 let nodesCache = [];
 let edgesCache = [];
 
 const fallbackImage = "/assets/default-avatar.svg";
+
+const roleLabels = {
+  defendant: "Sanık",
+  informant: "İtirafçı",
+  witness: "Tanık",
+  secretWitness: "Gizli Tanık",
+  victim: "Mağdur",
+  fugitive: "Firari",
+  detained: "Tutuklu"
+};
 
 async function fetchJSON(url, options) {
   const response = await fetch(url, options);
@@ -65,13 +76,13 @@ function setCaseOptions() {
   }
 }
 
-function setTckOptions(tckArticles) {
-  tckFilter.innerHTML = `<option value="all">Tüm TCK Maddeleri</option>`;
-  for (const article of tckArticles) {
+function setEylemOptions(eylemNums) {
+  eylemFilter.innerHTML = `<option value="all">Tüm Eylemler</option>`;
+  for (const num of eylemNums) {
     const option = document.createElement("option");
-    option.value = article.code;
-    option.textContent = `TCK ${article.code} - ${article.title}`;
-    tckFilter.appendChild(option);
+    option.value = num;
+    option.textContent = `Eylem ${num}`;
+    eylemFilter.appendChild(option);
   }
 }
 
@@ -101,60 +112,71 @@ function renderCaseInfo(caseData) {
 }
 
 function buildGraph(caseData) {
-  const tckArticles = caseData.tck_articles || [];
-  const extraCodes = new Map();
-  const laneHeight = 180;
-  const laneSpacing = 140;
-  const perRow = 6;
+  const actions = caseData.actions || [];
+  const peopleList = caseData.people || [];
 
-  for (const person of caseData.people) {
-    const codes = person.tck_articles && person.tck_articles.length ? person.tck_articles : ["other"];
-    if (codes.includes("other")) {
-      extraCodes.set("other", { code: "other", title: "Diğer" });
-    }
-    for (const code of codes) {
-      if (!tckArticles.find((tck) => tck.code === code)) {
-        extraCodes.set(code, { code, title: "Diğer" });
-      }
-    }
+  const eylemNumsSet = new Set();
+  for (const a of actions) {
+    eylemNumsSet.add(String(a.action_num));
+  }
+  for (const p of peopleList) {
+    const nums = p.action_numbers || [];
+    for (const n of nums) eylemNumsSet.add(String(n));
   }
 
-  const allTck = [...tckArticles, ...extraCodes.values()];
+  const eylemNums = [...eylemNumsSet].sort((a, b) => {
+    const na = parseInt(a, 10);
+    const nb = parseInt(b, 10);
+    if (!isNaN(na) && !isNaN(nb)) return na - nb;
+    return a.localeCompare(b);
+  });
+
+  const hasNoEylem = peopleList.some((p) => !(p.action_numbers || []).length);
+  if (hasNoEylem) eylemNums.push("other");
+
+  const laneHeight = 180;
+  const perRow = 6;
 
   const nodes = [];
   const personNodeMap = new Map();
-  const personById = new Map(caseData.people.map((p) => [p.id, p]));
 
-  const bandNodes = allTck.map((article, index) => ({
-    id: `band:${article.code}`,
-    label: `TCK ${article.code} - ${article.title}`,
-    shape: "box",
-    widthConstraint: { minimum: 720, maximum: 960 },
-    heightConstraint: { minimum: 36, maximum: 36 },
-    x: 420,
-    y: index * laneHeight + 18,
-    fixed: { x: true, y: true },
-    selectable: false,
-    color: {
-      background: "rgba(17, 24, 39, 0.75)",
-      border: "rgba(255, 255, 255, 0.08)"
-    },
-    font: { color: "#e5e7eb", size: 12, face: "Space Grotesk" }
-  }));
+  const bandNodes = eylemNums.map((num, index) => {
+    const actionRecords = actions.filter((a) => String(a.action_num) === num);
+    const tckCodes = [...new Set(actionRecords.flatMap((a) => a.tck_codes || []))];
+    const tckLabel = tckCodes.length ? ` — ${tckCodes.join(", ")}` : "";
+    const titleLabel = actionRecords[0]?.title ? ` — ${actionRecords[0].title}` : "";
 
-  allTck.forEach((article, index) => {
-    const peopleInArticle = caseData.people.filter((p) => {
-      const codes = p.tck_articles && p.tck_articles.length ? p.tck_articles : ["other"];
-      return codes.includes(article.code);
+    return {
+      id: `band:${num}`,
+      label: num === "other" ? "Eyleme Atanmamış" : `Eylem ${num}${titleLabel}${tckLabel}`,
+      shape: "box",
+      widthConstraint: { minimum: 720, maximum: 960 },
+      heightConstraint: { minimum: 36, maximum: 36 },
+      x: 420,
+      y: index * laneHeight + 18,
+      fixed: { x: true, y: true },
+      selectable: false,
+      color: {
+        background: "rgba(17, 24, 39, 0.75)",
+        border: "rgba(255, 255, 255, 0.08)"
+      },
+      font: { color: "#e5e7eb", size: 12, face: "Space Grotesk" },
+      _eylemNum: num
+    };
+  });
+
+  eylemNums.forEach((num, index) => {
+    const peopleInEylem = peopleList.filter((p) => {
+      const nums = (p.action_numbers || []).map(String);
+      if (num === "other") return !nums.length;
+      return nums.includes(num);
     });
-    peopleInArticle.forEach((person, idx) => {
+
+    peopleInEylem.forEach((person, idx) => {
       const column = idx % perRow;
       const row = Math.floor(idx / perRow);
-      let yOffset = 0;
-      if (person.hierarchy?.superiors?.length) yOffset -= 40;
-      if (person.hierarchy?.subordinates?.length) yOffset += 40;
 
-      const nodeId = `${person.id}:${article.code}`;
+      const nodeId = `${person.id}:${num}`;
       const node = {
         id: nodeId,
         label: person.name,
@@ -162,12 +184,13 @@ function buildGraph(caseData) {
         image: person.photo_url || fallbackImage,
         size: person.is_external ? 26 : 30,
         x: column * 140 + 80,
-        y: index * laneHeight + row * laneSpacing + yOffset + 60,
+        y: index * laneHeight + row * 140 + 60,
         font: { color: "#e5e7eb", size: 12 },
         color: person.is_external
           ? { border: "#4b5563", background: "#111827" }
           : { border: "#9ca3af", background: "#111827" },
-        borderWidth: person.is_external ? 1 : 2
+        borderWidth: person.is_external ? 1 : 2,
+        _eylemNum: num
       };
       nodes.push(node);
       if (!personNodeMap.has(person.id)) personNodeMap.set(person.id, []);
@@ -178,7 +201,7 @@ function buildGraph(caseData) {
   const edges = [];
   const edgeSet = new Set();
 
-  for (const person of caseData.people) {
+  for (const person of peopleList) {
     const related = person.related_profiles || [];
     for (const targetId of related) {
       const fromNodes = personNodeMap.get(person.id) || [];
@@ -190,7 +213,7 @@ function buildGraph(caseData) {
       edges.push({
         from: fromNodes[0],
         to: toNodes[0],
-        color: { color: `rgba(148, 163, 184, ${0.35})` },
+        color: { color: "rgba(148, 163, 184, 0.35)" },
         smooth: { type: "continuous" }
       });
     }
@@ -199,17 +222,20 @@ function buildGraph(caseData) {
   nodesCache = [...bandNodes, ...nodes];
   edgesCache = edges;
 
-  return { nodes: [...bandNodes, ...nodes], edges, personById };
+  return { nodes: nodesCache, edges, eylemNums };
 }
 
 function filterGraph() {
   const query = nameSearch.value.toLowerCase().trim();
-  const tck = tckFilter.value;
+  const eylem = eylemFilter.value;
 
   const nodes = nodesCache.filter((node) => {
+    const isBand = node.id.startsWith("band:");
     const matchesName = !query || node.label.toLowerCase().includes(query);
-    const matchesTck = tck === "all" || node.id.endsWith(`:${tck}`);
-    return matchesName && matchesTck;
+    const matchesEylem = eylem === "all" || node._eylemNum === eylem;
+
+    if (isBand) return matchesEylem;
+    return matchesName && matchesEylem;
   });
 
   const nodeIds = new Set(nodes.map((n) => n.id));
@@ -221,116 +247,122 @@ function filterGraph() {
 }
 
 function openPersonModal(person) {
-  const tabs = document.querySelectorAll(".tab");
-  const panels = document.querySelectorAll(".tab-panel");
-  tabs.forEach((tab) => tab.classList.remove("active"));
-  panels.forEach((panel) => panel.classList.remove("active"));
-  if (tabs[0]) tabs[0].classList.add("active");
-  if (panels[0]) panels[0].classList.add("active");
-
-  personName.textContent = person.name;
-  personRole.textContent = person.role || "";
+  personName.textContent = person.name || "";
+  personOrg.textContent = person.organization || "";
+  personTitle.textContent = person.title || "";
+  personRole.textContent = roleLabels[person.role] || person.role || "";
+  personSentence.textContent = person.sentence_demand ? `Talep: ${person.sentence_demand}` : "";
   personPhoto.src = person.photo_url || fallbackImage;
-  const accusationText = (person.tck_articles || []).map((code) => `TCK ${code}`).join(" · ");
-  personAccusationsTag.textContent = accusationText || "";
 
-  personAccusationList.innerHTML = "";
-  if (!(person.accusations || []).length) {
-    const li = document.createElement("li");
-    li.textContent = "Suçlama bilgisi yok.";
-    personAccusationList.appendChild(li);
+  const summary = person.charge || person.summary || "";
+  if (summary) {
+    personSummarySection.style.display = "block";
+    personSummaryText.textContent = summary;
   } else {
-    (person.accusations || []).forEach((item) => {
-      const li = document.createElement("li");
-      li.textContent = item;
-      personAccusationList.appendChild(li);
-    });
+    personSummarySection.style.display = "none";
   }
 
-  personEvidenceList.innerHTML = "";
-  if (!(person.evidence_items || []).length) {
-    const li = document.createElement("li");
-    li.textContent = "Delil bilgisi yok.";
-    personEvidenceList.appendChild(li);
-  } else {
-    (person.evidence_items || []).forEach((item) => {
-      const li = document.createElement("li");
-      const ref = item.reference ? ` (${item.reference})` : "";
-      li.textContent = `${item.description}${ref}`;
-      personEvidenceList.appendChild(li);
-    });
-  }
+  personActionsList.innerHTML = "";
 
-  personDefenseList.innerHTML = "";
-  if (!(person.defense || []).length) {
-    const li = document.createElement("li");
-    li.textContent = "Savunma bilgisi yok.";
-    personDefenseList.appendChild(li);
-  } else {
-    (person.defense || []).forEach((item) => {
-      const li = document.createElement("li");
-      li.textContent = item;
-      personDefenseList.appendChild(li);
-    });
-  }
+  const personActions = allActions.filter((a) => a.person_id === person.id);
 
-  personRelatedList.innerHTML = "";
-  const related = person.related_profiles || [];
-  if (!related.length) {
-    const li = document.createElement("li");
-    li.textContent = "İlişkili kişi yok.";
-    personRelatedList.appendChild(li);
+  if (!personActions.length) {
+    const empty = document.createElement("p");
+    empty.className = "muted";
+    empty.textContent = "Bu kişi için eylem kaydı bulunmuyor.";
+    personActionsList.appendChild(empty);
   } else {
-    related.forEach((id) => {
-      const target = people.find((p) => p.id === id);
-      if (!target) return;
-      const li = document.createElement("li");
-      const btn = document.createElement("button");
-      btn.type = "button";
-      btn.textContent = target.name;
-      btn.addEventListener("click", () => openPersonModal(target));
-      li.appendChild(btn);
-      personRelatedList.appendChild(li);
-    });
+    for (const action of personActions) {
+      const card = document.createElement("div");
+      card.className = "action-card";
+
+      const header = document.createElement("div");
+      header.className = "action-card-header";
+
+      const title = document.createElement("h5");
+      title.textContent = `Eylem ${action.action_num}${action.title ? " — " + action.title : ""}`;
+      header.appendChild(title);
+
+      const tckCodes = action.tck_codes || [];
+      if (tckCodes.length) {
+        const tckTag = document.createElement("span");
+        tckTag.className = "tag";
+        tckTag.textContent = tckCodes.join(", ");
+        header.appendChild(tckTag);
+      }
+
+      card.appendChild(header);
+
+      if (action.sentence_demand) {
+        const sd = document.createElement("p");
+        sd.className = "action-sentence";
+        sd.textContent = `Talep edilen ceza: ${action.sentence_demand}`;
+        card.appendChild(sd);
+      }
+
+      if (action.claim) {
+        const section = document.createElement("div");
+        section.className = "action-section";
+        const label = document.createElement("span");
+        label.className = "action-label";
+        label.textContent = "İddia";
+        section.appendChild(label);
+        const text = document.createElement("p");
+        text.textContent = action.claim;
+        section.appendChild(text);
+        card.appendChild(section);
+      }
+
+      if (action.evidence) {
+        const section = document.createElement("div");
+        section.className = "action-section";
+        const label = document.createElement("span");
+        label.className = "action-label";
+        label.textContent = "Deliller";
+        section.appendChild(label);
+        const text = document.createElement("p");
+        text.textContent = action.evidence;
+        section.appendChild(text);
+        card.appendChild(section);
+      }
+
+      if (action.defense) {
+        const section = document.createElement("div");
+        section.className = "action-section";
+        const label = document.createElement("span");
+        label.className = "action-label";
+        label.textContent = "Savunma";
+        section.appendChild(label);
+        const text = document.createElement("p");
+        text.textContent = action.defense;
+        section.appendChild(text);
+        card.appendChild(section);
+      }
+
+      personActionsList.appendChild(card);
+    }
   }
 
   personModal.showModal();
-}
-
-function setupTabs() {
-  const tabs = document.querySelectorAll(".tab");
-  const panels = document.querySelectorAll(".tab-panel");
-
-  tabs.forEach((tab) => {
-    tab.addEventListener("click", () => {
-      tabs.forEach((t) => t.classList.remove("active"));
-      panels.forEach((p) => p.classList.remove("active"));
-      tab.classList.add("active");
-      const panel = document.querySelector(`.tab-panel[data-panel="${tab.dataset.tab}"]`);
-      if (panel) panel.classList.add("active");
-    });
-  });
 }
 
 async function loadCase(caseId) {
   const caseData = await fetchJSON(`/api/cases/${caseId}`);
   selectedCase = caseData;
   people = caseData.people || [];
+  allActions = caseData.actions || [];
 
   renderCaseInfo(caseData);
-  const tckArticles = caseData.tck_articles || [];
-  const hasOther = people.some((p) => !(p.tck_articles || []).length);
-  const fullArticles = hasOther ? [...tckArticles, { code: "other", title: "Diğer" }] : tckArticles;
-  setTckOptions(fullArticles);
 
   const graph = buildGraph(caseData);
+  setEylemOptions(graph.eylemNums.filter((n) => n !== "other"));
 
   const options = {
     interaction: { dragView: true, zoomView: true },
     physics: false,
     edges: {
       smooth: { type: "continuous" },
-      color: { color: `rgba(148, 163, 184, ${0.35})` }
+      color: { color: "rgba(148, 163, 184, 0.35)" }
     },
     nodes: {
       borderWidth: 2,
@@ -381,7 +413,7 @@ async function loadData() {
 
 caseSelect.addEventListener("change", (event) => loadCase(event.target.value));
 nameSearch.addEventListener("input", filterGraph);
-tckFilter.addEventListener("change", filterGraph);
+eylemFilter.addEventListener("change", filterGraph);
 caseDetailBtn.addEventListener("click", () => caseModal.showModal());
 caseClose.addEventListener("click", () => caseModal.close());
 personClose.addEventListener("click", () => personModal.close());
@@ -397,5 +429,4 @@ window.addEventListener("keydown", (event) => {
   }
 });
 
-setupTabs();
 loadData();

@@ -143,11 +143,21 @@ app.get("/api/cases/:id", async (req, res) => {
       is_external: !!person.is_external
     }));
 
+    const actions = await all(
+      "SELECT * FROM actions WHERE case_id = ? ORDER BY action_num ASC",
+      [req.params.id]
+    );
+    const mappedActions = actions.map((a) => ({
+      ...a,
+      tck_codes: parseJsonField(a.tck_codes, [])
+    }));
+
     res.json({
       ...caseRow,
       tck_articles: parseJsonField(caseRow.tck_articles, []),
       hearing_count: caseRow.hearing_count || 0,
-      people: mappedPeople
+      people: mappedPeople,
+      actions: mappedActions
     });
   } catch (err) {
     res.status(500).json({ error: "Failed to load case." });

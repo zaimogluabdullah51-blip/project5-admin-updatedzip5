@@ -16,8 +16,8 @@
       </div>
       <div class="map-controls">
         <select id="case-select"></select>
-        <select id="tck-filter">
-          <option value="all">Tüm TCK Maddeleri</option>
+        <select id="eylem-filter">
+          <option value="all">Tüm Eylemler</option>
         </select>
         <input id="name-search" type="search" placeholder="İsim ara" />
         <a class="btn ghost" href="/">Genel görünüm</a>
@@ -122,38 +122,26 @@
     </dialog>
 
     <dialog id="person-modal" class="modal">
-      <div class="modal-card">
+      <div class="modal-card person-modal-wide">
         <header>
           <h3 id="person-name">Profil</h3>
-          <button id="person-close" class="close">Close</button>
+          <button id="person-close" class="close">Kapat</button>
         </header>
         <div class="person-modal-head">
           <img id="person-photo" class="avatar lg" src="/assets/default-avatar.svg" alt="profile" />
           <div>
+            <p id="person-org" class="muted"></p>
+            <p id="person-title" class="muted"></p>
             <p id="person-role" class="muted"></p>
-            <p id="person-accusations" class="tag"></p>
+            <p id="person-sentence" class="tag"></p>
           </div>
         </div>
-        <div class="tabs">
-          <button class="tab active" data-tab="accusation">Suçlama</button>
-          <button class="tab" data-tab="evidence">Delil</button>
-          <button class="tab" data-tab="defense">Savunma</button>
-          <button class="tab" data-tab="related">İlişkiler</button>
+        <div id="person-summary-section" class="person-summary">
+          <h4>Savcılık Suçlamaları</h4>
+          <p id="person-summary-text"></p>
         </div>
-        <div class="tab-panels">
-          <div class="tab-panel active" data-panel="accusation">
-            <ul id="person-accusation-list"></ul>
-          </div>
-          <div class="tab-panel" data-panel="evidence">
-            <ul id="person-evidence-list"></ul>
-          </div>
-          <div class="tab-panel" data-panel="defense">
-            <ul id="person-defense-list"></ul>
-          </div>
-          <div class="tab-panel" data-panel="related">
-            <ul id="person-related-list" class="link-list"></ul>
-          </div>
-        </div>
+        <h4 class="actions-section-title">Eylemler</h4>
+        <div id="person-actions-list" class="person-actions-list"></div>
       </div>
     </dialog>
 
