@@ -203,9 +203,14 @@ function buildGraph(caseData) {
       const codes = p.tck_articles && p.tck_articles.length ? p.tck_articles : ["other"];
       return codes.includes(article.code);
     });
+    const totalInRow = Math.min(peopleInArticle.length, perRow);
+    const spacing = 140;
+
     peopleInArticle.forEach((person, idx) => {
       const column = idx % perRow;
       const row = Math.floor(idx / perRow);
+      const rowCount = row === 0 ? totalInRow : Math.min(peopleInArticle.length - row * perRow, perRow);
+      const rowStartX = 420 - ((rowCount - 1) * spacing) / 2;
       let yOffset = 0;
       if (person.hierarchy?.superiors?.length) yOffset -= 40;
       if (person.hierarchy?.subordinates?.length) yOffset += 40;
@@ -217,7 +222,7 @@ function buildGraph(caseData) {
         shape: "circularImage",
         image: person.photo_url || fallbackImage,
         size: person.is_external ? 26 : 30,
-        x: column * 140 + 80,
+        x: rowStartX + column * spacing,
         y: index * laneHeight + row * laneSpacing + yOffset + 60,
         font: { color: "#e5e7eb", size: 12 },
         color: person.is_external

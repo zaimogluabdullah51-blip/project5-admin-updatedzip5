@@ -212,9 +212,14 @@ function buildGraph(caseData) {
       return split.includes(num);
     });
 
+    const totalInRow = Math.min(peopleInEylem.length, perRow);
+    const spacing = 140;
+
     peopleInEylem.forEach((person, idx) => {
       const column = idx % perRow;
       const row = Math.floor(idx / perRow);
+      const rowCount = row === 0 ? totalInRow : Math.min(peopleInEylem.length - row * perRow, perRow);
+      const rowStartX = 420 - ((rowCount - 1) * spacing) / 2;
 
       const nodeId = `${person.id}:${num}`;
       const personRole = (person.role || "defendant").split(",")[0].trim();
@@ -225,7 +230,7 @@ function buildGraph(caseData) {
         shape: "circularImage",
         image: person.photo_url || fallbackImage,
         size: person.is_external ? 26 : 30,
-        x: column * 140 + 80,
+        x: rowStartX + column * spacing,
         y: index * laneHeight + row * 140 + 60,
         font: { color: "#e5e7eb", size: 12 },
         color: colorSet,
