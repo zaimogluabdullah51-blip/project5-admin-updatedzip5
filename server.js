@@ -291,6 +291,22 @@ app.post("/api/actions", requireAuthApi, async (req, res) => {
   }
 });
 
+app.delete("/api/actions", requireAuthApi, async (req, res) => {
+  try {
+    const { caseId, personId } = req.query;
+    if (caseId && personId) {
+      await run("DELETE FROM actions WHERE case_id = ? AND person_id = ?", [caseId, personId]);
+    } else if (personId) {
+      await run("DELETE FROM actions WHERE person_id = ?", [personId]);
+    } else {
+      return res.status(400).json({ error: "personId gerekli." });
+    }
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(500).json({ error: "Eylemler silinemedi." });
+  }
+});
+
 app.get("/api/actions", async (req, res) => {
   try {
     let rows;

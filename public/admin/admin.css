@@ -434,6 +434,99 @@ input[readonly] {
   border-color: var(--accent);
 }
 
+.btn-remove-name {
+  background: none;
+  border: none;
+  color: #ef4444;
+  font-size: 1.1rem;
+  cursor: pointer;
+  padding: 0 4px;
+  line-height: 1;
+  flex-shrink: 0;
+}
+
+.btn-remove-name:hover {
+  color: #ff6b6b;
+}
+
+.mentioned-name-add-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 6px;
+}
+
+.mentioned-name-add-row .add-name-input {
+  flex: 1;
+  font-size: 0.82rem;
+  padding: 5px 8px;
+  border-radius: 6px;
+  min-width: 0;
+}
+
+.mentioned-name-add-row .add-name-role-select {
+  font-size: 0.78rem;
+  padding: 5px 6px;
+  border-radius: 4px;
+  background: var(--panel);
+  color: var(--text);
+  border: 1px solid var(--border);
+  min-width: 90px;
+}
+
+.mentioned-name-add-row .btn-add-name {
+  background: var(--accent);
+  border: none;
+  color: white;
+  font-size: 1rem;
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.mentioned-name-add-row .btn-add-name:hover {
+  background: #a52a2a;
+}
+
+.accusation-title-input {
+  flex: 1;
+  font-size: 0.85rem;
+  padding: 4px 8px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text);
+  min-width: 0;
+}
+
+.accusation-title-input:focus {
+  outline: 1px solid var(--accent);
+  border-color: var(--accent);
+}
+
+.accusation-edit {
+  width: 100%;
+  font-size: 0.85rem;
+  line-height: 1.5;
+  padding: 8px 10px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--text);
+  resize: vertical;
+  font-family: inherit;
+}
+
+.accusation-edit:focus {
+  outline: 1px solid var(--accent);
+  border-color: var(--accent);
+}
+
 .form-mode-header {
   display: flex;
   align-items: center;

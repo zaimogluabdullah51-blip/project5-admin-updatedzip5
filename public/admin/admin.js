@@ -154,7 +154,7 @@ function resetCaseForm() {
   judgeTypeSelect.dispatchEvent(new Event("change"));
 }
 
-function editProfile(p) {
+async function editProfile(p) {
   profileFormTitle.textContent = `Düzenleniyor: ${p.name}`;
   profileFormReset.style.display = "inline-block";
 
@@ -181,7 +181,39 @@ function editProfile(p) {
   renderActionChips();
 
   actionsContainer.innerHTML = "";
-  lastParsed = null;
+
+  try {
+    const caseId = activeCaseSelect.value;
+    const actionsRes = await fetch(`/api/actions?personId=${p.id}${caseId ? '&caseId=' + caseId : ''}`);
+    if (actionsRes.ok) {
+      const actions = await actionsRes.json();
+      if (actions.length > 0) {
+        lastParsed = {
+          summary: p.charge || p.summary || "",
+          sentenceDemand: p.sentence_demand || p.sentenceDemand || "",
+          tckCodes: [...currentTckCodes],
+          actionNumbers: [...currentActionNums],
+          profiles: [{ name: p.name, role: p.role || "defendant", organization: p.organization || "", title: p.title || "" }],
+          accusations: actions.map(a => ({
+            title: a.title || "",
+            actionNums: a.action_num ? a.action_num.split(",").map(n => n.trim()).filter(Boolean) : [],
+            tckCodes: Array.isArray(a.tck_codes) ? a.tck_codes : [],
+            claim: a.claim || "",
+            evidence: a.evidence || "",
+            defense: a.defense || "",
+            mentionedNames: Array.isArray(a.mentioned_names) ? a.mentioned_names : []
+          }))
+        };
+        renderActionCards(lastParsed);
+      } else {
+        lastParsed = null;
+      }
+    } else {
+      lastParsed = null;
+    }
+  } catch (e) {
+    lastParsed = null;
+  }
 
   profileForm.scrollIntoView({ behavior: "smooth", block: "start" });
 }
@@ -611,6 +643,73 @@ function formatNumberedItems(text) {
   }).join("<br>");
 }
 
+function renderMentionedNamesForCard(container, accIdx) {
+  if (!lastParsed || !lastParsed.accusations[accIdx]) return;
+  const names = lastParsed.accusations[accIdx].mentionedNames || [];
+  container.innerHTML = "";
+
+  names.forEach((mn, mnIdx) => {
+    const entry = typeof mn === "string" ? { name: mn, role: "unknown" } : mn;
+    if (typeof mn === "string") lastParsed.accusations[accIdx].mentionedNames[mnIdx] = entry;
+
+    const item = document.createElement("div");
+    item.className = "mentioned-name-item";
+    item.innerHTML = `
+      <span class="mentioned-name-text">${entry.name}</span>
+      <select class="mentioned-role-select" data-acc="${accIdx}" data-mn="${mnIdx}">
+        <option value="unknown"${entry.role === "unknown" ? " selected" : ""}>Bilinmiyor</option>
+        <option value="defendant"${entry.role === "defendant" ? " selected" : ""}>Sanık</option>
+        <option value="informant"${entry.role === "informant" ? " selected" : ""}>İtirafçı</option>
+        <option value="witness"${entry.role === "witness" ? " selected" : ""}>Tanık</option>
+        <option value="secretWitness"${entry.role === "secretWitness" ? " selected" : ""}>Gizli Tanık</option>
+        <option value="victim"${entry.role === "victim" ? " selected" : ""}>Mağdur</option>
+        <option value="fugitive"${entry.role === "fugitive" ? " selected" : ""}>Firari</option>
+        <option value="detained"${entry.role === "detained" ? " selected" : ""}>Tutuklu</option>
+      </select>
+      <button type="button" class="btn-remove-name" title="Çıkar">&times;</button>
+    `;
+    item.querySelector(".mentioned-role-select").addEventListener("change", (e) => {
+      entry.role = e.target.value;
+    });
+    item.querySelector(".btn-remove-name").addEventListener("click", () => {
+      lastParsed.accusations[accIdx].mentionedNames.splice(mnIdx, 1);
+      renderMentionedNamesForCard(container, accIdx);
+    });
+    container.appendChild(item);
+  });
+
+  const addRow = document.createElement("div");
+  addRow.className = "mentioned-name-add-row";
+  addRow.innerHTML = `
+    <input type="text" class="add-name-input" placeholder="İsim Soyad">
+    <select class="add-name-role-select">
+      <option value="unknown">Bilinmiyor</option>
+      <option value="defendant">Sanık</option>
+      <option value="informant">İtirafçı</option>
+      <option value="witness">Tanık</option>
+      <option value="secretWitness">Gizli Tanık</option>
+      <option value="victim">Mağdur</option>
+      <option value="fugitive">Firari</option>
+      <option value="detained">Tutuklu</option>
+    </select>
+    <button type="button" class="btn-add-name">+</button>
+  `;
+  const nameInput = addRow.querySelector(".add-name-input");
+  const roleSelect = addRow.querySelector(".add-name-role-select");
+  const addBtn = addRow.querySelector(".btn-add-name");
+  addBtn.addEventListener("click", () => {
+    const name = nameInput.value.trim();
+    if (!name) return;
+    if (!lastParsed.accusations[accIdx].mentionedNames) lastParsed.accusations[accIdx].mentionedNames = [];
+    lastParsed.accusations[accIdx].mentionedNames.push({ name, role: roleSelect.value });
+    renderMentionedNamesForCard(container, accIdx);
+  });
+  nameInput.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") { e.preventDefault(); addBtn.click(); }
+  });
+  container.appendChild(addRow);
+}
+
 function renderActionCards(parsed) {
   actionsContainer.innerHTML = "";
   if (!parsed || !parsed.accusations || parsed.accusations.length === 0) return;
@@ -628,66 +727,46 @@ function renderActionCards(parsed) {
     card.innerHTML = `
       <div class="accusation-card-header">
         <span class="accusation-num">Suçlama ${num}</span>
-        <span class="accusation-title">${acc.title || ""}</span>
+        <input type="text" class="accusation-title-input" value="${(acc.title || "").replace(/"/g, '&quot;')}" placeholder="Suçlama başlığı" data-acc="${idx}" data-field="title">
       </div>
       <div class="accusation-card-body">
         <div class="accusation-row">
           <span class="accusation-label">İddia</span>
-          <p class="accusation-text">${formatNumberedItems(acc.claim)}</p>
+          <textarea class="accusation-edit" rows="3" data-acc="${idx}" data-field="claim" placeholder="İddia metni">${acc.claim || ""}</textarea>
         </div>
         <div class="accusation-row">
           <span class="accusation-label">Deliller</span>
-          <p class="accusation-text">${formatNumberedItems(acc.evidence)}</p>
+          <textarea class="accusation-edit" rows="3" data-acc="${idx}" data-field="evidence" placeholder="Delil metni">${acc.evidence || ""}</textarea>
         </div>
         <div class="accusation-row">
           <span class="accusation-label">Savunma</span>
-          <p class="accusation-text">${formatNumberedItems(acc.defense)}</p>
+          <textarea class="accusation-edit" rows="3" data-acc="${idx}" data-field="defense" placeholder="Savunma metni">${acc.defense || ""}</textarea>
         </div>
         <div class="accusation-meta">
           <span class="accusation-meta-item"><strong>Eylem:</strong> ${actionsLabel}</span>
           <span class="accusation-meta-item"><strong>TCK:</strong> <span class="tck-highlight">${tckList}</span></span>
-          ${acc.mentionedNames && acc.mentionedNames.length > 0 ? `
-            <div class="mentioned-names-section">
-              <strong>Geçen İsimler:</strong>
-              <div class="mentioned-names-list" data-acc-idx="${idx}">
-                ${acc.mentionedNames.map((mn, mnIdx) => {
-                  const entry = typeof mn === "string" ? { name: mn, role: "unknown" } : mn;
-                  return `<div class="mentioned-name-item">
-                    <span class="mentioned-name-text">${entry.name}</span>
-                    <select class="mentioned-role-select" data-acc="${idx}" data-mn="${mnIdx}">
-                      <option value="unknown"${entry.role === "unknown" ? " selected" : ""}>Bilinmiyor</option>
-                      <option value="defendant"${entry.role === "defendant" ? " selected" : ""}>Sanık</option>
-                      <option value="informant"${entry.role === "informant" ? " selected" : ""}>İtirafçı</option>
-                      <option value="witness"${entry.role === "witness" ? " selected" : ""}>Tanık</option>
-                      <option value="secretWitness"${entry.role === "secretWitness" ? " selected" : ""}>Gizli Tanık</option>
-                      <option value="victim"${entry.role === "victim" ? " selected" : ""}>Mağdur</option>
-                      <option value="fugitive"${entry.role === "fugitive" ? " selected" : ""}>Firari</option>
-                      <option value="detained"${entry.role === "detained" ? " selected" : ""}>Tutuklu</option>
-                    </select>
-                  </div>`;
-                }).join("")}
-              </div>
-            </div>
-          ` : ""}
+          <div class="mentioned-names-section">
+            <strong>Geçen İsimler:</strong>
+            <div class="mentioned-names-list" data-acc-idx="${idx}"></div>
+          </div>
         </div>
       </div>
     `;
-    actionsContainer.appendChild(card);
-  });
 
-  actionsContainer.addEventListener("change", (e) => {
-    if (e.target.classList.contains("mentioned-role-select")) {
-      const accIdx = parseInt(e.target.dataset.acc, 10);
-      const mnIdx = parseInt(e.target.dataset.mn, 10);
-      if (lastParsed && lastParsed.accusations[accIdx] && lastParsed.accusations[accIdx].mentionedNames[mnIdx]) {
-        const entry = lastParsed.accusations[accIdx].mentionedNames[mnIdx];
-        if (typeof entry === "string") {
-          lastParsed.accusations[accIdx].mentionedNames[mnIdx] = { name: entry, role: e.target.value };
-        } else {
-          entry.role = e.target.value;
+    card.querySelectorAll(".accusation-edit, .accusation-title-input").forEach(el => {
+      el.addEventListener("input", () => {
+        const accIdx = parseInt(el.dataset.acc, 10);
+        const field = el.dataset.field;
+        if (lastParsed && lastParsed.accusations[accIdx]) {
+          lastParsed.accusations[accIdx][field] = el.value;
         }
-      }
-    }
+      });
+    });
+
+    actionsContainer.appendChild(card);
+
+    const namesContainer = card.querySelector(`.mentioned-names-list[data-acc-idx="${idx}"]`);
+    renderMentionedNamesForCard(namesContainer, idx);
   });
 }
 
@@ -899,6 +978,9 @@ profileForm.addEventListener("submit", async (event) => {
         });
       }
       if (lastParsed && lastParsed.accusations.length > 0) {
+        if (editId) {
+          await fetch(`/api/actions?personId=${person.id}${caseId ? '&caseId=' + caseId : ''}`, { method: "DELETE" });
+        }
         for (const acc of lastParsed.accusations) {
           await fetch("/api/actions", {
             method: "POST",
