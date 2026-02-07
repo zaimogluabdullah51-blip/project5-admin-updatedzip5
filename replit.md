@@ -98,3 +98,8 @@ When making changes, prefer running Express as the primary server (`node server.
 - Map view: Role-based profile border colors: defendant=white, informant=yellow, witness=blue, secretWitness=light white, victim=purple, fugitive=red, detained=gray
 - Map view: PUT /api/people/:id endpoint for inline profile editing from map modal
 - English map.html (public/en/map.html) synced with Turkish version
+- Parser: `extractNamesFromText()` extracts Turkish person names from each accusation block (İddia/Deliller/Savunma text)
+- DB: `actions` table has `mentioned_names` column (JSON array) for storing names found in each action's text
+- Admin: Accusation cards display "Geçen İsimler" when names are found; saved to server with action records
+- Map: Dashed yellow edges drawn between profiles when one profile's action text mentions another profile's name (case-insensitive matching)
+- Map: Person modal action cards show "Geçen İsimler" section listing names found in that action

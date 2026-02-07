@@ -218,6 +218,40 @@ actionInput.addEventListener("keydown", (e) => {
   }
 });
 
+function extractNamesFromText(text) {
+  if (!text) return [];
+  const stopWords = new Set([
+    "TCK", "CMK", "AYM", "FETÖ", "PKK", "DHKPC", "NATO", "BM", "AB", "TL",
+    "Eylem", "Madde", "Sayı", "Tarih", "Dosya", "Esas", "Karar", "Dava",
+    "Mahkeme", "Savcı", "Hakim", "Tanık", "Sanık", "Müdafi", "Avukat",
+    "İDDİA", "DELİL", "SAVUNMA", "Suçlama", "Ceza", "Hapis",
+    "WhatsApp", "Telegram", "ByLock", "HTS", "SMS", "MASAK",
+    "Ocak", "Şubat", "Mart", "Nisan", "Mayıs", "Haziran",
+    "Temmuz", "Ağustos", "Eylül", "Ekim", "Kasım", "Aralık",
+    "Pazartesi", "Salı", "Çarşamba", "Perşembe", "Cuma", "Cumartesi", "Pazar",
+    "Başkan", "Üye", "Genel", "Müdür", "Bakan", "Vali", "Kaymakam",
+    "İstanbul", "Ankara", "İzmir", "Bursa", "Antalya", "Adana",
+    "Türkiye", "Cumhurbaşkanı", "Başbakan", "Devlet",
+    "Emniyet", "Jandarma", "Polis", "Askeri", "Silahlı",
+    "Örgüt", "Örgütü", "Terör", "Üyeliği", "Yardım", "Hakaret",
+    "Bilirkişi", "Rapor", "Belge", "Kayıt", "Beyan", "İfade",
+    "Banka", "Hesap", "Para", "Toplantı", "Dernek", "Vakıf"
+  ]);
+
+  const namePattern = /\b([A-ZÇĞİÖŞÜ][a-zçğıöşü]+(?:\s+[A-ZÇĞİÖŞÜ][a-zçğıöşü]+)+)\b/g;
+  const names = new Set();
+  let match;
+  while ((match = namePattern.exec(text)) !== null) {
+    const candidate = match[1].trim();
+    const words = candidate.split(/\s+/);
+    if (words.length < 2 || words.length > 4) continue;
+    if (words.some((w) => stopWords.has(w))) continue;
+    if (/^\d/.test(candidate)) continue;
+    names.add(candidate);
+  }
+  return Array.from(names);
+}
+
 function parseTck(text) {
   const codes = new Set();
   const regex = /TCK\s*(\d{2,3})(?:\/([\w.-]+))?/gi;
@@ -421,13 +455,22 @@ function parsePastedText(text) {
       if (n) blockActionNums.push(n);
     });
 
+    const blockText = [
+      claimMatch ? claimMatch[1] : "",
+      evidenceMatch ? evidenceMatch[1] : "",
+      defenseMatch ? defenseMatch[1] : "",
+      titleLine || ""
+    ].join(" ");
+    const mentionedNames = extractNamesFromText(blockText);
+
     result.accusations.push({
       title: titleLine || "",
       actionNums: Array.from(new Set(blockActionNums)),
       tckCodes: blockTckCodes,
       claim: claimMatch ? claimMatch[1].trim() : "",
       evidence: evidenceMatch ? evidenceMatch[1].trim() : "",
-      defense: defenseMatch ? defenseMatch[1].trim() : ""
+      defense: defenseMatch ? defenseMatch[1].trim() : "",
+      mentionedNames
     });
   });
 
@@ -480,6 +523,7 @@ function renderActionCards(parsed) {
         <div class="accusation-meta">
           <span class="accusation-meta-item"><strong>Eylem:</strong> ${actionsLabel}</span>
           <span class="accusation-meta-item"><strong>TCK:</strong> <span class="tck-highlight">${tckList}</span></span>
+          ${acc.mentionedNames && acc.mentionedNames.length > 0 ? `<span class="accusation-meta-item"><strong>Geçen İsimler:</strong> ${acc.mentionedNames.join(", ")}</span>` : ""}
         </div>
       </div>
     `;
@@ -680,7 +724,8 @@ profileForm.addEventListener("submit", async (event) => {
               evidence: acc.evidence || "",
               defense: acc.defense || "",
               tckCodes: acc.tckCodes || [],
-              sentenceDemand: lastParsed.sentenceDemand || ""
+              sentenceDemand: lastParsed.sentenceDemand || "",
+              mentionedNames: acc.mentionedNames || []
             })
           });
         }

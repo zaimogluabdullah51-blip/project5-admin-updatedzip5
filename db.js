@@ -125,6 +125,7 @@ async function init() {
   await ensureColumn("people", "sentence_demand", "TEXT");
   await ensureColumn("people", "action_numbers", "TEXT");
   await ensureColumn("actions", "sentence_demand", "TEXT");
+  await ensureColumn("actions", "mentioned_names", "TEXT");
 
   const row = await get("SELECT COUNT(*) as count FROM cases");
   if (row && row.count > 0) return;
@@ -424,12 +425,13 @@ async function createAction(payload) {
     evidence: payload.evidence || "",
     defense: payload.defense || "",
     tck_codes: payload.tck_codes || payload.tckCodes || [],
-    sentence_demand: payload.sentence_demand || payload.sentenceDemand || ""
+    sentence_demand: payload.sentence_demand || payload.sentenceDemand || "",
+    mentioned_names: payload.mentioned_names || payload.mentionedNames || []
   };
 
   await run(
-    `INSERT INTO actions (id, case_id, person_id, action_num, title, claim, evidence, defense, tck_codes, sentence_demand)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    `INSERT INTO actions (id, case_id, person_id, action_num, title, claim, evidence, defense, tck_codes, sentence_demand, mentioned_names)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     [
       record.id,
       record.case_id,
@@ -440,7 +442,8 @@ async function createAction(payload) {
       record.evidence,
       record.defense,
       JSON.stringify(record.tck_codes),
-      record.sentence_demand
+      record.sentence_demand,
+      JSON.stringify(record.mentioned_names)
     ]
   );
 

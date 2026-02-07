@@ -149,7 +149,8 @@ app.get("/api/cases/:id", async (req, res) => {
     );
     const mappedActions = actions.map((a) => ({
       ...a,
-      tck_codes: parseJsonField(a.tck_codes, [])
+      tck_codes: parseJsonField(a.tck_codes, []),
+      mentioned_names: parseJsonField(a.mentioned_names, [])
     }));
 
     res.json({
@@ -300,7 +301,8 @@ app.get("/api/actions", async (req, res) => {
     }
     const mapped = rows.map((r) => ({
       ...r,
-      tck_codes: parseJsonField(r.tck_codes, [])
+      tck_codes: parseJsonField(r.tck_codes, []),
+      mentioned_names: parseJsonField(r.mentioned_names, [])
     }));
     res.json(mapped);
   } catch (err) {

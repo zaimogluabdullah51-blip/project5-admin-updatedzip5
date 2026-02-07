@@ -236,6 +236,45 @@ function buildGraph(caseData) {
     }
   }
 
+  const nameToIds = new Map();
+  for (const p of peopleList) {
+    const lowerName = (p.name || "").toLowerCase().trim();
+    if (lowerName) {
+      if (!nameToIds.has(lowerName)) nameToIds.set(lowerName, []);
+      nameToIds.get(lowerName).push(p.id);
+    }
+  }
+
+  for (const action of allActions) {
+    const mentionedNames = action.mentioned_names || [];
+    if (!mentionedNames.length || !action.person_id) continue;
+
+    const fromNodes = personNodeMap.get(action.person_id) || [];
+    if (!fromNodes.length) continue;
+
+    for (const mentionedName of mentionedNames) {
+      const lowerMentioned = mentionedName.toLowerCase().trim();
+      const matchedIds = nameToIds.get(lowerMentioned) || [];
+
+      for (const matchedId of matchedIds) {
+        if (matchedId === action.person_id) continue;
+        const toNodes = personNodeMap.get(matchedId) || [];
+        if (!toNodes.length) continue;
+
+        const key = [action.person_id, matchedId].sort().join("|");
+        if (edgeSet.has(key)) continue;
+        edgeSet.add(key);
+        edges.push({
+          from: fromNodes[0],
+          to: toNodes[0],
+          color: { color: "rgba(251, 191, 36, 0.5)" },
+          smooth: { type: "continuous" },
+          dashes: true
+        });
+      }
+    }
+  }
+
   nodesCache = [...bandNodes, ...nodes];
   edgesCache = edges;
 
@@ -358,6 +397,20 @@ function openPersonModal(person) {
         const text = document.createElement("p");
         text.textContent = action.defense;
         section.appendChild(text);
+        card.appendChild(section);
+      }
+
+      const mentioned = action.mentioned_names || [];
+      if (mentioned.length) {
+        const section = document.createElement("div");
+        section.className = "action-section";
+        const label = document.createElement("span");
+        label.className = "action-label";
+        label.textContent = "Geçen İsimler";
+        section.appendChild(label);
+        const namesP = document.createElement("p");
+        namesP.textContent = mentioned.join(", ");
+        section.appendChild(namesP);
         card.appendChild(section);
       }
 
