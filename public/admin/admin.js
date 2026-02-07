@@ -600,7 +600,7 @@ function parseSanikKimligi(textBlock) {
     "Gizli Tanık": "secretWitness", "Mağdur": "victim", "Firari": "fugitive", "Tutuklu": "detained"
   };
 
-  const section = textBlock.match(/👤\s*SANIK\s*KİMLİĞİ\s*:\s*([\s\S]*?)(?=🚨|$)/u);
+  const section = textBlock.match(/👤\s*SANIK\s*KİMLİĞİ\s*:\s*([\s\S]*?)(?=⚖️|🚨|🖼️?\s*FOTOĞRAF|$)/u);
   if (!section) return null;
   const body = section[1].trim();
 
@@ -676,10 +676,23 @@ function parseSanikKimligi(textBlock) {
   }
 
   const actionNumbers = [];
+  const eylemRangeRefs = body.match(/Eylem\s*(\d+)\s*[-–]\s*(\d+)/gi) || [];
+  const rangeProcessed = new Set();
+  eylemRangeRefs.forEach(ref => {
+    const rm = ref.match(/(\d+)\s*[-–]\s*(\d+)/);
+    if (rm) {
+      const start = parseInt(rm[1], 10);
+      const end = parseInt(rm[2], 10);
+      for (let i = start; i <= end; i++) {
+        actionNumbers.push(String(i));
+        rangeProcessed.add(String(i));
+      }
+    }
+  });
   const eylemRefs = body.match(/Eylem\s*(\d+)/gi) || [];
   eylemRefs.forEach(ref => {
     const n = ref.replace(/Eylem/i, "").trim();
-    if (n) actionNumbers.push(n);
+    if (n && !rangeProcessed.has(n)) actionNumbers.push(n);
   });
 
   const tckCodes = parseTck(body);
@@ -741,14 +754,15 @@ function parsePastedText(text) {
     actionNumbers: [],
     profiles: [],
     accusations: [],
-    tckCodes: []
+    tckCodes: [],
+    photo: ""
   };
 
   const textBlock = lines.join("\n");
 
   const fileLine = lines.find((l) => /📂/.test(l.trim()));
   if (fileLine) {
-    const value = fileLine.replace(/📂\s*\[?SANIK\s*KARTI\]?\s*[-–]?\s*/i, "").trim();
+    const value = fileLine.replace(/📂\s*(?:\[?SANIK\s*KARTI\]?\s*[-–]?\s*)?/i, "").trim();
     const match = value.match(/^(\d{4}\/\d+)\s+(.*)$/);
     if (match) {
       result.caseNumber = match[1];
@@ -782,9 +796,24 @@ function parsePastedText(text) {
     result.tckCodes = [...sanik.tckCodes];
   }
 
-  const summaryMatch = textBlock.match(/🚩\s*İddianame Özeti:\s*([\s\S]*?)(?=🚨|$)/u);
-  if (summaryMatch) {
-    result.summary = summaryMatch[1].trim();
+  const prosecutionMatch = textBlock.match(/⚖️\s*SAVCILIK\s*SUÇLAMALARI\s*:\s*([\s\S]*?)(?=🚨|📂|👤|🖼|$)/u);
+  if (prosecutionMatch) {
+    result.summary = prosecutionMatch[1].trim();
+  }
+
+  if (!result.summary) {
+    const summaryMatch = textBlock.match(/🚩\s*İddianame Özeti:\s*([\s\S]*?)(?=🚨|$)/u);
+    if (summaryMatch) {
+      result.summary = summaryMatch[1].trim();
+    }
+  }
+
+  const photoMatch = textBlock.match(/🖼️?\s*FOTOĞRAF\s*:\s*([^\n]+)/u);
+  if (photoMatch) {
+    let photoUrl = photoMatch[1].trim().replace(/^\[|\]$/g, "").trim();
+    if (photoUrl && photoUrl !== "Görsel Linki") {
+      result.photo = photoUrl;
+    }
   }
 
   if (!result.sentenceDemand) {
@@ -810,20 +839,25 @@ function parsePastedText(text) {
     const defenseMatch = block.match(/SAVUNMA\s*:\s*([\s\S]*?)(?=👥|$)/i);
 
     const blockActionNums = [];
-    if (eylemMatch) {
-      const eylemText = eylemMatch[1].trim();
-      const nums = eylemText.match(/(?:Eylem\s*)?(\d+)/gi) || [];
-      nums.forEach(ref => {
-        const n = ref.replace(/Eylem/i, "").trim();
-        if (n) blockActionNums.push(n);
-      });
-    } else {
-      const actionRefs = block.match(/Eylem\s*(\d+)/gi) || [];
-      actionRefs.forEach(ref => {
-        const n = ref.replace(/Eylem/i, "").trim();
-        if (n) blockActionNums.push(n);
-      });
-    }
+    const eylemSource = eylemMatch ? eylemMatch[1].trim() : block;
+    const blockRangeRefs = eylemSource.match(/(?:Eylem\s*)?(\d+)\s*[-–]\s*(\d+)/gi) || [];
+    const blockRangeProcessed = new Set();
+    blockRangeRefs.forEach(ref => {
+      const rm = ref.match(/(\d+)\s*[-–]\s*(\d+)/);
+      if (rm) {
+        const start = parseInt(rm[1], 10);
+        const end = parseInt(rm[2], 10);
+        for (let i = start; i <= end; i++) {
+          blockActionNums.push(String(i));
+          blockRangeProcessed.add(String(i));
+        }
+      }
+    });
+    const blockEylemRefs = eylemSource.match(/(?:Eylem\s*)?(\d+)/gi) || [];
+    blockEylemRefs.forEach(ref => {
+      const n = ref.replace(/Eylem/i, "").trim();
+      if (n && !blockRangeProcessed.has(n)) blockActionNums.push(n);
+    });
 
     let blockTckCodes = [];
     if (tckMatch) {
@@ -1158,6 +1192,9 @@ function applyParsedToForm(parsed) {
   }
 
   setInput(profileForm, "sentenceDemand", parsed.sentenceDemand || "");
+  if (parsed.photo) {
+    setInput(profileForm, "photo", parsed.photo);
+  }
 
   currentTckCodes = [...(parsed.tckCodes || [])];
   renderTckChips();
