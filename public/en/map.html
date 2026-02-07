@@ -16,8 +16,8 @@
       </div>
       <div class="map-controls">
         <select id="case-select"></select>
-        <select id="tck-filter">
-          <option value="all">Tüm TCK Maddeleri</option>
+        <select id="eylem-filter">
+          <option value="all">Tüm Eylemler</option>
         </select>
         <input id="name-search" type="search" placeholder="İsim ara" />
         <a class="btn ghost" href="/">Genel görünüm</a>
@@ -26,14 +26,17 @@
     </header>
 
     <div class="canvas-wrap">
-      <div class="case-panel">
+      <div class="case-panel" id="case-panel-container">
         <div class="panel-head">
           <div>
             <p class="panel-label">Dava Bilgileri</p>
             <h2 id="case-title">Dava seçin</h2>
             <p id="case-number" class="mono">—</p>
           </div>
-          <button id="case-detail" class="btn ghost small">Detay</button>
+          <button id="case-panel-close" class="panel-close-btn">&times;</button>
+        </div>
+        <div id="case-summary-block" class="panel-summary">
+          <p id="case-summary-text" class="muted">—</p>
         </div>
         <div class="panel-grid">
           <div>
@@ -66,6 +69,7 @@
           </div>
         </div>
       </div>
+      <button id="case-panel-toggle" class="panel-reopen-btn">Dava Bilgileri</button>
 
       <div id="network" class="network full"></div>
     </div>
@@ -122,37 +126,63 @@
     </dialog>
 
     <dialog id="person-modal" class="modal">
-      <div class="modal-card">
+      <div class="modal-card person-modal-wide">
         <header>
           <h3 id="person-name">Profil</h3>
-          <button id="person-close" class="close">Close</button>
+          <div class="header-buttons">
+            <button id="person-edit-btn" class="btn ghost small">Düzenle</button>
+            <button id="person-close" class="close">Kapat</button>
+          </div>
         </header>
-        <div class="person-modal-head">
-          <img id="person-photo" class="avatar lg" src="/assets/default-avatar.svg" alt="profile" />
-          <div>
-            <p id="person-role" class="muted"></p>
-            <p id="person-accusations" class="tag"></p>
+
+        <div id="person-view-mode">
+          <div class="person-modal-head">
+            <img id="person-photo" class="avatar lg" src="/assets/default-avatar.svg" alt="profile" />
+            <div>
+              <p id="person-org" class="muted"></p>
+              <p id="person-title" class="muted"></p>
+              <p id="person-role" class="muted"></p>
+              <p id="person-sentence" class="tag"></p>
+            </div>
           </div>
+          <div id="person-summary-section" class="person-summary">
+            <h4>Savcılık Suçlamaları</h4>
+            <p id="person-summary-text"></p>
+          </div>
+          <h4 class="actions-section-title">Eylemler</h4>
+          <div id="person-actions-list" class="person-actions-list"></div>
         </div>
-        <div class="tabs">
-          <button class="tab active" data-tab="accusation">Suçlama</button>
-          <button class="tab" data-tab="evidence">Delil</button>
-          <button class="tab" data-tab="defense">Savunma</button>
-          <button class="tab" data-tab="related">İlişkiler</button>
-        </div>
-        <div class="tab-panels">
-          <div class="tab-panel active" data-panel="accusation">
-            <ul id="person-accusation-list"></ul>
-          </div>
-          <div class="tab-panel" data-panel="evidence">
-            <ul id="person-evidence-list"></ul>
-          </div>
-          <div class="tab-panel" data-panel="defense">
-            <ul id="person-defense-list"></ul>
-          </div>
-          <div class="tab-panel" data-panel="related">
-            <ul id="person-related-list" class="link-list"></ul>
-          </div>
+
+        <div id="person-edit-mode" style="display:none">
+          <form id="person-edit-form">
+            <label>İsim Soyad<input name="name" required /></label>
+            <div class="form-grid-2">
+              <label>Kurum<input name="organization" /></label>
+              <label>Ünvan<input name="title" /></label>
+            </div>
+            <div class="form-grid-2">
+              <label>Rol
+                <select name="role">
+                  <option value="defendant">Sanık</option>
+                  <option value="informant">İtirafçı</option>
+                  <option value="witness">Tanık</option>
+                  <option value="secretWitness">Gizli Tanık</option>
+                  <option value="victim">Mağdur</option>
+                  <option value="fugitive">Firari</option>
+                  <option value="detained">Tutuklu</option>
+                </select>
+              </label>
+              <label>Toplam Talep Edilen Ceza<input name="sentenceDemand" /></label>
+            </div>
+            <label>Savcılık Suçlamaları<textarea name="charge" rows="3"></textarea></label>
+            <label>Suçlanan Eylemler (virgülle ayır)<input name="actionNumbers" placeholder="Örn: 39, 40, 41" /></label>
+            <label>TCK Maddeleri (virgülle ayır)<input name="tckArticles" placeholder="Örn: TCK 314/2, TCK 220/7" /></label>
+            <label>Fotoğraf URL<input name="photoUrl" placeholder="https://..." /></label>
+            <div class="edit-form-buttons">
+              <button class="btn primary" type="submit">Kaydet</button>
+              <button class="btn ghost" type="button" id="person-edit-cancel">İptal</button>
+            </div>
+          </form>
         </div>
       </div>
     </dialog>

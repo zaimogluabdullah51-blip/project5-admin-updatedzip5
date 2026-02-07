@@ -26,14 +26,17 @@
     </header>
 
     <div class="canvas-wrap">
-      <div class="case-panel">
+      <div class="case-panel" id="case-panel-container">
         <div class="panel-head">
           <div>
             <p class="panel-label">Dava Bilgileri</p>
             <h2 id="case-title">Dava seçin</h2>
             <p id="case-number" class="mono">—</p>
           </div>
-          <button id="case-detail" class="btn ghost small">Detay</button>
+          <button id="case-panel-close" class="panel-close-btn">&times;</button>
+        </div>
+        <div id="case-summary-block" class="panel-summary">
+          <p id="case-summary-text" class="muted">—</p>
         </div>
         <div class="panel-grid">
           <div>
@@ -66,6 +69,7 @@
           </div>
         </div>
       </div>
+      <button id="case-panel-toggle" class="panel-reopen-btn">Dava Bilgileri</button>
 
       <div id="network" class="network full"></div>
     </div>

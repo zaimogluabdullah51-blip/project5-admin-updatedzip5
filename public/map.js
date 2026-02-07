@@ -12,7 +12,10 @@ const caseProsecutor = document.getElementById("case-prosecutor");
 const caseHearings = document.getElementById("case-hearings");
 const caseDefendants = document.getElementById("case-defendants");
 const caseDates = document.getElementById("case-dates");
-const caseDetailBtn = document.getElementById("case-detail");
+const casePanelContainer = document.getElementById("case-panel-container");
+const casePanelClose = document.getElementById("case-panel-close");
+const casePanelToggle = document.getElementById("case-panel-toggle");
+const caseSummaryText = document.getElementById("case-summary-text");
 
 const caseModal = document.getElementById("case-modal");
 const caseClose = document.getElementById("case-close");
@@ -65,6 +68,16 @@ const roleLabels = {
   detained: "Tutuklu"
 };
 
+const roleColors = {
+  defendant: { border: "#d1d5db", background: "#111827" },
+  informant: { border: "#eab308", background: "#111827" },
+  witness: { border: "#3b82f6", background: "#111827" },
+  secretWitness: { border: "#e5e7eb", background: "#111827" },
+  victim: { border: "#a855f7", background: "#111827" },
+  fugitive: { border: "#ef4444", background: "#111827" },
+  detained: { border: "#9ca3af", background: "#111827" }
+};
+
 async function fetchJSON(url, options) {
   const response = await fetch(url, options);
   const data = await response.json().catch(() => ({}));
@@ -104,6 +117,7 @@ function renderCaseInfo(caseData) {
   caseDefendants.textContent = defendantCount || "—";
   const dates = [caseData.start_date, caseData.last_hearing_date].filter(Boolean).join(" • ");
   caseDates.textContent = dates || "—";
+  caseSummaryText.textContent = caseData.summary || "—";
 
   caseDetailTitle.textContent = caseData.title || "—";
   caseDetailNumber.textContent = caseData.case_number || "—";
@@ -159,10 +173,10 @@ function buildGraph(caseData) {
       fixed: { x: true, y: true },
       selectable: false,
       color: {
-        background: "rgba(17, 24, 39, 0.75)",
-        border: "rgba(255, 255, 255, 0.08)"
+        background: "rgba(139, 30, 30, 0.55)",
+        border: "rgba(200, 60, 60, 0.4)"
       },
-      font: { color: "#e5e7eb", size: 12, face: "Space Grotesk" },
+      font: { color: "#fca5a5", size: 12, face: "Space Grotesk" },
       _eylemNum: num
     };
   });
@@ -180,6 +194,8 @@ function buildGraph(caseData) {
       const row = Math.floor(idx / perRow);
 
       const nodeId = `${person.id}:${num}`;
+      const personRole = person.role || "defendant";
+      const colorSet = roleColors[personRole] || roleColors.defendant;
       const node = {
         id: nodeId,
         label: person.name,
@@ -189,10 +205,8 @@ function buildGraph(caseData) {
         x: column * 140 + 80,
         y: index * laneHeight + row * 140 + 60,
         font: { color: "#e5e7eb", size: 12 },
-        color: person.is_external
-          ? { border: "#4b5563", background: "#111827" }
-          : { border: "#9ca3af", background: "#111827" },
-        borderWidth: person.is_external ? 1 : 2,
+        color: colorSet,
+        borderWidth: 3,
         _eylemNum: num
       };
       nodes.push(node);
@@ -422,7 +436,14 @@ async function loadData() {
 caseSelect.addEventListener("change", (event) => loadCase(event.target.value));
 nameSearch.addEventListener("input", filterGraph);
 eylemFilter.addEventListener("change", filterGraph);
-caseDetailBtn.addEventListener("click", () => caseModal.showModal());
+casePanelClose.addEventListener("click", () => {
+  casePanelContainer.classList.add("collapsed");
+  casePanelToggle.style.display = "block";
+});
+casePanelToggle.addEventListener("click", () => {
+  casePanelContainer.classList.remove("collapsed");
+  casePanelToggle.style.display = "none";
+});
 caseClose.addEventListener("click", () => caseModal.close());
 personClose.addEventListener("click", () => personModal.close());
 mapClose.addEventListener("click", () => {

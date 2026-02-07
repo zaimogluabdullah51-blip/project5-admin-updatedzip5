@@ -92,3 +92,9 @@ When making changes, prefer running Express as the primary server (`node server.
 - "Ayrıştır" fills form only; "Kaydet" saves to server and localStorage
 - İddia/Deliller/Savunma in accusation cards formatted with 1), 2), 3) numbering
 - Admin panel uses localStorage with camelCase field names; server/DB uses snake_case
+- Map view: Dava Bilgileri panel uses red gradient background (matching site accent #8b1e1e), with close (X) button and reopen toggle
+- Map view: Dava özeti shown at top of panel, all info visible without clicking
+- Map view: Eylem band boxes colored red (rgba(139, 30, 30, 0.55))
+- Map view: Role-based profile border colors: defendant=white, informant=yellow, witness=blue, secretWitness=light white, victim=purple, fugitive=red, detained=gray
+- Map view: PUT /api/people/:id endpoint for inline profile editing from map modal
+- English map.html (public/en/map.html) synced with Turkish version
