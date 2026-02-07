@@ -179,14 +179,37 @@ function buildGraph(caseData) {
   if (hasNoEylem) eylemNums.push("other");
 
   const perRow = 6;
-  const rowHeight = 100;
-  const bandPadding = 50;
+  const rowHeight = 160;
+  const bandPadding = 100;
   const bandTopMargin = 18;
-  const personTopOffset = 50;
-  const spacing = 140;
+  const personTopOffset = 80;
+  const spacing = 160;
 
   const nodes = [];
   const personNodeMap = new Map();
+
+  const nameToIds = new Map();
+  for (const p of peopleList) {
+    const lowerName = (p.name || "").toLowerCase().trim();
+    if (lowerName) {
+      if (!nameToIds.has(lowerName)) nameToIds.set(lowerName, []);
+      nameToIds.get(lowerName).push(p.id);
+    }
+  }
+
+  const hasGhostNodes = (person, num) => {
+    const personActions = allActions.filter(a => a.person_id === person.id);
+    for (const action of personActions) {
+      const mentioned = action.mentioned_names || [];
+      if (!mentioned.length) continue;
+      for (const mn of mentioned) {
+        const mName = (typeof mn === "string" ? mn : mn.name).toLowerCase().trim();
+        const matchedIds = nameToIds.get(mName) || [];
+        if (!matchedIds.length) return true;
+      }
+    }
+    return false;
+  };
 
   const laneHeights = eylemNums.map((num) => {
     const peopleInEylem = peopleList.filter((p) => {
@@ -196,7 +219,9 @@ function buildGraph(caseData) {
       return split.includes(num);
     });
     const rows = Math.max(1, Math.ceil(peopleInEylem.length / perRow));
-    return personTopOffset + rows * rowHeight + bandPadding;
+    const anyGhosts = peopleInEylem.some(p => hasGhostNodes(p, num));
+    const ghostExtra = anyGhosts ? 120 : 0;
+    return personTopOffset + rows * rowHeight + ghostExtra + bandPadding;
   });
 
   const cumulativeY = [0];
@@ -281,15 +306,6 @@ function buildGraph(caseData) {
         color: { color: "rgba(148, 163, 184, 0.35)" },
         smooth: { type: "continuous" }
       });
-    }
-  }
-
-  const nameToIds = new Map();
-  for (const p of peopleList) {
-    const lowerName = (p.name || "").toLowerCase().trim();
-    if (lowerName) {
-      if (!nameToIds.has(lowerName)) nameToIds.set(lowerName, []);
-      nameToIds.get(lowerName).push(p.id);
     }
   }
 

@@ -160,11 +160,11 @@ function buildGraph(caseData) {
   const tckArticles = caseData.tck_articles || [];
   const extraCodes = new Map();
   const perRow = 6;
-  const rowHeight = 100;
-  const bandPadding = 50;
+  const rowHeight = 160;
+  const bandPadding = 100;
   const bandTopMargin = 18;
-  const personTopOffset = 50;
-  const spacing = 140;
+  const personTopOffset = 80;
+  const spacing = 160;
 
   for (const person of caseData.people) {
     const codes = person.tck_articles && person.tck_articles.length ? person.tck_articles : ["other"];
