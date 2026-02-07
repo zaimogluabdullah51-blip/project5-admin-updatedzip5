@@ -141,8 +141,14 @@ async function init() {
   await run(`
     CREATE TABLE IF NOT EXISTS indictments (
       id TEXT PRIMARY KEY,
-      case_id TEXT NOT NULL,
+      case_id TEXT,
       summary TEXT,
+      sorusturma_no TEXT,
+      esas_no TEXT,
+      iddianame_no TEXT,
+      mahkeme TEXT,
+      iddianame_tarihi TEXT,
+      kabul_tarihi TEXT,
       created_at TEXT
     )
   `);
@@ -190,6 +196,12 @@ async function init() {
   await ensureColumn("people", "action_numbers", "TEXT");
   await ensureColumn("actions", "sentence_demand", "TEXT");
   await ensureColumn("actions", "mentioned_names", "TEXT");
+  await ensureColumn("indictments", "sorusturma_no", "TEXT");
+  await ensureColumn("indictments", "esas_no", "TEXT");
+  await ensureColumn("indictments", "iddianame_no", "TEXT");
+  await ensureColumn("indictments", "mahkeme", "TEXT");
+  await ensureColumn("indictments", "iddianame_tarihi", "TEXT");
+  await ensureColumn("indictments", "kabul_tarihi", "TEXT");
 
   await seedTckDefinitions();
 
@@ -642,11 +654,17 @@ async function createIndictment(payload) {
     id,
     case_id: payload.case_id || payload.caseId || "",
     summary: payload.summary || "",
+    sorusturma_no: payload.sorusturma_no || "",
+    esas_no: payload.esas_no || "",
+    iddianame_no: payload.iddianame_no || "",
+    mahkeme: payload.mahkeme || "",
+    iddianame_tarihi: payload.iddianame_tarihi || "",
+    kabul_tarihi: payload.kabul_tarihi || "",
     created_at: new Date().toISOString()
   };
   await run(
-    "INSERT INTO indictments (id, case_id, summary, created_at) VALUES (?, ?, ?, ?)",
-    [record.id, record.case_id, record.summary, record.created_at]
+    "INSERT INTO indictments (id, case_id, summary, sorusturma_no, esas_no, iddianame_no, mahkeme, iddianame_tarihi, kabul_tarihi, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+    [record.id, record.case_id, record.summary, record.sorusturma_no, record.esas_no, record.iddianame_no, record.mahkeme, record.iddianame_tarihi, record.kabul_tarihi, record.created_at]
   );
   return record;
 }
@@ -655,8 +673,18 @@ async function updateIndictment(id, payload) {
   const existing = await get("SELECT * FROM indictments WHERE id = ?", [id]);
   if (!existing) return null;
   await run(
-    "UPDATE indictments SET summary = ?, case_id = ? WHERE id = ?",
-    [payload.summary ?? existing.summary, payload.case_id ?? existing.case_id, id]
+    `UPDATE indictments SET summary = ?, case_id = ?, sorusturma_no = ?, esas_no = ?, iddianame_no = ?, mahkeme = ?, iddianame_tarihi = ?, kabul_tarihi = ? WHERE id = ?`,
+    [
+      payload.summary ?? existing.summary,
+      payload.case_id ?? existing.case_id,
+      payload.sorusturma_no ?? existing.sorusturma_no,
+      payload.esas_no ?? existing.esas_no,
+      payload.iddianame_no ?? existing.iddianame_no,
+      payload.mahkeme ?? existing.mahkeme,
+      payload.iddianame_tarihi ?? existing.iddianame_tarihi,
+      payload.kabul_tarihi ?? existing.kabul_tarihi,
+      id
+    ]
   );
   return await get("SELECT * FROM indictments WHERE id = ?", [id]);
 }

@@ -162,13 +162,43 @@
             <h2 id="indictment-form-title">İddianame Girişi</h2>
             <button id="indictment-form-reset" class="btn ghost" type="button" style="display:none">+ Yeni İddianame</button>
           </div>
+          <div class="parser">
+            <h3>Yapıştır ve Ayrıştır</h3>
+            <textarea id="indictment-parse-input" rows="8" placeholder="İddianame metnini buraya yapıştırın..."></textarea>
+            <div class="parser-actions">
+              <button id="indictment-parse-btn" class="btn primary" type="button">Ayrıştır</button>
+              <button id="indictment-clear-btn" class="btn ghost" type="button">Temizle</button>
+            </div>
+          </div>
           <form id="indictment-form">
             <input type="hidden" name="editId" />
-            <label>Dava Seç
-              <select id="indictment-case-select" name="caseId" required></select>
-            </label>
+            <h3 class="accusations-heading">İddia Kimliği</h3>
+            <div class="form-row">
+              <label>Soruşturma No
+                <input name="sorusturma_no" placeholder="Örn: 2024/12345" />
+              </label>
+              <label>Esas No
+                <input name="esas_no" placeholder="Örn: 2024/678" />
+              </label>
+            </div>
+            <div class="form-row">
+              <label>İddianame No
+                <input name="iddianame_no" placeholder="Örn: 2024/901" />
+              </label>
+              <label>Mahkeme
+                <input name="mahkeme" placeholder="Örn: İstanbul 14. Ağır Ceza Mahkemesi" />
+              </label>
+            </div>
+            <div class="form-row">
+              <label>İddianame Tarihi
+                <input type="date" name="iddianame_tarihi" />
+              </label>
+              <label>Kabul Tarihi (varsa)
+                <input type="date" name="kabul_tarihi" />
+              </label>
+            </div>
             <label>İddia Özeti (Kısa)
-              <textarea name="summary" rows="4" placeholder="İddianamenin 3-4 cümlelik kısa özeti..." required></textarea>
+              <textarea name="summary" rows="4" placeholder="İddianamenin 3-4 cümlelik kısa özeti..."></textarea>
             </label>
             <h3 class="accusations-heading">Eylemler</h3>
             <div id="indictment-actions-container"></div>

@@ -506,4 +506,17 @@ input[readonly] {
     top: 0;
     z-index: 10;
   }
+
+  .form-row {
+    flex-direction: column;
+  }
+}
+
+.form-row {
+  display: flex;
+  gap: 1rem;
+}
+
+.form-row > label {
+  flex: 1;
 }

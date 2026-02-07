@@ -83,9 +83,10 @@ function renderIndictmentGrid() {
   indictmentGrid.innerHTML = "";
 
   for (const ind of indictments) {
-    const caseObj = cases.find(c => c.id === ind.case_id);
-    const caseTitle = caseObj ? caseObj.title : "—";
     const actionCount = ind.actions ? ind.actions.length : 0;
+    const label = ind.iddianame_no || ind.esas_no || ind.sorusturma_no || "İddianame";
+    const mahkeme = ind.mahkeme || "";
+    const tarih = ind.iddianame_tarihi || "";
 
     const card = document.createElement("div");
     card.className = "case-card indictment-card";
@@ -93,21 +94,15 @@ function renderIndictmentGrid() {
       <div class="file-tab indictment-tab">
         <span class="file-tab-text">İDDİANAME</span>
       </div>
-      <div class="status-badge indictment-badge">İddianame Aşamasında</div>
-      <h4>${caseTitle}</h4>
+      <div class="status-badge indictment-badge">İddianame</div>
+      <h4>${label}</h4>
       <div class="case-details">
+        ${mahkeme ? `<div class="detail-row"><span class="detail-label">Mahkeme:</span> <span class="detail-value">${mahkeme}</span></div>` : ''}
+        ${tarih ? `<div class="detail-row"><span class="detail-label">Tarih:</span> <span class="detail-value">${tarih}</span></div>` : ''}
         <div class="detail-row"><span class="detail-label">Özet:</span> <span class="detail-value">${ind.summary ? ind.summary.substring(0, 120) + (ind.summary.length > 120 ? '...' : '') : '—'}</span></div>
         <div class="detail-row"><span class="detail-label">Eylem:</span> <span class="detail-value">${actionCount}</span></div>
       </div>
-      <div class="card-footer">
-        <div class="btn-map">Haritaya geç</div>
-      </div>
     `;
-    if (caseObj) {
-      card.addEventListener("click", () => {
-        window.location.href = `/map.html?caseId=${caseObj.id}`;
-      });
-    }
     indictmentGrid.appendChild(card);
   }
 }

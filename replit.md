@@ -37,7 +37,7 @@ When making changes, prefer running Express as the primary server (`node server.
   - `people` — profile details including name, role, charges, evidence, photo URL, etc.
   - `case_people` — junction table linking people to cases (many-to-many)
   - `actions` — id (TEXT PK), case_id, person_id, action_num, title, claim, evidence, defense, tck_codes (JSON array)
-  - `indictments` — id (TEXT PK), case_id (FK to cases), summary, created_at. Stores indictment metadata per case.
+  - `indictments` — id (TEXT PK), case_id (optional FK to cases), summary, sorusturma_no, esas_no, iddianame_no, mahkeme, iddianame_tarihi, kabul_tarihi, created_at. Stores indictment metadata with identity fields.
   - `indictment_actions` — id (TEXT PK), indictment_id (FK to indictments), action_num, title, tck_codes (JSON array), evidence. Individual charges within an indictment.
   - `officials` — id (TEXT PK), name, role, institution. Stores judges, prosecutors, court names for historical reference. Deduplication by name+role on create.
   - `case_officials` — junction table linking officials to cases (case_id, official_id, role_in_case). Uses INSERT OR REPLACE for idempotent linking.

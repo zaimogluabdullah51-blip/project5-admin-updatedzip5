@@ -42,10 +42,12 @@ const indictmentForm = document.getElementById("indictment-form");
 const indictmentList = document.getElementById("indictment-list");
 const indictmentFormTitle = document.getElementById("indictment-form-title");
 const indictmentFormReset = document.getElementById("indictment-form-reset");
-const indictmentCaseSelect = document.getElementById("indictment-case-select");
 const indictmentActionsContainer = document.getElementById("indictment-actions-container");
 const addIndictmentActionBtn = document.getElementById("add-indictment-action");
 const indictmentSubmitBtn = document.getElementById("indictment-submit-btn");
+const indictmentParseInput = document.getElementById("indictment-parse-input");
+const indictmentParseBtn = document.getElementById("indictment-parse-btn");
+const indictmentClearBtn = document.getElementById("indictment-clear-btn");
 
 let lastParsed = null;
 let currentTckCodes = [];
@@ -272,21 +274,14 @@ async function sync() {
 
   if (casesToUse.length > 0) {
     activeCaseSelect.innerHTML = "";
-    indictmentCaseSelect.innerHTML = "";
     casesToUse.forEach((c) => {
       const option1 = document.createElement("option");
       option1.value = c.id;
       option1.textContent = c.title;
       activeCaseSelect.appendChild(option1);
-
-      const option2 = document.createElement("option");
-      option2.value = c.id;
-      option2.textContent = c.title;
-      indictmentCaseSelect.appendChild(option2);
     });
   } else {
     fillSelect(activeCaseSelect, data.cases, "title");
-    fillSelect(indictmentCaseSelect, data.cases, "title");
   }
 }
 
@@ -1043,8 +1038,12 @@ function editIndictment(ind) {
 
   setInput(indictmentForm, "editId", ind.id);
   setInput(indictmentForm, "summary", ind.summary || "");
-
-  if (indictmentCaseSelect) indictmentCaseSelect.value = ind.case_id || "";
+  setInput(indictmentForm, "sorusturma_no", ind.sorusturma_no || "");
+  setInput(indictmentForm, "esas_no", ind.esas_no || "");
+  setInput(indictmentForm, "iddianame_no", ind.iddianame_no || "");
+  setInput(indictmentForm, "mahkeme", ind.mahkeme || "");
+  setInput(indictmentForm, "iddianame_tarihi", ind.iddianame_tarihi || "");
+  setInput(indictmentForm, "kabul_tarihi", ind.kabul_tarihi || "");
 
   indictmentActionsContainer.innerHTML = "";
   indictmentActionCount = 0;
@@ -1092,10 +1091,10 @@ function renderIndictmentList() {
     div.className = "list-item";
     const editId = indictmentForm.querySelector('[name="editId"]').value;
     if (editId === ind.id) div.classList.add("list-item-active");
-    const caseObj = cachedServerCases.find(c => c.id === ind.case_id);
-    const caseTitle = caseObj ? caseObj.title : "—";
     const actionCount = ind.actions ? ind.actions.length : 0;
-    div.innerHTML = `<div class="list-item-content"><strong>${caseTitle}</strong><br /><span class="muted">${ind.summary ? ind.summary.substring(0, 60) + '...' : '—'}</span><span class="list-item-meta">${actionCount} eylem</span></div><button class="btn-delete" title="Sil">&times;</button>`;
+    const label = ind.iddianame_no || ind.esas_no || ind.sorusturma_no || "İddianame";
+    const mahkeme = ind.mahkeme ? ` — ${ind.mahkeme}` : "";
+    div.innerHTML = `<div class="list-item-content"><strong>${label}${mahkeme}</strong><br /><span class="muted">${ind.summary ? ind.summary.substring(0, 60) + '...' : '—'}</span><span class="list-item-meta">${actionCount} eylem</span></div><button class="btn-delete" title="Sil">&times;</button>`;
     div.querySelector(".list-item-content").addEventListener("click", () => editIndictment(ind));
     div.querySelector(".btn-delete").addEventListener("click", (e) => { e.stopPropagation(); deleteIndictment(ind.id); });
     indictmentList.appendChild(div);
@@ -1108,17 +1107,73 @@ addIndictmentActionBtn.addEventListener("click", () => {
   addIndictmentActionCard(null);
 });
 
+indictmentParseBtn.addEventListener("click", () => {
+  const text = indictmentParseInput.value.trim();
+  if (!text) return;
+  parseIndictmentText(text);
+});
+
+indictmentClearBtn.addEventListener("click", () => {
+  indictmentParseInput.value = "";
+  resetIndictmentForm();
+});
+
+function parseIndictmentText(text) {
+  const sorusturmaMatch = text.match(/Soruşturma\s*(?:No|Numarası)?\s*[:\-]?\s*([\d\/\-]+)/i);
+  const esasMatch = text.match(/Esas\s*(?:No|Numarası)?\s*[:\-]?\s*([\d\/\-]+)/i);
+  const iddianameNoMatch = text.match(/İddianame\s*(?:No|Numarası)?\s*[:\-]?\s*([\d\/\-]+)/i);
+  const mahkemeMatch = text.match(/Mahkeme\s*[:\-]?\s*([^\n]+)/i) || text.match(/([\wİıÖöÜüÇçŞşĞğ\s]+(?:Ağır\s*Ceza|Asliye\s*Ceza|Sulh\s*Ceza)[^\n]*)/i);
+  const tarihMatch = text.match(/İddianame\s*Tarihi\s*[:\-]?\s*([\d\.\/\-]+)/i);
+  const kabulMatch = text.match(/Kabul\s*Tarihi\s*[:\-]?\s*([\d\.\/\-]+)/i);
+
+  if (sorusturmaMatch) setInput(indictmentForm, "sorusturma_no", sorusturmaMatch[1].trim());
+  if (esasMatch) setInput(indictmentForm, "esas_no", esasMatch[1].trim());
+  if (iddianameNoMatch) setInput(indictmentForm, "iddianame_no", iddianameNoMatch[1].trim());
+  if (mahkemeMatch) setInput(indictmentForm, "mahkeme", mahkemeMatch[1].trim());
+  if (tarihMatch) setInput(indictmentForm, "iddianame_tarihi", formatDateForInput(tarihMatch[1].trim()));
+  if (kabulMatch) setInput(indictmentForm, "kabul_tarihi", formatDateForInput(kabulMatch[1].trim()));
+
+  const eylemBlocks = text.split(/Eylem\s*\d+/i).slice(1);
+  if (eylemBlocks.length > 0) {
+    indictmentActionsContainer.innerHTML = "";
+    indictmentActionCount = 0;
+    eylemBlocks.forEach(block => {
+      const titleMatch = block.match(/[:\-]?\s*([^\n]+)/);
+      const tckMatches = [...block.matchAll(/TCK\s*([\d\/]+(?:\s*-\s*\d+)?)/gi)];
+      const delilMatch = block.match(/Delil(?:ler)?\s*[:\-]?\s*([\s\S]*?)(?=TCK|Eylem|$)/i);
+      const tckCodes = tckMatches.map(m => `TCK ${m[1].trim()}`);
+      addIndictmentActionCard({
+        title: titleMatch ? titleMatch[1].trim() : "",
+        tck_codes: tckCodes,
+        evidence: delilMatch ? delilMatch[1].trim() : ""
+      });
+    });
+  }
+}
+
+function formatDateForInput(dateStr) {
+  const parts = dateStr.match(/(\d{1,2})[\.\/\-](\d{1,2})[\.\/\-](\d{4})/);
+  if (parts) return `${parts[3]}-${parts[2].padStart(2,'0')}-${parts[1].padStart(2,'0')}`;
+  const parts2 = dateStr.match(/(\d{4})[\.\/\-](\d{1,2})[\.\/\-](\d{1,2})/);
+  if (parts2) return `${parts2[1]}-${parts2[2].padStart(2,'0')}-${parts2[3].padStart(2,'0')}`;
+  return dateStr;
+}
+
 indictmentForm.addEventListener("submit", async (event) => {
   event.preventDefault();
   const formData = new FormData(indictmentForm);
   const editId = formData.get("editId");
-  const caseId = formData.get("caseId");
   const summary = formData.get("summary");
   const actions = collectIndictmentActions();
 
   const payload = {
-    case_id: caseId,
     summary,
+    sorusturma_no: formData.get("sorusturma_no") || "",
+    esas_no: formData.get("esas_no") || "",
+    iddianame_no: formData.get("iddianame_no") || "",
+    mahkeme: formData.get("mahkeme") || "",
+    iddianame_tarihi: formData.get("iddianame_tarihi") || "",
+    kabul_tarihi: formData.get("kabul_tarihi") || "",
     actions
   };
 

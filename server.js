@@ -610,9 +610,6 @@ app.get("/api/indictments/:id", async (req, res) => {
 
 app.post("/api/indictments", requireAuthApi, async (req, res) => {
   try {
-    if (!req.body.case_id && !req.body.caseId) {
-      return res.status(400).json({ error: "Dava seçimi gerekli." });
-    }
     const record = await createIndictment(req.body);
 
     if (Array.isArray(req.body.actions)) {
@@ -622,9 +619,11 @@ app.post("/api/indictments", requireAuthApi, async (req, res) => {
     }
 
     const caseId = req.body.case_id || req.body.caseId;
-    const existingCase = await get("SELECT status FROM cases WHERE id = ?", [caseId]);
-    if (existingCase && (!existingCase.status || existingCase.status === "Soruşturma")) {
-      await run("UPDATE cases SET status = ? WHERE id = ?", ["İddianame Aşamasında", caseId]);
+    if (caseId) {
+      const existingCase = await get("SELECT status FROM cases WHERE id = ?", [caseId]);
+      if (existingCase && (!existingCase.status || existingCase.status === "Soruşturma")) {
+        await run("UPDATE cases SET status = ? WHERE id = ?", ["İddianame Aşamasında", caseId]);
+      }
     }
 
     res.status(201).json(record);
