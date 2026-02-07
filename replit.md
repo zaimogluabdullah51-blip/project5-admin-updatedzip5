@@ -75,7 +75,12 @@ When making changes, prefer running Express as the primary server (`node server.
 ## Recent Changes
 
 ### 2026-02-07
-- Added "Dava Bilgileri" (Case Info) tab to admin panel sidebar — displays read-only case metadata (Mahkeme, Savcı, Hakim, Heyet, Tarih, Durum) that cannot be changed after creation
+- Simplified admin sidebar to only "Davalar" and "Profiller" menu items
+- Fixed sidebar layout (flexbox) so menu items appear at top and are immediately visible
+- Added hover effect and transition to menu buttons for better UX
+- Tab switching between Dava Oluştur and Profil Ekle panels works via setSection()
+- Profile form now saves to server API (POST /api/people + POST /api/case-people)
+- Profile case selector loads from server-side cases for correct ID linkage
+- Cleaned up unused CSS for removed Case Info, Actions, Connections sections
 - Fixed main page case cards to properly show separate Hakim and Heyet fields, added Durum row
-- Fixed missing `run` import in server.js for delete endpoints
 - Admin panel uses localStorage with camelCase field names; server/DB uses snake_case — these are separate data models

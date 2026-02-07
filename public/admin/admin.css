@@ -57,8 +57,9 @@ body {
   background: var(--panel);
   border-right: 1px solid var(--border);
   padding: 20px;
-  display: grid;
-  gap: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
 }
 
 .brand h2 {
@@ -74,7 +75,8 @@ body {
 }
 
 .menu {
-  display: grid;
+  display: flex;
+  flex-direction: column;
   gap: 8px;
 }
 
@@ -86,6 +88,13 @@ body {
   border-radius: 10px;
   cursor: pointer;
   text-align: left;
+  font-size: 0.95rem;
+  transition: background 0.15s, border-color 0.15s;
+}
+
+.menu-item:hover {
+  background: rgba(139, 30, 30, 0.06);
+  border-color: rgba(139, 30, 30, 0.3);
 }
 
 .menu-item.active {
@@ -103,6 +112,7 @@ body {
   padding: 24px clamp(20px, 5vw, 60px) 60px;
   display: grid;
   gap: 24px;
+  align-content: start;
 }
 
 .panel {

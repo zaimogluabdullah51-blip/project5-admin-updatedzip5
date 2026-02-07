@@ -110,10 +110,41 @@ function refreshSelectors(data) {
   fillMulti(profileTckSelect, tckOptions, "title");
 }
 
-function sync() {
+async function loadServerCases() {
+  try {
+    const res = await fetch("/api/cases");
+    if (res.ok) return await res.json();
+  } catch (e) {}
+  return [];
+}
+
+async function sync() {
   const data = loadData();
   renderLists(data);
-  refreshSelectors(data);
+
+  const serverCases = await loadServerCases();
+  if (serverCases.length > 0) {
+    profileCaseSelect.innerHTML = "";
+    serverCases.forEach((c) => {
+      const option = document.createElement("option");
+      option.value = c.id;
+      option.textContent = c.title;
+      profileCaseSelect.appendChild(option);
+    });
+  } else {
+    fillSelect(profileCaseSelect, data.cases, "title");
+  }
+  fillSelect(activeCaseSelect, data.cases, "title");
+
+  const selectedCaseId = profileCaseSelect.value || (data.cases[0] && data.cases[0].id);
+  const actionsForCase = (data.actions || []).filter((a) => a.caseId === selectedCaseId);
+  fillMulti(profileActionsSelect, actionsForCase, "title");
+  const tckOptions = actionsForCase
+    .flatMap((a) => a.tckCodes)
+    .filter(Boolean)
+    .map((code) => ({ id: code, title: code }))
+    .filter((v, i, arr) => arr.findIndex((x) => x.id === v.id) === i);
+  fillMulti(profileTckSelect, tckOptions, "title");
 }
 
 function setInput(form, name, value) {
@@ -506,16 +537,17 @@ caseForm.addEventListener("submit", async (event) => {
 
 profileCaseSelect.addEventListener("change", sync);
 
-profileForm.addEventListener("submit", (event) => {
+profileForm.addEventListener("submit", async (event) => {
   event.preventDefault();
   const data = loadData();
   const formData = new FormData(profileForm);
   const id = `profile_${Date.now()}`;
   const actionIds = Array.from(profileActionsSelect.selectedOptions).map((o) => o.value);
   const tckCodes = Array.from(profileTckSelect.selectedOptions).map((o) => o.value);
-  data.profiles.push({
+  const caseId = formData.get("caseId");
+  const profileObj = {
     id,
-    caseId: formData.get("caseId"),
+    caseId,
     name: formData.get("name"),
     photo: formData.get("photo"),
     role: formData.get("role"),
@@ -524,8 +556,38 @@ profileForm.addEventListener("submit", (event) => {
     accusations: formData.get("accusations"),
     evidence: formData.get("evidence"),
     defense: formData.get("defense")
-  });
+  };
+  data.profiles.push(profileObj);
   saveData(data);
+
+  try {
+    const res = await fetch("/api/people", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        name: profileObj.name,
+        role: profileObj.role,
+        photo_url: profileObj.photo,
+        accusations: profileObj.accusations,
+        evidence: profileObj.evidence,
+        defense: profileObj.defense,
+        tck_articles: tckCodes
+      })
+    });
+    if (res.ok && caseId) {
+      const person = await res.json();
+      await fetch("/api/case-people", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ caseId, personId: person.id })
+      });
+    } else if (!res.ok) {
+      alert("Profil sunucuya kaydedilemedi. Lütfen tekrar giriş yapın.");
+    }
+  } catch (err) {
+    alert("Sunucuya bağlantı hatası.");
+  }
+
   profileForm.reset();
   sync();
 });
