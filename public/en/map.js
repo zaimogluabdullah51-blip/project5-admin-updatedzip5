@@ -388,7 +388,8 @@ function openPersonModal(person) {
   personName.textContent = person.name || "";
   personOrg.textContent = person.organization || "";
   personTitle.textContent = person.title || "";
-  personRole.textContent = roleLabels[person.role] || person.role || "";
+  const roles = (person.role || "").split(",").map(r => r.trim()).filter(Boolean);
+  personRole.textContent = roles.map(r => roleLabels[r] || r).join(", ") || "";
   personSentence.textContent = person.sentence_demand ? `Demand: ${person.sentence_demand}` : "";
   personPhoto.src = person.photo_url || fallbackImage;
 

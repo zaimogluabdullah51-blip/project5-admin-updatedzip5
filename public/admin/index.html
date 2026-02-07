@@ -125,17 +125,18 @@
               <label>Savcılık Suçlamaları<textarea name="summary" rows="3"></textarea></label>
               <div class="form-grid">
                 <label>Toplam Talep Edilen Ceza<input name="sentenceDemand" /></label>
-                <label>Rol
-                  <select name="role">
-                    <option value="defendant">Sanık</option>
-                    <option value="informant">İtirafçı</option>
-                    <option value="witness">Tanık</option>
-                    <option value="secretWitness">Gizli Tanık</option>
-                    <option value="victim">Mağdur</option>
-                    <option value="fugitive">Firari</option>
-                    <option value="detained">Tutuklu</option>
-                  </select>
-                </label>
+                <div class="role-label-section">
+                  <span class="role-section-title">Rol(ler)</span>
+                  <div id="role-checkboxes" class="role-checkboxes">
+                    <label class="role-check"><input type="checkbox" name="roles" value="defendant"> Sanık</label>
+                    <label class="role-check"><input type="checkbox" name="roles" value="informant"> İtirafçı</label>
+                    <label class="role-check"><input type="checkbox" name="roles" value="witness"> Tanık</label>
+                    <label class="role-check"><input type="checkbox" name="roles" value="secretWitness"> Gizli Tanık</label>
+                    <label class="role-check"><input type="checkbox" name="roles" value="victim"> Mağdur</label>
+                    <label class="role-check"><input type="checkbox" name="roles" value="fugitive"> Firari</label>
+                    <label class="role-check"><input type="checkbox" name="roles" value="detained"> Tutuklu</label>
+                  </div>
+                </div>
               </div>
               <label>Suçlanılan Kanun Maddeleri
                 <div class="tck-input-row">

@@ -185,6 +185,28 @@ app.get("/api/people", async (req, res) => {
   }
 });
 
+app.post("/api/people/find-or-create", requireAuthApi, async (req, res) => {
+  try {
+    const { name, role, caseId } = req.body;
+    if (!name) return res.status(400).json({ error: "İsim gerekli." });
+    const existing = await get("SELECT * FROM people WHERE LOWER(name) = LOWER(?)", [name.trim()]);
+    if (existing) {
+      if (caseId) {
+        await run("INSERT OR REPLACE INTO case_people (case_id, person_id, relationship) VALUES (?, ?, '')", [caseId, existing.id]);
+      }
+      res.json({ ...existing, tck_articles: parseJsonField(existing.tck_articles, []), action_numbers: parseJsonField(existing.action_numbers, []), created: false });
+    } else {
+      const person = await createPerson({ name: name.trim(), role: role || "unknown" });
+      if (caseId) {
+        await linkPerson(caseId, person.id);
+      }
+      res.status(201).json({ ...person, created: true });
+    }
+  } catch (err) {
+    res.status(500).json({ error: "Kişi oluşturulamadı." });
+  }
+});
+
 app.post("/api/cases", requireAuthApi, async (req, res) => {
   try {
     if (!req.body.title) return res.status(400).json({ error: "Title is required." });

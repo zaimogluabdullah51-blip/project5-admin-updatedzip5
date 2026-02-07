@@ -166,8 +166,7 @@ async function editProfile(p) {
   setInput(profileForm, "sentenceDemand", p.sentence_demand || p.sentenceDemand || "");
   setInput(profileForm, "photo", p.photo_url || p.photo || "");
 
-  const roleSelect = profileForm.querySelector('[name="role"]');
-  if (roleSelect) roleSelect.value = p.role || "defendant";
+  setRoleCheckboxes(p.role || "defendant");
 
   const tckArticles = Array.isArray(p.tck_articles) ? p.tck_articles : [];
   currentTckCodes = tckArticles.map(code => {
@@ -230,6 +229,7 @@ function resetProfileForm() {
   currentActionNums = [];
   renderTckChips();
   renderActionChips();
+  clearRoleCheckboxes();
 }
 
 caseFormReset.addEventListener("click", resetCaseForm);
@@ -306,6 +306,27 @@ async function sync() {
 function setInput(form, name, value) {
   const el = form.querySelector(`[name="${name}"]`);
   if (el) el.value = value || "";
+}
+
+function getSelectedRoles() {
+  const checkboxes = document.querySelectorAll('#role-checkboxes input[name="roles"]:checked');
+  return Array.from(checkboxes).map(cb => cb.value);
+}
+
+function setRoleCheckboxes(roleValue) {
+  const checkboxes = document.querySelectorAll('#role-checkboxes input[name="roles"]');
+  checkboxes.forEach(cb => cb.checked = false);
+  if (!roleValue) return;
+  const roles = roleValue.split(",").map(r => r.trim()).filter(Boolean);
+  roles.forEach(r => {
+    const cb = document.querySelector(`#role-checkboxes input[value="${r}"]`);
+    if (cb) cb.checked = true;
+  });
+}
+
+function clearRoleCheckboxes() {
+  const checkboxes = document.querySelectorAll('#role-checkboxes input[name="roles"]');
+  checkboxes.forEach(cb => cb.checked = false);
 }
 
 function renderChips(container, items, onRemove) {
@@ -710,19 +731,62 @@ function renderMentionedNamesForCard(container, accIdx) {
   container.appendChild(addRow);
 }
 
+function renderAccCardChips(container, items, accIdx, field, labelPrefix) {
+  container.innerHTML = "";
+  items.forEach((item, i) => {
+    const chip = document.createElement("span");
+    chip.className = "chip";
+    const display = labelPrefix ? `${labelPrefix} ${item}` : item;
+    chip.innerHTML = `${display} <button type="button" class="chip-remove">&times;</button>`;
+    chip.querySelector(".chip-remove").addEventListener("click", () => {
+      if (lastParsed && lastParsed.accusations[accIdx]) {
+        lastParsed.accusations[accIdx][field].splice(i, 1);
+        renderAccCardChips(container, lastParsed.accusations[accIdx][field], accIdx, field, labelPrefix);
+      }
+    });
+    container.appendChild(chip);
+  });
+  const addRow = document.createElement("div");
+  addRow.className = "acc-chip-add-row";
+  const placeholder = field === "tckCodes" ? "TCK 314/2" : "Numara";
+  addRow.innerHTML = `<input type="text" class="acc-chip-input" placeholder="${placeholder}"><button type="button" class="btn-acc-chip-add">+</button>`;
+  const input = addRow.querySelector(".acc-chip-input");
+  const addBtn = addRow.querySelector(".btn-acc-chip-add");
+  addBtn.addEventListener("click", () => {
+    let val = input.value.trim();
+    if (!val) return;
+    if (field === "tckCodes") {
+      val = val.replace(/^TCK\s*/i, "").trim();
+      val = `TCK ${val}`;
+    } else if (field === "actionNums") {
+      val = val.replace(/^Eylem\s*/i, "").trim();
+    }
+    if (!lastParsed.accusations[accIdx][field]) lastParsed.accusations[accIdx][field] = [];
+    if (!lastParsed.accusations[accIdx][field].includes(val)) {
+      lastParsed.accusations[accIdx][field].push(val);
+      renderAccCardChips(container, lastParsed.accusations[accIdx][field], accIdx, field, labelPrefix);
+    }
+    input.value = "";
+  });
+  input.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") { e.preventDefault(); addBtn.click(); }
+  });
+  container.appendChild(addRow);
+}
+
 function renderActionCards(parsed) {
   actionsContainer.innerHTML = "";
   if (!parsed || !parsed.accusations || parsed.accusations.length === 0) return;
 
   parsed.accusations.forEach((acc, idx) => {
+    if (!Array.isArray(acc.tckCodes)) acc.tckCodes = [];
+    if (!Array.isArray(acc.actionNums)) acc.actionNums = [];
+    if (!Array.isArray(acc.mentionedNames)) acc.mentionedNames = [];
+
     const card = document.createElement("div");
     card.className = "accusation-card";
 
     const num = idx + 1;
-    const actionsLabel = acc.actionNums && acc.actionNums.length > 0
-      ? acc.actionNums.map((n) => `Eylem ${n}`).join(", ")
-      : "\u2014";
-    const tckList = acc.tckCodes.length > 0 ? acc.tckCodes.join(", ") : "\u2014";
 
     card.innerHTML = `
       <div class="accusation-card-header">
@@ -743,8 +807,14 @@ function renderActionCards(parsed) {
           <textarea class="accusation-edit" rows="3" data-acc="${idx}" data-field="defense" placeholder="Savunma metni">${acc.defense || ""}</textarea>
         </div>
         <div class="accusation-meta">
-          <span class="accusation-meta-item"><strong>Eylem:</strong> ${actionsLabel}</span>
-          <span class="accusation-meta-item"><strong>TCK:</strong> <span class="tck-highlight">${tckList}</span></span>
+          <div class="accusation-meta-editable">
+            <strong>Eylem:</strong>
+            <div class="acc-action-chips" data-acc-idx="${idx}"></div>
+          </div>
+          <div class="accusation-meta-editable">
+            <strong>TCK:</strong>
+            <div class="acc-tck-chips" data-acc-idx="${idx}"></div>
+          </div>
           <div class="mentioned-names-section">
             <strong>Geçen İsimler:</strong>
             <div class="mentioned-names-list" data-acc-idx="${idx}"></div>
@@ -764,6 +834,12 @@ function renderActionCards(parsed) {
     });
 
     actionsContainer.appendChild(card);
+
+    const actionChipsEl = card.querySelector(`.acc-action-chips[data-acc-idx="${idx}"]`);
+    renderAccCardChips(actionChipsEl, acc.actionNums || [], idx, "actionNums", "Eylem");
+
+    const tckChipsEl = card.querySelector(`.acc-tck-chips[data-acc-idx="${idx}"]`);
+    renderAccCardChips(tckChipsEl, acc.tckCodes || [], idx, "tckCodes", "");
 
     const namesContainer = card.querySelector(`.mentioned-names-list[data-acc-idx="${idx}"]`);
     renderMentionedNamesForCard(namesContainer, idx);
@@ -792,7 +868,7 @@ function applyParsedToForm(parsed) {
       "Firari": "fugitive",
       "Tutuklu": "detained"
     };
-    setInput(profileForm, "role", roleMap[rawRole] || "defendant");
+    setRoleCheckboxes(roleMap[rawRole] || "defendant");
   }
 
   setInput(profileForm, "sentenceDemand", parsed.sentenceDemand || "");
@@ -941,9 +1017,11 @@ profileForm.addEventListener("submit", async (event) => {
   const editId = formData.get("editId");
   const caseId = activeCaseSelect.value;
 
+  const selectedRoles = getSelectedRoles();
+  if (selectedRoles.length === 0) selectedRoles.push("defendant");
   const profilePayload = {
     name: formData.get("name"),
-    role: formData.get("role"),
+    role: selectedRoles.join(","),
     organization: formData.get("organization"),
     title: formData.get("title"),
     photo_url: formData.get("photo"),
@@ -981,6 +1059,7 @@ profileForm.addEventListener("submit", async (event) => {
         if (editId) {
           await fetch(`/api/actions?personId=${person.id}${caseId ? '&caseId=' + caseId : ''}`, { method: "DELETE" });
         }
+        const allMentionedNames = new Map();
         for (const acc of lastParsed.accusations) {
           await fetch("/api/actions", {
             method: "POST",
@@ -998,8 +1077,31 @@ profileForm.addEventListener("submit", async (event) => {
               mentionedNames: acc.mentionedNames || []
             })
           });
+          (acc.mentionedNames || []).forEach(mn => {
+            const entry = typeof mn === "string" ? { name: mn, role: "unknown" } : mn;
+            if (entry.name) {
+              const key = entry.name.toLowerCase().trim();
+              if (!allMentionedNames.has(key)) allMentionedNames.set(key, entry);
+            }
+          });
+        }
+        for (const [, mn] of allMentionedNames) {
+          const roleMap = { defendant: "defendant", informant: "informant", witness: "witness", secretWitness: "secretWitness", victim: "victim", fugitive: "fugitive", detained: "detained" };
+          try {
+            await fetch("/api/people/find-or-create", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ name: mn.name, role: roleMap[mn.role] || mn.role, caseId })
+            });
+          } catch (e) {}
         }
       }
+      await sync();
+      const savedPerson = cachedServerPeople.find(p => p.id === person.id);
+      if (savedPerson) {
+        editProfile(savedPerson);
+      }
+      return;
     } else {
       alert("Profil sunucuya kaydedilemedi.");
     }
@@ -1007,7 +1109,6 @@ profileForm.addEventListener("submit", async (event) => {
     alert("Sunucuya bağlantı hatası.");
   }
 
-  resetProfileForm();
   sync();
 });
 

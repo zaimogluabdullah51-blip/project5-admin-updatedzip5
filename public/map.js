@@ -217,7 +217,7 @@ function buildGraph(caseData) {
       const row = Math.floor(idx / perRow);
 
       const nodeId = `${person.id}:${num}`;
-      const personRole = person.role || "defendant";
+      const personRole = (person.role || "defendant").split(",")[0].trim();
       const colorSet = roleColors[personRole] || roleColors.defendant;
       const node = {
         id: nodeId,
@@ -401,7 +401,8 @@ function openPersonModal(person) {
   personName.textContent = person.name || "";
   personOrg.textContent = person.organization || "";
   personTitle.textContent = person.title || "";
-  personRole.textContent = roleLabels[person.role] || person.role || "";
+  const roles = (person.role || "").split(",").map(r => r.trim()).filter(Boolean);
+  personRole.textContent = roles.map(r => roleLabels[r] || r).join(", ") || "";
   personSentence.textContent = person.sentence_demand ? `Talep: ${person.sentence_demand}` : "";
   personPhoto.src = person.photo_url || fallbackImage;
 

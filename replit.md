@@ -84,10 +84,16 @@ When making changes, prefer running Express as the primary server (`node server.
 
 ### 2026-02-07
 - Admin: Accusation cards (suçlama kartları) now fully editable — title, claim (İddia), evidence (Deliller), defense (Savunma) rendered as textareas/inputs with real-time sync to lastParsed
+- Admin: TCK maddeleri and Eylem numaraları in each accusation card are now editable chip controls (add/remove)
 - Admin: Mentioned names (Geçen İsimler) in each accusation card now support: remove (X button), add new name with role selector
+- Admin: Multi-role support: role field changed from single select to checkboxes, allowing multiple roles (e.g., Sanık + İtirafçı). Stored as comma-separated string in DB
+- Admin: Mentioned names with roles are auto-created as profiles in database via /api/people/find-or-create (case-insensitive name matching, linked to case)
 - Admin: editProfile loads existing actions from server (/api/actions?personId=X) and populates editable cards for existing profiles
 - Admin: Profile save flow handles updates: deletes old actions then re-creates from edited data for existing profiles
+- Admin: After save, profile stays in edit mode with accusation cards visible (no form reset)
 - API: DELETE /api/actions endpoint supporting ?personId=X&caseId=Y for clearing actions before re-save
+- API: POST /api/people/find-or-create for auto-creating/matching mentioned names as profiles
+- Map: Multi-role display in person modal (comma-separated roles shown as Turkish labels); first role used for border color
 - Homepage: Status badge colors per case status (Soruşturma=indigo, İddianame=amber, Kovuşturma=dark red, Karar=teal, Temyiz=purple, Kesinleşme=green)
 - Homepage: "Toplam dava" → "Toplam Dosya" (TR), "Total cases" → "Total Files" (EN)
 - Homepage: Case card stacked layers made lighter for better visual effect
