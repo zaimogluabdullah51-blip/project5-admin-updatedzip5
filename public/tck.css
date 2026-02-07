@@ -126,17 +126,55 @@
   display: block;
 }
 
-.tck-official {
-  background: rgba(139, 30, 30, 0.06);
-  padding: 16px 24px;
+.tck-legal-section {
   border-bottom: 1px solid var(--border);
-  color: var(--muted);
-  font-size: 0.85rem;
-  line-height: 1.6;
 }
 
-.tck-official strong {
+.tck-legal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 14px 24px;
+  cursor: pointer;
+  background: rgba(139, 30, 30, 0.06);
+  transition: background 0.2s;
+}
+
+.tck-legal-header:hover {
+  background: rgba(139, 30, 30, 0.12);
+}
+
+.tck-legal-title {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #e57373;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.tck-legal-toggle {
+  font-size: 0.75rem;
+  color: var(--muted);
+  transition: transform 0.2s;
+}
+
+.tck-legal-section.expanded .tck-legal-toggle {
+  transform: rotate(180deg);
+}
+
+.tck-legal-text {
+  display: none;
+  padding: 16px 24px 20px;
   color: var(--text);
+  font-size: 0.88rem;
+  line-height: 1.75;
+  background: rgba(139, 30, 30, 0.03);
+  border-top: 1px solid rgba(139, 30, 30, 0.1);
+  font-style: italic;
+}
+
+.tck-legal-section.expanded .tck-legal-text {
+  display: block;
 }
 
 .tck-profiles {
@@ -161,6 +199,18 @@
   align-items: flex-start;
   gap: 12px;
   flex-wrap: wrap;
+}
+
+.tck-profile-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.tck-profile-right {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 8px;
 }
 
 .tck-profile-name {
@@ -241,22 +291,26 @@
   font-style: italic;
 }
 
-.tck-sentence {
-  display: flex;
+.tck-sentence-badge {
+  display: inline-flex;
   align-items: center;
-  gap: 8px;
-  margin-top: 4px;
+  gap: 6px;
+  padding: 6px 14px;
+  border-radius: 10px;
+  background: linear-gradient(135deg, rgba(180, 83, 9, 0.25), rgba(220, 60, 30, 0.25));
+  border: 1px solid rgba(220, 120, 30, 0.4);
+  white-space: nowrap;
 }
 
-.tck-sentence-label {
-  font-size: 0.75rem;
-  color: var(--muted);
+.tck-sentence-badge-icon {
+  font-size: 0.9rem;
 }
 
-.tck-sentence-value {
-  font-size: 0.85rem;
-  font-weight: 600;
-  color: #e57373;
+.tck-sentence-badge-text {
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: #fbbf24;
+  letter-spacing: 0.02em;
 }
 
 .tck-map-link {
@@ -279,6 +333,33 @@
   color: #e57373;
 }
 
+.tck-show-more-wrap {
+  padding: 16px 24px;
+  text-align: center;
+  border-bottom: 1px solid var(--border);
+}
+
+.tck-show-more-btn {
+  background: rgba(139, 30, 30, 0.12);
+  border: 1px solid rgba(139, 30, 30, 0.25);
+  color: #e57373;
+  font-size: 0.85rem;
+  font-weight: 600;
+  padding: 10px 28px;
+  border-radius: 999px;
+  cursor: pointer;
+  transition: background 0.2s, transform 0.15s;
+}
+
+.tck-show-more-btn:hover {
+  background: rgba(139, 30, 30, 0.22);
+  transform: scale(1.02);
+}
+
+.tck-more-profiles .tck-profile-card:last-child {
+  border-bottom: none;
+}
+
 @media (max-width: 700px) {
   .tck-detail-grid {
     grid-template-columns: 1fr;
@@ -290,5 +371,21 @@
 
   .tck-profile-card {
     padding: 16px;
+  }
+
+  .tck-profile-top {
+    flex-direction: column;
+  }
+
+  .tck-profile-right {
+    align-items: flex-start;
+  }
+
+  .tck-legal-header {
+    padding: 12px 16px;
+  }
+
+  .tck-legal-text {
+    padding: 12px 16px 16px;
   }
 }
