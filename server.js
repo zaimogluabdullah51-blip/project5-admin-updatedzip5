@@ -2,7 +2,7 @@ import express from "express";
 import path from "path";
 import { fileURLToPath } from "url";
 import crypto from "crypto";
-import { all, get, run, init, createCase, createPerson, linkPerson, createAction } from "./db.js";
+import { all, get, run, init, createCase, updateCase, createPerson, linkPerson, createAction } from "./db.js";
 
 const app = express();
 const __filename = fileURLToPath(import.meta.url);
@@ -192,6 +192,19 @@ app.post("/api/cases", requireAuthApi, async (req, res) => {
     res.status(201).json(record);
   } catch (err) {
     res.status(500).json({ error: "Failed to create case." });
+  }
+});
+
+app.put("/api/cases/:id", requireAuthApi, async (req, res) => {
+  try {
+    const updated = await updateCase(req.params.id, req.body);
+    if (!updated) return res.status(404).json({ error: "Case not found." });
+    res.json({
+      ...updated,
+      tck_articles: parseJsonField(updated.tck_articles, [])
+    });
+  } catch (err) {
+    res.status(500).json({ error: "Dava güncellenemedi." });
   }
 });
 

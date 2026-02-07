@@ -41,33 +41,62 @@
 
       <main class="content">
         <section class="panel tab-panel active-tab" id="tab-cases">
-          <h2>Dava Oluştur</h2>
+          <div class="form-mode-header">
+            <h2 id="case-form-title">Dava Oluştur</h2>
+            <button id="case-form-reset" class="btn ghost" type="button" style="display:none">+ Yeni Dava</button>
+          </div>
           <form id="case-form">
+            <input type="hidden" name="editId" />
             <label>Dava başlığı<input name="title" required /></label>
             <label>İddianame Özeti<textarea name="summary" rows="3"></textarea></label>
             <div class="form-grid">
               <label>Esas No<input name="caseNumber" required /></label>
               <label>Mahkeme<input name="courtName" required /></label>
-              <label>Savcı<input name="prosecutor" /></label>
-              <label>Hakim<input name="judge" /></label>
             </div>
-            <label>Heyet (virgülle ayır)<input name="panel" /></label>
             <div class="form-grid">
-              <label>Tarih<input name="date" type="date" /></label>
+              <label>İddianame Savcısı<input name="indictmentProsecutor" /></label>
+              <label>Duruşma Savcısı<input name="trialProsecutor" placeholder="(opsiyonel)" /></label>
+            </div>
+            <label>Hakim / Heyet
+              <select name="judgeType" id="judge-type-select">
+                <option value="single">Tek Hakim</option>
+                <option value="panel">Heyet (Ağır Ceza)</option>
+              </select>
+            </label>
+            <div id="judge-single-fields">
+              <label>Hakim<input name="judgeName" /></label>
+            </div>
+            <div id="judge-panel-fields" style="display:none">
+              <label>Heyet Başkanı<input name="panelPresident" /></label>
+              <label>Üye Hakimler (virgülle ayır)<input name="panelMembers" placeholder="Hakim A, Hakim B" /></label>
+            </div>
+            <div class="form-grid">
+              <label>İddianamenin Kabul Tarihi<input name="acceptanceDate" type="date" /></label>
               <label>Durum
                 <select name="status">
-                  <option value="Devam Ediyor">Devam Ediyor</option>
-                  <option value="Karara Bağlandı">Karara Bağlandı</option>
+                  <option value="Soruşturma">Soruşturma</option>
+                  <option value="Kovuşturma (Devam Ediyor)">Kovuşturma (Devam Ediyor)</option>
+                  <option value="Karar Verildi">Karar Verildi</option>
+                  <option value="İstinaf">İstinaf</option>
+                  <option value="Temyiz">Temyiz</option>
+                  <option value="Kesinleşti">Kesinleşti</option>
                 </select>
               </label>
             </div>
-            <button class="btn primary" type="submit">Kaydet</button>
+            <div class="form-grid">
+              <label>İddianame Tarihi<input name="indictmentDate" type="date" /></label>
+              <label>Karar Tarihi<input name="verdictDate" type="date" /></label>
+            </div>
+            <button class="btn primary" type="submit" id="case-submit-btn">Kaydet</button>
           </form>
           <div class="list" id="case-list"></div>
         </section>
 
         <section class="panel tab-panel" id="tab-profiles">
-          <h2>Profil Ekle</h2>
+          <div class="form-mode-header">
+            <h2 id="profile-form-title">Profil Ekle</h2>
+            <button id="profile-form-reset" class="btn ghost" type="button" style="display:none">+ Yeni Profil</button>
+          </div>
           <div class="parser">
             <h3>Yapıştır ve Ayrıştır</h3>
             <textarea id="parse-input" rows="8" placeholder="Metni buraya yapıştırın..."></textarea>
@@ -81,6 +110,7 @@
             <div id="parse-results" class="list"></div>
           </div>
           <form id="profile-form">
+            <input type="hidden" name="editId" />
             <div class="profile-header-section">
               <label>İsim Soyad<input name="name" required /></label>
               <div class="form-grid">

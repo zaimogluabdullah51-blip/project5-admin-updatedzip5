@@ -56,7 +56,16 @@ async function init() {
       hearing_count INTEGER,
       start_date TEXT,
       last_hearing_date TEXT,
-      tck_articles TEXT
+      tck_articles TEXT,
+      indictment_prosecutor TEXT,
+      trial_prosecutor TEXT,
+      judge_type TEXT,
+      judge_name TEXT,
+      panel_president TEXT,
+      panel_members TEXT,
+      indictment_date TEXT,
+      acceptance_date TEXT,
+      verdict_date TEXT
     )
   `);
 
@@ -120,6 +129,15 @@ async function init() {
   await ensureColumn("cases", "start_date", "TEXT");
   await ensureColumn("cases", "last_hearing_date", "TEXT");
   await ensureColumn("cases", "tck_articles", "TEXT");
+  await ensureColumn("cases", "indictment_prosecutor", "TEXT");
+  await ensureColumn("cases", "trial_prosecutor", "TEXT");
+  await ensureColumn("cases", "judge_type", "TEXT");
+  await ensureColumn("cases", "judge_name", "TEXT");
+  await ensureColumn("cases", "panel_president", "TEXT");
+  await ensureColumn("cases", "panel_members", "TEXT");
+  await ensureColumn("cases", "indictment_date", "TEXT");
+  await ensureColumn("cases", "acceptance_date", "TEXT");
+  await ensureColumn("cases", "verdict_date", "TEXT");
   await ensureColumn("people", "photo_url", "TEXT");
   await ensureColumn("people", "tck_articles", "TEXT");
   await ensureColumn("people", "accusations", "TEXT");
@@ -145,8 +163,8 @@ async function init() {
   for (const c of sample.cases) {
     await run(
       `INSERT INTO cases
-        (id, title, summary, incident, dossier, date, status, case_number, court_name, judge, court_panel, prosecutor, hearing_count, start_date, last_hearing_date, tck_articles)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        (id, title, summary, incident, dossier, date, status, case_number, court_name, judge, court_panel, prosecutor, hearing_count, start_date, last_hearing_date, tck_articles, indictment_prosecutor, trial_prosecutor, judge_type, judge_name, panel_president, panel_members, indictment_date, acceptance_date, verdict_date)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         c.id,
         c.title,
@@ -163,7 +181,16 @@ async function init() {
         c.hearingCount,
         c.startDate,
         c.lastHearingDate,
-        JSON.stringify(c.tckArticles || [])
+        JSON.stringify(c.tckArticles || []),
+        c.indictmentProsecutor || "",
+        c.trialProsecutor || "",
+        c.judgeType || "single",
+        c.judgeName || "",
+        c.panelPresident || "",
+        c.panelMembers || "",
+        c.indictmentDate || "",
+        c.acceptanceDate || "",
+        c.verdictDate || ""
       ]
     );
   }
@@ -247,12 +274,12 @@ function seedData() {
     incident: "Beşiktaş Merkez Dosyası",
     dossier: "BJK-2024-142",
     date: "2024-01-15",
-    status: "Devam ediyor",
+    status: "Kovuşturma (Devam Ediyor)",
     caseNumber: "2024/142",
     courtName: "İstanbul 14. Ağır Ceza Mahkemesi",
-    judge: "Hakim [İsim]",
-    courtPanel: "Başkan: [İsim] · Üye: [İsim] · Üye: [İsim]",
-    prosecutor: "Savcı [İsim]",
+    judge: "",
+    courtPanel: "",
+    prosecutor: "",
     hearingCount: 3,
     startDate: "2024-01-15",
     lastHearingDate: "2024-05-20",
@@ -260,7 +287,16 @@ function seedData() {
       { code: "314/2", title: "Silahlı Örgüt Üyeliği" },
       { code: "299", title: "Cumhurbaşkanına Hakaret" },
       { code: "220/7", title: "Örgüte Yardım" }
-    ]
+    ],
+    indictmentProsecutor: "Savcı [İsim]",
+    trialProsecutor: "",
+    judgeType: "panel",
+    judgeName: "",
+    panelPresident: "Hakim [İsim]",
+    panelMembers: "Üye Hakim [İsim], Üye Hakim [İsim]",
+    indictmentDate: "2023-11-20",
+    acceptanceDate: "2024-01-15",
+    verdictDate: ""
   };
 
   const people = [
@@ -373,13 +409,22 @@ async function createCase(payload) {
     hearing_count: Number(payload.hearing_count || payload.hearingCount || 0),
     start_date: payload.start_date || payload.startDate || "",
     last_hearing_date: payload.last_hearing_date || payload.lastHearingDate || "",
-    tck_articles: payload.tck_articles || payload.tckArticles || []
+    tck_articles: payload.tck_articles || payload.tckArticles || [],
+    indictment_prosecutor: payload.indictment_prosecutor || payload.indictmentProsecutor || "",
+    trial_prosecutor: payload.trial_prosecutor || payload.trialProsecutor || "",
+    judge_type: payload.judge_type || payload.judgeType || "single",
+    judge_name: payload.judge_name || payload.judgeName || "",
+    panel_president: payload.panel_president || payload.panelPresident || "",
+    panel_members: payload.panel_members || payload.panelMembers || "",
+    indictment_date: payload.indictment_date || payload.indictmentDate || "",
+    acceptance_date: payload.acceptance_date || payload.acceptanceDate || "",
+    verdict_date: payload.verdict_date || payload.verdictDate || ""
   };
 
   await run(
     `INSERT INTO cases
-      (id, title, summary, incident, dossier, date, status, case_number, court_name, judge, court_panel, prosecutor, hearing_count, start_date, last_hearing_date, tck_articles)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      (id, title, summary, incident, dossier, date, status, case_number, court_name, judge, court_panel, prosecutor, hearing_count, start_date, last_hearing_date, tck_articles, indictment_prosecutor, trial_prosecutor, judge_type, judge_name, panel_president, panel_members, indictment_date, acceptance_date, verdict_date)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     [
       record.id,
       record.title,
@@ -396,11 +441,65 @@ async function createCase(payload) {
       record.hearing_count,
       record.start_date,
       record.last_hearing_date,
-      JSON.stringify(record.tck_articles)
+      JSON.stringify(record.tck_articles),
+      record.indictment_prosecutor,
+      record.trial_prosecutor,
+      record.judge_type,
+      record.judge_name,
+      record.panel_president,
+      record.panel_members,
+      record.indictment_date,
+      record.acceptance_date,
+      record.verdict_date
     ]
   );
 
   return record;
+}
+
+async function updateCase(id, payload) {
+  const existing = await get("SELECT * FROM cases WHERE id = ?", [id]);
+  if (!existing) return null;
+
+  const b = payload;
+  await run(
+    `UPDATE cases SET
+      title = ?, summary = ?, incident = ?, dossier = ?, date = ?, status = ?,
+      case_number = ?, court_name = ?, judge = ?, court_panel = ?, prosecutor = ?,
+      hearing_count = ?, start_date = ?, last_hearing_date = ?, tck_articles = ?,
+      indictment_prosecutor = ?, trial_prosecutor = ?, judge_type = ?, judge_name = ?,
+      panel_president = ?, panel_members = ?, indictment_date = ?, acceptance_date = ?, verdict_date = ?
+     WHERE id = ?`,
+    [
+      b.title ?? existing.title,
+      b.summary ?? existing.summary,
+      b.incident ?? existing.incident,
+      b.dossier ?? existing.dossier,
+      b.date ?? existing.date,
+      b.status ?? existing.status,
+      b.case_number ?? existing.case_number,
+      b.court_name ?? existing.court_name,
+      b.judge ?? existing.judge,
+      b.court_panel ?? existing.court_panel,
+      b.prosecutor ?? existing.prosecutor,
+      b.hearing_count ?? existing.hearing_count,
+      b.start_date ?? existing.start_date,
+      b.last_hearing_date ?? existing.last_hearing_date,
+      b.tck_articles ? JSON.stringify(b.tck_articles) : existing.tck_articles,
+      b.indictment_prosecutor ?? existing.indictment_prosecutor,
+      b.trial_prosecutor ?? existing.trial_prosecutor,
+      b.judge_type ?? existing.judge_type,
+      b.judge_name ?? existing.judge_name,
+      b.panel_president ?? existing.panel_president,
+      b.panel_members ?? existing.panel_members,
+      b.indictment_date ?? existing.indictment_date,
+      b.acceptance_date ?? existing.acceptance_date,
+      b.verdict_date ?? existing.verdict_date,
+      id
+    ]
+  );
+
+  return await get("SELECT * FROM cases WHERE id = ?", [id]);
 }
 
 async function createPerson(payload) {
@@ -499,4 +598,4 @@ async function createAction(payload) {
   return record;
 }
 
-export { db, run, get, all, init, createCase, createPerson, linkPerson, createAction };
+export { db, run, get, all, init, createCase, updateCase, createPerson, linkPerson, createAction };

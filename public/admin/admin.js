@@ -11,9 +11,17 @@ const tabPanels = {
 
 const caseForm = document.getElementById("case-form");
 const caseList = document.getElementById("case-list");
+const caseFormTitle = document.getElementById("case-form-title");
+const caseFormReset = document.getElementById("case-form-reset");
+const caseSubmitBtn = document.getElementById("case-submit-btn");
+const judgeTypeSelect = document.getElementById("judge-type-select");
+const judgeSingleFields = document.getElementById("judge-single-fields");
+const judgePanelFields = document.getElementById("judge-panel-fields");
 
 const profileForm = document.getElementById("profile-form");
 const profileList = document.getElementById("profile-list");
+const profileFormTitle = document.getElementById("profile-form-title");
+const profileFormReset = document.getElementById("profile-form-reset");
 const actionsContainer = document.getElementById("actions-container");
 
 const parseInput = document.getElementById("parse-input");
@@ -32,6 +40,8 @@ const actionChips = document.getElementById("action-chips");
 let lastParsed = null;
 let currentTckCodes = [];
 let currentActionNums = [];
+let cachedServerCases = [];
+let cachedServerPeople = [];
 
 function loadData() {
   const raw = localStorage.getItem(STORAGE_KEY);
@@ -69,6 +79,12 @@ function fillSelect(select, items, labelKey = "title") {
   });
 }
 
+judgeTypeSelect.addEventListener("change", () => {
+  const isPanel = judgeTypeSelect.value === "panel";
+  judgeSingleFields.style.display = isPanel ? "none" : "block";
+  judgePanelFields.style.display = isPanel ? "block" : "none";
+});
+
 async function deleteCase(id) {
   if (!confirm("Bu davayı silmek istediğinize emin misiniz?\nDavaya bağlı tüm profil bağlantıları ve suçlama kayıtları da silinecektir.")) return;
   try {
@@ -77,6 +93,7 @@ async function deleteCase(id) {
   const data = loadData();
   data.cases = data.cases.filter((c) => c.id !== id);
   saveData(data);
+  resetCaseForm();
   sync();
 }
 
@@ -88,8 +105,101 @@ async function deleteProfile(id) {
   const data = loadData();
   data.profiles = data.profiles.filter((p) => p.id !== id);
   saveData(data);
+  resetProfileForm();
   sync();
 }
+
+function editCase(c) {
+  caseFormTitle.textContent = `Düzenleniyor: ${c.title}`;
+  caseFormReset.style.display = "inline-block";
+  caseSubmitBtn.textContent = "Güncelle";
+
+  setInput(caseForm, "editId", c.id);
+  setInput(caseForm, "title", c.title);
+  setInput(caseForm, "summary", c.summary);
+  setInput(caseForm, "caseNumber", c.case_number || c.caseNumber || "");
+  setInput(caseForm, "courtName", c.court_name || c.courtName || "");
+  setInput(caseForm, "indictmentProsecutor", c.indictment_prosecutor || c.indictmentProsecutor || c.prosecutor || "");
+  setInput(caseForm, "trialProsecutor", c.trial_prosecutor || c.trialProsecutor || "");
+
+  const jType = c.judge_type || c.judgeType || "single";
+  setInput(caseForm, "judgeType", jType);
+  judgeTypeSelect.value = jType;
+  judgeTypeSelect.dispatchEvent(new Event("change"));
+
+  setInput(caseForm, "judgeName", c.judge_name || c.judgeName || c.judge || "");
+  setInput(caseForm, "panelPresident", c.panel_president || c.panelPresident || "");
+  setInput(caseForm, "panelMembers", c.panel_members || c.panelMembers || c.court_panel || "");
+
+  setInput(caseForm, "acceptanceDate", c.acceptance_date || c.acceptanceDate || c.date || "");
+  setInput(caseForm, "indictmentDate", c.indictment_date || c.indictmentDate || "");
+  setInput(caseForm, "verdictDate", c.verdict_date || c.verdictDate || "");
+  setInput(caseForm, "status", c.status || "Kovuşturma (Devam Ediyor)");
+
+  const statusSelect = caseForm.querySelector('[name="status"]');
+  if (statusSelect) statusSelect.value = c.status || "Kovuşturma (Devam Ediyor)";
+
+  caseForm.scrollIntoView({ behavior: "smooth", block: "start" });
+}
+
+function resetCaseForm() {
+  caseForm.reset();
+  setInput(caseForm, "editId", "");
+  caseFormTitle.textContent = "Dava Oluştur";
+  caseFormReset.style.display = "none";
+  caseSubmitBtn.textContent = "Kaydet";
+  judgeTypeSelect.value = "single";
+  judgeTypeSelect.dispatchEvent(new Event("change"));
+}
+
+function editProfile(p) {
+  profileFormTitle.textContent = `Düzenleniyor: ${p.name}`;
+  profileFormReset.style.display = "inline-block";
+
+  setInput(profileForm, "editId", p.id);
+  setInput(profileForm, "name", p.name);
+  setInput(profileForm, "organization", p.organization || "");
+  setInput(profileForm, "title", p.title || "");
+  setInput(profileForm, "summary", p.charge || p.summary || "");
+  setInput(profileForm, "sentenceDemand", p.sentence_demand || p.sentenceDemand || "");
+  setInput(profileForm, "photo", p.photo_url || p.photo || "");
+
+  const roleSelect = profileForm.querySelector('[name="role"]');
+  if (roleSelect) roleSelect.value = p.role || "defendant";
+
+  const tckArticles = Array.isArray(p.tck_articles) ? p.tck_articles : [];
+  currentTckCodes = tckArticles.map(code => {
+    const s = String(code).trim();
+    return s.startsWith("TCK") ? s : `TCK ${s}`;
+  });
+  renderTckChips();
+
+  const actionNums = Array.isArray(p.action_numbers) ? p.action_numbers : [];
+  currentActionNums = [...actionNums];
+  renderActionChips();
+
+  actionsContainer.innerHTML = "";
+  lastParsed = null;
+
+  profileForm.scrollIntoView({ behavior: "smooth", block: "start" });
+}
+
+function resetProfileForm() {
+  profileForm.reset();
+  setInput(profileForm, "editId", "");
+  profileFormTitle.textContent = "Profil Ekle";
+  profileFormReset.style.display = "none";
+  actionsContainer.innerHTML = "";
+  parseResults.innerHTML = "";
+  lastParsed = null;
+  currentTckCodes = [];
+  currentActionNums = [];
+  renderTckChips();
+  renderActionChips();
+}
+
+caseFormReset.addEventListener("click", resetCaseForm);
+profileFormReset.addEventListener("click", resetProfileForm);
 
 function renderLists(data, serverCases, serverPeople) {
   caseList.innerHTML = "";
@@ -97,8 +207,11 @@ function renderLists(data, serverCases, serverPeople) {
   casesToRender.forEach((c) => {
     const div = document.createElement("div");
     div.className = "list-item";
+    const editId = caseForm.querySelector('[name="editId"]').value;
+    if (editId === c.id) div.classList.add("list-item-active");
     div.innerHTML = `<div class="list-item-content"><strong>${c.title}</strong><br /><span class="muted">${c.case_number || c.caseNumber || ''}</span></div><button class="btn-delete" title="Sil">&times;</button>`;
-    div.querySelector(".btn-delete").addEventListener("click", () => deleteCase(c.id));
+    div.querySelector(".list-item-content").addEventListener("click", () => editCase(c));
+    div.querySelector(".btn-delete").addEventListener("click", (e) => { e.stopPropagation(); deleteCase(c.id); });
     caseList.appendChild(div);
   });
 
@@ -107,8 +220,11 @@ function renderLists(data, serverCases, serverPeople) {
   profilesToRender.forEach((p) => {
     const div = document.createElement("div");
     div.className = "list-item";
+    const editId = profileForm.querySelector('[name="editId"]').value;
+    if (editId === p.id) div.classList.add("list-item-active");
     div.innerHTML = `<div class="list-item-content"><strong>${p.name}</strong><br /><span class="muted">${p.role || ''}</span></div><button class="btn-delete" title="Sil">&times;</button>`;
-    div.querySelector(".btn-delete").addEventListener("click", () => deleteProfile(p.id));
+    div.querySelector(".list-item-content").addEventListener("click", () => editProfile(p));
+    div.querySelector(".btn-delete").addEventListener("click", (e) => { e.stopPropagation(); deleteProfile(p.id); });
     profileList.appendChild(div);
   });
 }
@@ -131,14 +247,14 @@ async function loadServerPeople() {
 
 async function sync() {
   const data = loadData();
-  const serverCases = await loadServerCases();
-  const serverPeople = await loadServerPeople();
+  cachedServerCases = await loadServerCases();
+  cachedServerPeople = await loadServerPeople();
 
-  renderLists(data, serverCases, serverPeople);
+  renderLists(data, cachedServerCases, cachedServerPeople);
 
-  if (serverCases.length > 0) {
+  if (cachedServerCases.length > 0) {
     activeCaseSelect.innerHTML = "";
-    serverCases.forEach((c) => {
+    cachedServerCases.forEach((c) => {
       const option = document.createElement("option");
       option.value = c.id;
       option.textContent = c.title;
@@ -316,7 +432,7 @@ function parsePastedText(text) {
       result.actionNumbers = parts;
     }
 
-    const roleKeywords = ["San\u0131k", "\u0130tiraf\u00E7\u0131", "Tan\u0131k", "Gizli Tan\u0131k", "Ma\u011fdur", "Firari", "Tutuklu"];
+    const roleKeywords = ["Sanık", "İtirafçı", "Tanık", "Gizli Tanık", "Mağdur", "Firari", "Tutuklu"];
     let foundRole = "";
     let personPart = "";
     for (const keyword of roleKeywords) {
@@ -347,26 +463,26 @@ function parsePastedText(text) {
         let titleVal = "";
 
         const orgKeywords = [
-          "M\u00FCd\u00FCrl\u00FC\u011F\u00FC", "M\u00FCd\u00FCrl\u00FCg\u00FC",
-          "Bakanl\u0131\u011F\u0131", "Bakanl\u0131g\u0131",
+          "Müdürlüğü", "Müdürlügü",
+          "Bakanlığı", "Bakanlıgı",
           "Belediyesi", "Belediye",
-          "Ba\u015Fkanl\u0131\u011F\u0131", "Ba\u015Fkanl\u0131g\u0131",
-          "A.\u015E.", "A.S.", "A.\u015E",
+          "Başkanlığı", "Başkanlıgı",
+          "A.Ş.", "A.S.", "A.Ş",
           "Ltd.", "Ltd",
-          "\u015Eirketi", "Sirketi",
+          "Şirketi", "Sirketi",
           "Holding",
           "Kurumu",
-          "Genel M\u00FCd\u00FCrl\u00FC\u011F\u00FC",
-          "Daire Ba\u015Fkanl\u0131\u011F\u0131",
+          "Genel Müdürlüğü",
+          "Daire Başkanlığı",
           "Emniyet",
-          "\u00DCniversitesi",
+          "Üniversitesi",
           "Hastanesi",
-          "Vak\u0131f\u0131", "Vakfi",
-          "Derne\u011Fi", "Dernegi",
-          "Ajans\u0131",
+          "Vakıfı", "Vakfi",
+          "Derneği", "Dernegi",
+          "Ajansı",
           "Gazetesi",
-          "Bankas\u0131",
-          "Odas\u0131"
+          "Bankası",
+          "Odası"
         ];
 
         if (unvanStr.includes(",")) {
@@ -399,14 +515,14 @@ function parsePastedText(text) {
         }
         result.profiles.push({
           name: nameStr,
-          role: foundRole || "San\u0131k",
+          role: foundRole || "Sanık",
           organization: organization,
           title: titleVal
         });
       } else {
         result.profiles.push({
           name: personPart.trim(),
-          role: foundRole || "San\u0131k",
+          role: foundRole || "Sanık",
           organization: "",
           title: ""
         });
@@ -414,15 +530,15 @@ function parsePastedText(text) {
     }
   }
 
-  const summaryMatch = textBlock.match(/\u{1F6A9}\s*\u0130ddianame \u00D6zeti:\s*([\s\S]*?)(?=\u{1F6A8}|$)/u);
+  const summaryMatch = textBlock.match(/\u{1F6A9}\s*İddianame Özeti:\s*([\s\S]*?)(?=\u{1F6A8}|$)/u);
   if (summaryMatch) {
     result.summary = summaryMatch[1].trim();
   }
 
   const sentencePatterns = [
     /Talep edilen ceza:\s*([^\n]+)/i,
-    /(\d+[-\u2013]\d+\s*y\u0131l(?:\s*(?:ve|ile)\s*\d+[-\u2013]\d+\s*ay)?\s*(?:hapis|a\u011f\u0131r hapis)(?:\s*cezas\u0131)?)/i,
-    /hapis cezas\u0131 talep/i
+    /(\d+[-\u2013]\d+\s*yıl(?:\s*(?:ve|ile)\s*\d+[-\u2013]\d+\s*ay)?\s*(?:hapis|ağır hapis)(?:\s*cezası)?)/i,
+    /hapis cezası talep/i
   ];
   for (const pat of sentencePatterns) {
     const m = textBlock.match(pat);
@@ -439,11 +555,11 @@ function parsePastedText(text) {
   });
   result.actionNumbers = Array.from(new Set(result.actionNumbers));
 
-  const accBlocks = textBlock.split(/\u{1F6A8}\s*Su\u00E7lama\s*\d+:/u).slice(1);
+  const accBlocks = textBlock.split(/\u{1F6A8}\s*Suçlama\s*\d+:/u).slice(1);
   accBlocks.forEach((block) => {
     const titleLine = block.split("\n").find((l) => l.trim()).trim();
-    const claimMatch = block.match(/\u0130DD\u0130A:\s*([\s\S]*?)(?=DEL\u0130L:|SAVUNMA:|$)/);
-    const evidenceMatch = block.match(/DEL\u0130L:\s*([\s\S]*?)(?=SAVUNMA:|$)/);
+    const claimMatch = block.match(/İDDİA:\s*([\s\S]*?)(?=DELİL:|SAVUNMA:|$)/);
+    const evidenceMatch = block.match(/DELİL:\s*([\s\S]*?)(?=SAVUNMA:|$)/);
     const defenseMatch = block.match(/SAVUNMA:\s*([\s\S]*?)$/);
 
     const blockTckCodes = parseTck(block);
@@ -505,12 +621,12 @@ function renderActionCards(parsed) {
 
     card.innerHTML = `
       <div class="accusation-card-header">
-        <span class="accusation-num">Su\u00E7lama ${num}</span>
+        <span class="accusation-num">Suçlama ${num}</span>
         <span class="accusation-title">${acc.title || ""}</span>
       </div>
       <div class="accusation-card-body">
         <div class="accusation-row">
-          <span class="accusation-label">\u0130ddia</span>
+          <span class="accusation-label">İddia</span>
           <p class="accusation-text">${formatNumberedItems(acc.claim)}</p>
         </div>
         <div class="accusation-row">
@@ -576,18 +692,18 @@ function applyParsedToForm(parsed) {
 
   if (parsed.profiles[0]) {
     const profile = parsed.profiles[0];
-    const rawRole = profile.role || "San\u0131k";
+    const rawRole = profile.role || "Sanık";
 
     setInput(profileForm, "name", profile.name);
     setInput(profileForm, "organization", profile.organization || "");
     setInput(profileForm, "title", profile.title || "");
 
     const roleMap = {
-      "San\u0131k": "defendant",
-      "\u0130tiraf\u00E7\u0131": "informant",
-      "Tan\u0131k": "witness",
-      "Gizli Tan\u0131k": "secretWitness",
-      "Ma\u011fdur": "victim",
+      "Sanık": "defendant",
+      "İtirafçı": "informant",
+      "Tanık": "witness",
+      "Gizli Tanık": "secretWitness",
+      "Mağdur": "victim",
       "Firari": "fugitive",
       "Tutuklu": "detained"
     };
@@ -624,10 +740,10 @@ loginForm.addEventListener("submit", async (event) => {
       localStorage.setItem("dcc_admin_authed", "1");
       loginScreen.style.display = "none";
     } else {
-      loginError.textContent = "Hatal\u0131 kullan\u0131c\u0131 ad\u0131 veya \u015fifre.";
+      loginError.textContent = "Hatalı kullanıcı adı veya şifre.";
     }
   } catch (err) {
-    loginError.textContent = "Sunucuya ba\u011flan\u0131lamad\u0131.";
+    loginError.textContent = "Sunucuya bağlanılamadı.";
   }
 });
 
@@ -646,102 +762,99 @@ parseBtn.addEventListener("click", () => {
 
 clearBtn.addEventListener("click", () => {
   parseInput.value = "";
-  lastParsed = null;
-  parseResults.innerHTML = "";
-  actionsContainer.innerHTML = "";
-  profileForm.reset();
-  currentTckCodes = [];
-  currentActionNums = [];
-  renderTckChips();
-  renderActionChips();
+  resetProfileForm();
 });
 
 caseForm.addEventListener("submit", async (event) => {
   event.preventDefault();
-  const data = loadData();
   const formData = new FormData(caseForm);
-  const id = `case_${Date.now()}`;
-  const panel = formData.get("panel")
-    ? formData.get("panel").split(",").map((v) => v.trim()).filter(Boolean)
-    : [];
-  const caseObj = {
-    id,
+  const editId = formData.get("editId");
+
+  const judgeType = formData.get("judgeType");
+
+  const payload = {
     title: formData.get("title"),
-    caseNumber: formData.get("caseNumber"),
-    courtName: formData.get("courtName"),
-    prosecutor: formData.get("prosecutor"),
-    judge: formData.get("judge"),
-    panel,
-    date: formData.get("date"),
+    summary: formData.get("summary"),
+    case_number: formData.get("caseNumber"),
+    court_name: formData.get("courtName"),
+    indictment_prosecutor: formData.get("indictmentProsecutor"),
+    trial_prosecutor: formData.get("trialProsecutor"),
+    judge_type: judgeType,
+    judge_name: judgeType === "single" ? formData.get("judgeName") : "",
+    panel_president: judgeType === "panel" ? formData.get("panelPresident") : "",
+    panel_members: judgeType === "panel" ? formData.get("panelMembers") : "",
+    acceptance_date: formData.get("acceptanceDate"),
+    indictment_date: formData.get("indictmentDate"),
+    verdict_date: formData.get("verdictDate"),
     status: formData.get("status"),
-    summary: formData.get("summary")
+    judge: judgeType === "single" ? formData.get("judgeName") : formData.get("panelPresident"),
+    court_panel: judgeType === "panel" ? formData.get("panelMembers") : "",
+    prosecutor: formData.get("indictmentProsecutor"),
+    date: formData.get("acceptanceDate")
   };
-  data.cases.push(caseObj);
-  saveData(data);
 
   try {
-    const res = await fetch("/api/cases", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        title: caseObj.title,
-        summary: caseObj.summary,
-        date: caseObj.date,
-        status: caseObj.status,
-        case_number: caseObj.caseNumber,
-        court_name: caseObj.courtName,
-        judge: caseObj.judge,
-        court_panel: panel.join(", "),
-        prosecutor: caseObj.prosecutor
-      })
-    });
+    let res;
+    if (editId) {
+      res = await fetch(`/api/cases/${editId}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload)
+      });
+    } else {
+      res = await fetch("/api/cases", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload)
+      });
+    }
     if (!res.ok) {
-      alert("Dava sunucuya kaydedilemedi. L\u00FCtfen tekrar giri\u015f yap\u0131n.");
+      alert("Dava sunucuya kaydedilemedi. Lütfen tekrar giriş yapın.");
     }
   } catch (err) {
-    alert("Sunucuya ba\u011flant\u0131 hatas\u0131.");
+    alert("Sunucuya bağlantı hatası.");
   }
 
-  caseForm.reset();
+  resetCaseForm();
   sync();
 });
 
 profileForm.addEventListener("submit", async (event) => {
   event.preventDefault();
   const formData = new FormData(profileForm);
+  const editId = formData.get("editId");
   const caseId = activeCaseSelect.value;
 
-  const profileObj = {
+  const profilePayload = {
     name: formData.get("name"),
     role: formData.get("role"),
     organization: formData.get("organization"),
     title: formData.get("title"),
-    photo: formData.get("photo"),
-    summary: formData.get("summary"),
-    sentenceDemand: formData.get("sentenceDemand"),
-    tckCodes: [...currentTckCodes],
-    actionNumbers: [...currentActionNums]
+    photo_url: formData.get("photo"),
+    tck_articles: currentTckCodes,
+    sentence_demand: formData.get("sentenceDemand"),
+    action_numbers: currentActionNums,
+    charge: formData.get("summary")
   };
 
   try {
-    const res = await fetch("/api/people", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        name: profileObj.name,
-        role: profileObj.role,
-        organization: profileObj.organization,
-        title: profileObj.title,
-        photo_url: profileObj.photo,
-        tck_articles: profileObj.tckCodes,
-        sentence_demand: profileObj.sentenceDemand,
-        action_numbers: profileObj.actionNumbers,
-        charge: profileObj.summary
-      })
-    });
+    let res;
+    if (editId) {
+      res = await fetch(`/api/people/${editId}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(profilePayload)
+      });
+    } else {
+      res = await fetch("/api/people", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(profilePayload)
+      });
+    }
     if (res.ok) {
       const person = await res.json();
-      if (caseId) {
+      if (!editId && caseId) {
         await fetch("/api/case-people", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -772,25 +885,10 @@ profileForm.addEventListener("submit", async (event) => {
       alert("Profil sunucuya kaydedilemedi.");
     }
   } catch (err) {
-    alert("Sunucuya ba\u011flant\u0131 hatas\u0131.");
+    alert("Sunucuya bağlantı hatası.");
   }
 
-  const data = loadData();
-  data.profiles.push({
-    id: `profile_${Date.now()}`,
-    caseId,
-    ...profileObj
-  });
-  saveData(data);
-
-  profileForm.reset();
-  actionsContainer.innerHTML = "";
-  parseResults.innerHTML = "";
-  lastParsed = null;
-  currentTckCodes = [];
-  currentActionNums = [];
-  renderTckChips();
-  renderActionChips();
+  resetProfileForm();
   sync();
 });
 
