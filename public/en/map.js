@@ -405,6 +405,7 @@ function filterGraph() {
 
   if (network) {
     network.setData({ nodes, edges });
+    network.fit({ animation: { duration: 300, easingFunction: "easeInOutQuad" } });
   }
 }
 
@@ -574,6 +575,9 @@ async function loadCase(caseId) {
 
   if (!network) {
     network = new vis.Network(container, { nodes: graph.nodes, edges: graph.edges }, options);
+    network.once("stabilized", () => {
+      network.fit({ animation: { duration: 500, easingFunction: "easeInOutQuad" } });
+    });
     network.on("selectNode", (params) => {
       const nodeId = params.nodes[0];
       if (nodeId.startsWith("ghost:")) {
@@ -601,6 +605,7 @@ async function loadCase(caseId) {
     });
   } else {
     network.setData({ nodes: graph.nodes, edges: graph.edges });
+    network.fit({ animation: { duration: 500, easingFunction: "easeInOutQuad" } });
   }
 
   filterGraph();
