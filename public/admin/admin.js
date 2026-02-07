@@ -152,8 +152,11 @@ function renderActionChips() {
 }
 
 tckAddBtn.addEventListener("click", () => {
-  const val = tckInput.value.trim();
-  if (val && !currentTckCodes.includes(val)) {
+  let val = tckInput.value.trim();
+  if (!val) return;
+  val = val.replace(/^TCK\s*/i, "").trim();
+  val = `TCK ${val}`;
+  if (!currentTckCodes.includes(val)) {
     currentTckCodes.push(val);
     renderTckChips();
   }
@@ -192,19 +195,19 @@ function parseTck(text) {
     const base = match[1];
     const suffix = match[2];
     if (suffix) {
-      codes.add(`${base}/${suffix}`);
+      codes.add(`TCK ${base}/${suffix}`);
     } else {
-      codes.add(base);
+      codes.add(`TCK ${base}`);
     }
     const rest = text.slice(match.index + match[0].length);
     const lineRest = rest.split(/\n/)[0];
     const shortMatches = lineRest.match(/\b(\d+\.[a-z0-9-]+)\b/gi);
     if (shortMatches) {
-      shortMatches.forEach((seg) => codes.add(`${base}/${seg}`));
+      shortMatches.forEach((seg) => codes.add(`TCK ${base}/${seg}`));
     }
   }
   const standalone = text.match(/\b\d{2,3}\/[0-9a-zA-Z.-]+\b/g) || [];
-  standalone.forEach((seg) => codes.add(seg));
+  standalone.forEach((seg) => codes.add(`TCK ${seg}`));
   return Array.from(codes);
 }
 
@@ -277,16 +280,57 @@ function parsePastedText(text) {
         const unvanStr = unvanMatch[2].trim();
         let organization = "";
         let titleVal = "";
+
+        const orgKeywords = [
+          "M\u00FCd\u00FCrl\u00FC\u011F\u00FC", "M\u00FCd\u00FCrl\u00FCg\u00FC",
+          "Bakanl\u0131\u011F\u0131", "Bakanl\u0131g\u0131",
+          "Belediyesi", "Belediye",
+          "Ba\u015Fkanl\u0131\u011F\u0131", "Ba\u015Fkanl\u0131g\u0131",
+          "A.\u015E.", "A.S.", "A.\u015E",
+          "Ltd.", "Ltd",
+          "\u015Eirketi", "Sirketi",
+          "Holding",
+          "Kurumu",
+          "Genel M\u00FCd\u00FCrl\u00FC\u011F\u00FC",
+          "Daire Ba\u015Fkanl\u0131\u011F\u0131",
+          "Emniyet",
+          "\u00DCniversitesi",
+          "Hastanesi",
+          "Vak\u0131f\u0131", "Vakfi",
+          "Derne\u011Fi", "Dernegi",
+          "Ajans\u0131",
+          "Gazetesi",
+          "Bankas\u0131",
+          "Odas\u0131"
+        ];
+
         if (unvanStr.includes(",")) {
           const parts = unvanStr.split(",").map((s) => s.trim());
-          organization = parts[0];
-          titleVal = parts.slice(1).join(", ");
+          const orgIdx = parts.findIndex((p) => orgKeywords.some((k) => p.includes(k)));
+          if (orgIdx !== -1) {
+            organization = parts[orgIdx];
+            titleVal = parts.filter((_, i) => i !== orgIdx).join(", ");
+          } else {
+            organization = parts[0];
+            titleVal = parts.slice(1).join(", ");
+          }
         } else if (unvanStr.includes(" - ")) {
           const parts = unvanStr.split(" - ").map((s) => s.trim());
-          organization = parts[0];
-          titleVal = parts.slice(1).join(" - ");
+          const orgIdx = parts.findIndex((p) => orgKeywords.some((k) => p.includes(k)));
+          if (orgIdx !== -1) {
+            organization = parts[orgIdx];
+            titleVal = parts.filter((_, i) => i !== orgIdx).join(" - ");
+          } else {
+            organization = parts[0];
+            titleVal = parts.slice(1).join(" - ");
+          }
         } else {
-          titleVal = unvanStr;
+          const isOrg = orgKeywords.some((k) => unvanStr.includes(k));
+          if (isOrg) {
+            organization = unvanStr;
+          } else {
+            titleVal = unvanStr;
+          }
         }
         result.profiles.push({
           name: nameStr,
