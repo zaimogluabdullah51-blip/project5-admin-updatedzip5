@@ -44,3 +44,7 @@ The project is structured with `server.js` and `db.js` at the root, alongside `v
 - Admin: Reusable setupAutocomplete() utility with keyboard navigation (ArrowUp/Down/Enter/Escape), CSS dropdown styling
 - Map: Octopus layout — ghost nodes (mentioned names) radiate around their parent person node in circular distribution
 - Map: Both TR and EN versions updated with octopus layout for ghost nodes
+- Admin: Mentioned names now have "olayla dahili" (context/involvement) text field — describes how the person is involved (e.g., "para transferi yapılan kişi")
+- Map: Ghost node modal enriched — shows all actions where the person is mentioned, including parent person name, eylem number, and context description
+- Map: Person modal mentioned names now show context alongside name and role
+- Data flow: context field stored in mentioned_names JSON (no schema change needed), flows admin → API → map modal automatically
