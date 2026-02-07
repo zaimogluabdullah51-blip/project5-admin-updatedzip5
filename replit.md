@@ -2,7 +2,7 @@
 
 ## Overview
 
-CourtCase Clarity is a court case intelligence web application that provides case tracking, profile management, and an interactive connection map for visualizing relationships between people, cases, and evidence. The UI is primarily in Turkish. Users can browse cases from a landing page, drill into a visual network map (powered by vis-network), and view detailed profile cards. An admin dashboard allows authenticated users to create cases, add people, and link them together.
+CourtCase Clarity is a web application designed to provide intelligence on court cases, primarily targeting Turkish users. It offers features such as case tracking, detailed profile management for individuals involved, and an interactive network map to visualize the complex relationships between people, cases, and evidence. The platform aims to serve as a comprehensive tool for analyzing judicial proceedings, making complex case data more accessible and understandable through its visual and data management capabilities. Its key capabilities include browsing cases, dynamic relationship mapping, and an administrative interface for data entry and management.
 
 ## User Preferences
 
@@ -11,145 +11,36 @@ Preferred communication style: Simple, everyday language.
 ## System Architecture
 
 ### Frontend
-- **Static HTML/CSS/JS** served from the `public/` directory. No frontend framework (React, Vue, etc.) is used — it's vanilla JavaScript with direct DOM manipulation.
-- **Three main views:**
-  1. **Home page** (`public/index.html`) — case selection grid with search/filter
-  2. **Map view** (`public/map.html`) — interactive network graph using [vis-network](https://visjs.github.io/vis-network/) to visualize case relationships
-  3. **Admin panel** (`public/admin/`) — login page and dashboard for CRUD operations on cases and people
-- **Styling** uses custom CSS with CSS variables for a dark theme. Fonts loaded from Google Fonts (Libre Baskerville, Inter, JetBrains Mono, Fraunces, Space Grotesk).
-- **Build tool:** Vite is configured for dev server and preview, but there's no build step transforming the frontend — it's essentially a static file server with HMR in dev mode.
+The frontend is built using static HTML, CSS, and vanilla JavaScript, leveraging direct DOM manipulation without any modern frameworks. It features three main views: a home page for case selection, a map view utilizing `vis-network` for relationship visualization, and an admin panel for authenticated users to manage data. The styling incorporates a dark theme with CSS variables and uses Google Fonts for typography. Vite is configured for development, but the application is served primarily by an Express server, which is intended to also serve static files.
 
 ### Backend
-- **Express.js** (`server.js`) serves as the API server with JSON endpoints under `/api/`.
-- **Authentication:** Cookie-based admin auth using HMAC-signed tokens. Login validates against `ADMIN_USER` and `ADMIN_PASSWORD` environment variables (defaults: `admin` / `admin123`). The token is signed with `AUTH_SECRET`.
-- **API endpoints** handle CRUD for cases, people, and case-person links. The frontend fetches data via `fetch()` calls to these endpoints.
-
-### Important Architectural Note
-The current `package.json` scripts use Vite for both dev and production (`vite preview`), but the Express server in `server.js` is a separate process. **These two servers need to be coordinated** — either Vite proxies API requests to Express, or the app needs to be restructured so Express serves both the API and static files. Currently, the Vite config (`vite.config.js`) does not include a proxy configuration for `/api` routes, which means the app likely needs Express running alongside Vite, or the start script should run `server.js` directly (using Express to serve static files) rather than `vite preview`.
-
-When making changes, prefer running Express as the primary server (`node server.js`) and having it serve static files from `public/`. If Vite is needed for development, add a proxy configuration in `vite.config.js` to forward `/api` requests to the Express server.
+The backend is an Express.js server providing a RESTful API for data operations. It implements cookie-based authentication for administrative users using HMAC-signed tokens. The API supports CRUD operations for cases, people, and their interconnections.
 
 ### Data Layer
-- **SQLite** via the `sqlite3` npm package, with the database file stored at `data/cases.db`.
-- **Database helper functions** in `db.js` wrap SQLite operations in Promises (`run`, `get`, `all`).
-- **Schema** (six active tables):
-  - `cases` — id (TEXT PK), title, summary, incident, dossier, date, status, case_number, court_name, sorusturma_no, iddianame_no, indictment_prosecutor, trial_prosecutor, judge_type, judge_name, panel_president, panel_members, indictment_date, acceptance_date, verdict_date, etc. Status values: Soruşturma, İddianame Aşamasında, Kovuşturma, Karar, Temyiz, Kesinleşme
-  - `people` — profile details including name, role, charges, evidence, photo URL, organization, title, sentence_demand, action_numbers, etc.
-  - `case_people` — junction table linking people to cases (many-to-many)
-  - `actions` — id (TEXT PK), case_id, person_id, action_num, title, claim, evidence, defense, tck_codes (JSON array), sentence_demand, mentioned_names (JSON)
-  - `officials` — id (TEXT PK), name, role, institution. Stores judges, prosecutors, court names for historical reference. Deduplication by name+role on create.
-  - `case_officials` — junction table linking officials to cases (case_id, official_id, role_in_case). Uses INSERT OR REPLACE for idempotent linking.
-  - `tck_definitions` — code (TEXT PK), short_desc, full_text. Editable TCK article descriptions.
-  - Note: `indictments` and `indictment_actions` tables exist in DB but are deprecated (no longer used by API or UI). Indictment identity fields (sorusturma_no, iddianame_no) consolidated into `cases` table.
-- **Sample data** is seeded on first run via the `init()` function in `db.js`.
-- The `data/` directory is created automatically if it doesn't exist.
+The application uses SQLite for data persistence, with the database file located at `data/cases.db`. Database interactions are managed through helper functions in `db.js`. The schema includes tables for `cases`, `people`, `case_people` (junction table), `actions` (detailing actions within cases for individuals), `officials`, `case_officials`, and `tck_definitions` (Turkish Penal Code article definitions). Sample data is seeded upon the first run.
 
 ### File Structure
-```
-├── server.js          # Express API server
-├── db.js              # SQLite database layer
-├── vite.config.js     # Vite configuration
-├── package.json       # Dependencies and scripts
-├── index.html         # Root HTML (Vite entry point, duplicates public/index.html)
-├── public/
-│   ├── index.html     # Home page
-│   ├── app.js         # Home page logic
-│   ├── styles.css     # Global styles
-│   ├── map.html       # Network map view
-│   ├── map.js         # Map logic (vis-network)
-│   ├── map.css        # Map styles
-│   ├── tck.html       # TCK analysis page
-│   ├── tck.js         # TCK page logic
-│   ├── tck.css        # TCK page styles
-│   └── admin/
-│       ├── index.html # Admin dashboard
-│       ├── admin.js   # Admin logic
-│       ├── admin.css  # Admin styles
-│       ├── login.html # Login page
-│       └── login.js   # Login logic
-```
+The project is structured with `server.js` and `db.js` at the root, alongside `vite.config.js` and `package.json`. The `public/` directory contains all frontend assets, including `index.html`, `app.js`, `styles.css`, `map.html`, `map.js`, `map.css`, `tck.html`, `tck.js`, `tck.css`, and an `admin/` subdirectory with its own HTML, JS, and CSS files for the administrative interface.
 
 ## External Dependencies
 
-- **Express v4** — HTTP server and API routing
-- **sqlite3 v5** — SQLite database driver (native addon, requires node-gyp build)
-- **nanoid v5** — Generates unique IDs for database records
-- **Vite v7** — Dev server and build tool (dev dependency)
-- **vis-network** — Loaded via CDN (`unpkg.com`) for the interactive network graph visualization
-- **Google Fonts** — Loaded via CDN for typography (Libre Baskerville, Inter, JetBrains Mono, Fraunces, Space Grotesk)
-- No external database service — SQLite stores everything locally in `data/cases.db`
-- No third-party auth service — custom cookie-based authentication
+- **Express v4**: For the HTTP server and API routing.
+- **sqlite3 v5**: The SQLite database driver.
+- **nanoid v5**: Used for generating unique IDs.
+- **Vite v7**: Utilized as a development server and build tool.
+- **vis-network**: Integrated via CDN for interactive network graph visualizations.
+- **Google Fonts**: Loaded via CDN for custom typography.
+- **No external database service**: SQLite is used for local data storage.
+- **No third-party authentication service**: A custom cookie-based authentication system is implemented.
 
 ## Recent Changes
 
 ### 2026-02-07
-- Admin: Accusation cards (suçlama kartları) now fully editable — title, claim (İddia), evidence (Deliller), defense (Savunma) rendered as textareas/inputs with real-time sync to lastParsed
-- Admin: TCK maddeleri and Eylem numaraları in each accusation card are now editable chip controls (add/remove)
-- Admin: Mentioned names (Geçen İsimler) in each accusation card now support: remove (X button), add new name with role selector
-- Admin: Multi-role support: role field changed from single select to checkboxes, allowing multiple roles (e.g., Sanık + İtirafçı). Stored as comma-separated string in DB
-- Admin: Mentioned names with roles are auto-created as profiles in database via /api/people/find-or-create (case-insensitive name matching, linked to case)
-- Admin: editProfile loads existing actions from server (/api/actions?personId=X) and populates editable cards for existing profiles
-- Admin: Profile save flow handles updates: deletes old actions then re-creates from edited data for existing profiles
-- Admin: After save, profile stays in edit mode with accusation cards visible (no form reset)
-- API: DELETE /api/actions endpoint supporting ?personId=X&caseId=Y for clearing actions before re-save
-- API: POST /api/people/find-or-create for auto-creating/matching mentioned names as profiles
-- Map: Multi-role display in person modal (comma-separated roles shown as Turkish labels); first role used for border color
-- Homepage: Status badge colors per case status (Soruşturma=indigo, İddianame=amber, Kovuşturma=dark red, Karar=teal, Temyiz=purple, Kesinleşme=green)
-- Homepage: "Toplam dava" → "Toplam Dosya" (TR), "Total cases" → "Total Files" (EN)
-- Homepage: Case card stacked layers made lighter for better visual effect
-- Redesigned Profil Ekle section with structured layout:
-  - Separate fields: İsim Soyad (editable), Kurum (editable), Ünvan (editable)
-  - Savcılık Suçlamaları (editable, was İddianame Özeti)
-  - Toplam Talep Edilen Ceza (editable)
-  - Suçlanılan Kanun Maddeleri: chip-based input, each TCK code saved separately
-  - Suçlanan Eylemler: chip-based input, each action number saved separately (stored as plain numbers, displayed as "Eylem X")
-  - Per-accusation cards: Suçlama başlığı, İddia (numbered), Deliller (numbered), Savunma (numbered), Eylem numaraları, TCK maddeleri
-- Parser extracts: name, organization (kurum), title (ünvan) from parentheses (comma or dash separated), role keywords, action numbers, sentence demand
-- DB: `people` table has organization, title, sentence_demand, action_numbers columns
-- `actions` table with sentence_demand column for storing parsed eylemler per person per case
-- Each action stores: action_num, title, claim, evidence, defense, tck_codes (JSON), sentence_demand
-- POST /api/actions and GET /api/actions endpoints (GET supports filtering by caseId/personId)
-- Profile form submit saves person (with organization, title, tck_articles, action_numbers, sentence_demand, charge/summary) + links case + creates action records
-- "Ayrıştır" fills form only; "Kaydet" saves to server and localStorage
-- İddia/Deliller/Savunma in accusation cards formatted with 1), 2), 3) numbering
-- Admin panel uses localStorage with camelCase field names; server/DB uses snake_case
-- Map view: Dava Bilgileri panel uses red gradient background (matching site accent #8b1e1e), with close (X) button and reopen toggle
-- Map view: Dava özeti shown at top of panel, all info visible without clicking
-- Map view: Eylem band boxes colored red (rgba(139, 30, 30, 0.55))
-- Map view: Role-based profile border colors: defendant=white, informant=yellow, witness=blue, secretWitness=light white, victim=purple, fugitive=red, detained=gray
-- Map view: PUT /api/people/:id endpoint for inline profile editing from map modal
-- English map.html (public/en/map.html) synced with Turkish version
-- Parser: `extractNamesFromText()` extracts Turkish person names from each accusation block (İddia/Deliller/Savunma text)
-- DB: `actions` table has `mentioned_names` column (JSON array of {name, role} objects) for storing names found in each action's text
-- Admin: Accusation cards display "Geçen İsimler" with per-name role dropdown (Bilinmiyor, Sanık, İtirafçı, Tanık, Gizli Tanık, Mağdur, Firari, Tutuklu); saved to server with action records
-- Map: Mentioned names with role → dashed edges colored by role (defendant=gray, informant=yellow, witness=blue, victim=purple, etc.)
-- Map: Ghost nodes created for mentioned names not matching existing profiles — semi-transparent, smaller, role-based border color
-- Map: Ghost node click opens simple info card showing name + role + "not registered" message
-- Map: Person modal action cards show "Geçen İsimler" with role labels (e.g., "Ahmet Yılmaz (İtirafçı)")
-- English map.html (public/en/map.html) synced with ghost modal and script reference fixed to /en/map.js
-- Homepage: Removed "Dava Seç" button, updated 3 feature cards (İlişki Haritası, Dava Arşivi, TCK Kümeleri) with accent red styling and clickable links
-- Homepage: İlişki Haritası links to #preview-section, Dava Arşivi links to #case-grid, TCK Kümeleri links to /tck.html
-- Homepage: Preview map section blurred by default with "Tam sayfa için tıklayınız" overlay on hover
-- Homepage: X (Twitter) social media link added to header and footer (@Istanbul_Dava)
-- New TCK Analysis page (tck.html): Searchable accordion list of TCK articles with profiles, claims, evidence, defense, sentence demands
-- API: GET /api/tck-summary endpoint aggregates TCK articles from actions.tck_codes and people.tck_articles
-- TCK page: Each article card expandable, showing official description, per-profile detail boxes (Suçlama, Deliller, Savunma), sentence demand, and "Haritada Gör" link
-- TCK page: XSS protection via HTML escaping of all user-provided data
-- DB: `tck_definitions` table (code TEXT PK, short_desc TEXT, full_text TEXT) for editable TCK article descriptions
-- API: GET /api/tck-definitions (public), PUT/POST/DELETE /api/tck-definitions/:code (admin-only)
-- TCK page: Admin login/logout button at top-left, edit (✎) button on each article when admin is logged in
-- TCK page: Modal dialog for inline editing of short description and full legal text
-- TCK page: "Yasal karşılığı henüz eklenmemiş + Ekle" prompt for articles without definitions (admin only)
-- TCK page: Definitions loaded from database instead of hardcoded JS
-- Homepage: Mail icon (info@davatakibi.com) added to header top-right with mailto: link
-- Homepage: "Siz de belge paylaşın" encouragement section added below case grid with document icon, mailto: link, and copy-to-clipboard button
-- Homepage: Footer redesigned with İletişim section (mail address + copy button) and X social link
-- Layout: Homepage and TCK page content constrained to max-width 1200px with auto centering for a narrower, more readable layout
-- Layout: Admin page unchanged (already has sidebar layout constraining content naturally)
-- SEO: Meta description, Open Graph, Twitter Card tags added to all public pages (TR + EN)
-- SEO: Canonical URLs pointing to www.davatakibi.com for all pages
-- SEO: hreflang alternates (tr/en) on homepage for language switching signals
-- SEO: Admin pages marked with noindex/nofollow to prevent search engine indexing
-- SEO: Favicon (SVG) created and linked on all pages
-- SEO: English map.html lang attribute fixed from "tr" to "en"
-- SEO: Keywords meta tag added to homepages (TR + EN)
+- Admin: Autocomplete on profile name input — suggests existing people from DB, selecting loads their profile for editing/adding actions
+- Admin: Autocomplete on TCK article input — suggests from tck_definitions table and existing profiles' tck_articles
+- Admin: Autocomplete on Eylem/Action number input — suggests from all existing action_numbers across profiles
+- Admin: Autocomplete on accusation card TCK/Eylem chip inputs — same suggestions within each card
+- Admin: Autocomplete on mentioned names input — suggests existing people, auto-sets role dropdown to match
+- Admin: Reusable setupAutocomplete() utility with keyboard navigation (ArrowUp/Down/Enter/Escape), CSS dropdown styling
+- Map: Octopus layout — ghost nodes (mentioned names) radiate around their parent person node in circular distribution
+- Map: Both TR and EN versions updated with octopus layout for ghost nodes

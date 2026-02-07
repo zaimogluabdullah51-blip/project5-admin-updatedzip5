@@ -42,6 +42,116 @@ let currentTckCodes = [];
 let currentActionNums = [];
 let cachedServerCases = [];
 let cachedServerPeople = [];
+let cachedTckDefinitions = [];
+
+async function loadTckDefinitions() {
+  try {
+    const res = await fetch("/api/tck-definitions");
+    if (res.ok) cachedTckDefinitions = await res.json();
+  } catch (e) {}
+}
+
+function setupAutocomplete(inputEl, getSuggestions, onSelect, opts = {}) {
+  const wrapper = document.createElement("div");
+  wrapper.className = "autocomplete-wrapper";
+  inputEl.parentNode.insertBefore(wrapper, inputEl);
+  wrapper.appendChild(inputEl);
+
+  const dropdown = document.createElement("div");
+  dropdown.className = "autocomplete-dropdown";
+  wrapper.appendChild(dropdown);
+
+  let activeIndex = -1;
+  let currentItems = [];
+
+  function renderDropdown(items) {
+    currentItems = items;
+    activeIndex = -1;
+    dropdown.innerHTML = "";
+    if (!items.length) {
+      dropdown.classList.remove("visible");
+      return;
+    }
+    items.forEach((item, i) => {
+      const div = document.createElement("div");
+      div.className = "autocomplete-item";
+      div.innerHTML = item.html || `<span>${item.label}</span>`;
+      div.addEventListener("mousedown", (e) => {
+        e.preventDefault();
+        onSelect(item);
+        inputEl.value = opts.clearOnSelect ? "" : (item.fillValue || item.label);
+        dropdown.classList.remove("visible");
+      });
+      dropdown.appendChild(div);
+    });
+    dropdown.classList.add("visible");
+  }
+
+  inputEl.addEventListener("input", () => {
+    const val = inputEl.value.trim();
+    if (val.length < (opts.minLength || 1)) {
+      dropdown.classList.remove("visible");
+      return;
+    }
+    const items = getSuggestions(val);
+    renderDropdown(items);
+  });
+
+  inputEl.addEventListener("keydown", (e) => {
+    if (!dropdown.classList.contains("visible")) return;
+    if (e.key === "ArrowDown") {
+      e.preventDefault();
+      activeIndex = Math.min(activeIndex + 1, currentItems.length - 1);
+      updateActive();
+    } else if (e.key === "ArrowUp") {
+      e.preventDefault();
+      activeIndex = Math.max(activeIndex - 1, 0);
+      updateActive();
+    } else if (e.key === "Enter" && activeIndex >= 0) {
+      e.preventDefault();
+      e.stopPropagation();
+      const item = currentItems[activeIndex];
+      if (item) {
+        onSelect(item);
+        inputEl.value = opts.clearOnSelect ? "" : (item.fillValue || item.label);
+        dropdown.classList.remove("visible");
+      }
+    } else if (e.key === "Escape") {
+      dropdown.classList.remove("visible");
+    }
+  });
+
+  function updateActive() {
+    dropdown.querySelectorAll(".autocomplete-item").forEach((el, i) => {
+      el.classList.toggle("active", i === activeIndex);
+    });
+  }
+
+  inputEl.addEventListener("blur", () => {
+    setTimeout(() => dropdown.classList.remove("visible"), 150);
+  });
+
+  inputEl.addEventListener("focus", () => {
+    const val = inputEl.value.trim();
+    if (val.length >= (opts.minLength || 1)) {
+      const items = getSuggestions(val);
+      renderDropdown(items);
+    }
+  });
+
+  return { wrapper, dropdown };
+}
+
+function highlightMatch(text, query) {
+  const idx = text.toLowerCase().indexOf(query.toLowerCase());
+  if (idx < 0) return text;
+  return text.slice(0, idx) + '<span class="ac-highlight">' + text.slice(idx, idx + query.length) + '</span>' + text.slice(idx + query.length);
+}
+
+const roleLabelsMap = {
+  defendant: "Sanık", informant: "İtirafçı", witness: "Tanık",
+  secretWitness: "Gizli Tanık", victim: "Mağdur", fugitive: "Firari", detained: "Tutuklu"
+};
 
 function loadData() {
   const raw = localStorage.getItem(STORAGE_KEY);
@@ -715,20 +825,41 @@ function renderMentionedNamesForCard(container, accIdx) {
     </select>
     <button type="button" class="btn-add-name">+</button>
   `;
-  const nameInput = addRow.querySelector(".add-name-input");
+  const mnNameInput = addRow.querySelector(".add-name-input");
   const roleSelect = addRow.querySelector(".add-name-role-select");
   const addBtn = addRow.querySelector(".btn-add-name");
   addBtn.addEventListener("click", () => {
-    const name = nameInput.value.trim();
+    const name = mnNameInput.value.trim();
     if (!name) return;
     if (!lastParsed.accusations[accIdx].mentionedNames) lastParsed.accusations[accIdx].mentionedNames = [];
     lastParsed.accusations[accIdx].mentionedNames.push({ name, role: roleSelect.value });
     renderMentionedNamesForCard(container, accIdx);
   });
-  nameInput.addEventListener("keydown", (e) => {
-    if (e.key === "Enter") { e.preventDefault(); addBtn.click(); }
+  mnNameInput.addEventListener("keydown", (e) => {
+    if (e.key === "Enter" && !mnNameInput._acSelected) { e.preventDefault(); addBtn.click(); }
+    mnNameInput._acSelected = false;
   });
   container.appendChild(addRow);
+
+  setupAutocomplete(mnNameInput, (query) => {
+    const q = query.toLowerCase();
+    return cachedServerPeople
+      .filter(p => p.name && p.name.toLowerCase().includes(q))
+      .slice(0, 6)
+      .map(p => ({
+        label: p.name,
+        fillValue: p.name,
+        html: `<div>${highlightMatch(p.name, query)}<div class="ac-meta">${roleLabelsMap[(p.role || "").split(",")[0].trim()] || ""}</div></div>`,
+        person: p
+      }));
+  }, (item) => {
+    mnNameInput._acSelected = true;
+    mnNameInput.value = item.fillValue;
+    const personRole = (item.person.role || "").split(",")[0].trim();
+    if (personRole && roleSelect.querySelector(`option[value="${personRole}"]`)) {
+      roleSelect.value = personRole;
+    }
+  }, { minLength: 2 });
 }
 
 function renderAccCardChips(container, items, accIdx, field, labelPrefix) {
@@ -751,9 +882,10 @@ function renderAccCardChips(container, items, accIdx, field, labelPrefix) {
   const placeholder = field === "tckCodes" ? "TCK 314/2" : "Numara";
   addRow.innerHTML = `<input type="text" class="acc-chip-input" placeholder="${placeholder}"><button type="button" class="btn-acc-chip-add">+</button>`;
   const input = addRow.querySelector(".acc-chip-input");
-  const addBtn = addRow.querySelector(".btn-acc-chip-add");
-  addBtn.addEventListener("click", () => {
-    let val = input.value.trim();
+  const addBtnEl = addRow.querySelector(".btn-acc-chip-add");
+
+  function addChipValue(rawVal) {
+    let val = rawVal;
     if (!val) return;
     if (field === "tckCodes") {
       val = val.replace(/^TCK\s*/i, "").trim();
@@ -766,12 +898,67 @@ function renderAccCardChips(container, items, accIdx, field, labelPrefix) {
       lastParsed.accusations[accIdx][field].push(val);
       renderAccCardChips(container, lastParsed.accusations[accIdx][field], accIdx, field, labelPrefix);
     }
+  }
+
+  addBtnEl.addEventListener("click", () => {
+    addChipValue(input.value.trim());
     input.value = "";
   });
   input.addEventListener("keydown", (e) => {
-    if (e.key === "Enter") { e.preventDefault(); addBtn.click(); }
+    if (e.key === "Enter" && !input._acSelected) { e.preventDefault(); addBtnEl.click(); }
+    input._acSelected = false;
   });
   container.appendChild(addRow);
+
+  if (field === "tckCodes") {
+    setupAutocomplete(input, (query) => {
+      const q = query.toLowerCase().replace(/^tck\s*/i, "").trim();
+      if (!q) return [];
+      const results = cachedTckDefinitions
+        .filter(d => d.code.toLowerCase().includes(q) || (d.short_desc || "").toLowerCase().includes(q))
+        .slice(0, 6)
+        .map(d => ({
+          label: d.code,
+          fillValue: d.code.startsWith("TCK") ? d.code : `TCK ${d.code}`,
+          html: `<div>${highlightMatch(d.code, q)}${d.short_desc ? '<div class="ac-meta">' + d.short_desc + '</div>' : ''}</div>`
+        }));
+      const existingCodes = new Set(results.map(r => r.label));
+      cachedServerPeople.forEach(p => {
+        (p.tck_articles || []).forEach(code => {
+          const c = String(code).trim();
+          if (c && !existingCodes.has(c) && c.toLowerCase().includes(q)) {
+            existingCodes.add(c);
+            results.push({ label: c, fillValue: c.startsWith("TCK") ? c : `TCK ${c}`, html: `<div>${highlightMatch(c, q)}</div>` });
+          }
+        });
+      });
+      return results.slice(0, 6);
+    }, (item) => {
+      input._acSelected = true;
+      addChipValue(item.fillValue || item.label);
+      input.value = "";
+    }, { clearOnSelect: true });
+  } else if (field === "actionNums") {
+    setupAutocomplete(input, (query) => {
+      const q = query.replace(/^Eylem\s*/i, "").trim().toLowerCase();
+      if (!q) return [];
+      const allNums = new Set();
+      cachedServerPeople.forEach(p => {
+        (p.action_numbers || []).forEach(n => {
+          String(n).split(/[,\s]+/).filter(Boolean).forEach(v => allNums.add(v.trim()));
+        });
+      });
+      return [...allNums]
+        .filter(n => n.toLowerCase().includes(q))
+        .sort((a, b) => { const na = parseInt(a), nb = parseInt(b); return (!isNaN(na) && !isNaN(nb)) ? na - nb : a.localeCompare(b); })
+        .slice(0, 6)
+        .map(n => ({ label: `Eylem ${n}`, fillValue: n, html: `<div>Eylem ${highlightMatch(n, q)}</div>` }));
+    }, (item) => {
+      input._acSelected = true;
+      addChipValue(item.fillValue);
+      input.value = "";
+    }, { clearOnSelect: true });
+  }
 }
 
 function renderActionCards(parsed) {
@@ -1136,5 +1323,89 @@ async function initAuth() {
   loginScreen.style.display = "grid";
 }
 
+const nameInput = profileForm.querySelector('[name="name"]');
+setupAutocomplete(nameInput, (query) => {
+  const q = query.toLowerCase();
+  return cachedServerPeople
+    .filter(p => p.name && p.name.toLowerCase().includes(q))
+    .slice(0, 8)
+    .map(p => ({
+      label: p.name,
+      fillValue: p.name,
+      html: `<div>${highlightMatch(p.name, query)}<div class="ac-meta">${roleLabelsMap[(p.role || "defendant").split(",")[0].trim()] || p.role || ""}${p.organization ? ' · ' + p.organization : ''}</div></div>`,
+      person: p
+    }));
+}, (item) => {
+  editProfile(item.person);
+}, { minLength: 2 });
+
+setupAutocomplete(tckInput, (query) => {
+  const q = query.toLowerCase().replace(/^tck\s*/i, "").trim();
+  if (!q) return [];
+  const fromDefs = cachedTckDefinitions
+    .filter(d => d.code.toLowerCase().includes(q) || (d.short_desc || "").toLowerCase().includes(q))
+    .slice(0, 8)
+    .map(d => ({
+      label: d.code,
+      fillValue: d.code.startsWith("TCK") ? d.code : `TCK ${d.code}`,
+      html: `<div>${highlightMatch(d.code, q)}${d.short_desc ? '<div class="ac-meta">' + d.short_desc + '</div>' : ''}</div>`
+    }));
+  const existingCodes = new Set(fromDefs.map(d => d.label));
+  const fromPeople = [];
+  cachedServerPeople.forEach(p => {
+    (p.tck_articles || []).forEach(code => {
+      const c = String(code).trim();
+      if (c && !existingCodes.has(c) && c.toLowerCase().includes(q)) {
+        existingCodes.add(c);
+        fromPeople.push({
+          label: c,
+          fillValue: c.startsWith("TCK") ? c : `TCK ${c}`,
+          html: `<div>${highlightMatch(c, q)}</div>`
+        });
+      }
+    });
+  });
+  return [...fromDefs, ...fromPeople].slice(0, 8);
+}, (item) => {
+  const val = item.fillValue || item.label;
+  if (!currentTckCodes.includes(val)) {
+    currentTckCodes.push(val);
+    renderTckChips();
+  }
+  tckInput.value = "";
+}, { clearOnSelect: true });
+
+setupAutocomplete(actionInput, (query) => {
+  const q = query.replace(/^Eylem\s*/i, "").trim().toLowerCase();
+  if (!q) return [];
+  const allNums = new Set();
+  cachedServerPeople.forEach(p => {
+    (p.action_numbers || []).forEach(n => {
+      String(n).split(/[,\s]+/).filter(Boolean).forEach(v => allNums.add(v.trim()));
+    });
+  });
+  return [...allNums]
+    .filter(n => n.toLowerCase().includes(q))
+    .sort((a, b) => {
+      const na = parseInt(a, 10), nb = parseInt(b, 10);
+      if (!isNaN(na) && !isNaN(nb)) return na - nb;
+      return a.localeCompare(b);
+    })
+    .slice(0, 8)
+    .map(n => ({
+      label: `Eylem ${n}`,
+      fillValue: n,
+      html: `<div>Eylem ${highlightMatch(n, q)}</div>`
+    }));
+}, (item) => {
+  const val = item.fillValue;
+  if (val && !currentActionNums.includes(val)) {
+    currentActionNums.push(val);
+    renderActionChips();
+  }
+  actionInput.value = "";
+}, { clearOnSelect: true });
+
 initAuth();
+loadTckDefinitions();
 sync();

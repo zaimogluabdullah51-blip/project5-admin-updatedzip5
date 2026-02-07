@@ -274,6 +274,9 @@ function buildGraph(caseData) {
 
   const ghostNodes = new Map();
   let ghostCounter = 0;
+  const personMentionCounts = new Map();
+  const personMentionAngles = new Map();
+  const mentionRadius = 180;
 
   for (const action of allActions) {
     const mentionedNames = action.mentioned_names || [];
@@ -281,6 +284,23 @@ function buildGraph(caseData) {
 
     const fromNodes = personNodeMap.get(action.person_id) || [];
     if (!fromNodes.length) continue;
+
+    const parentNodeId = fromNodes[0];
+    const parentNode = nodes.find(n => n.id === parentNodeId);
+    if (!parentNode) continue;
+
+    if (!personMentionCounts.has(action.person_id)) {
+      let totalMentions = 0;
+      for (const a of allActions) {
+        if (a.person_id !== action.person_id) continue;
+        totalMentions += (a.mentioned_names || []).length;
+      }
+      personMentionCounts.set(action.person_id, totalMentions);
+      personMentionAngles.set(action.person_id, 0);
+    }
+
+    const totalMentions = personMentionCounts.get(action.person_id);
+    const angleStep = totalMentions > 0 ? (2 * Math.PI) / totalMentions : 0;
 
     for (const mn of mentionedNames) {
       const entry = typeof mn === "string" ? { name: mn, role: "unknown" } : mn;
@@ -311,6 +331,12 @@ function buildGraph(caseData) {
           ghostCounter++;
           const ghostId = `ghost:${ghostCounter}`;
           const ghostColorSet = roleColors[mentionedRole] || roleColors.defendant;
+
+          const currentAngle = personMentionAngles.get(action.person_id) || 0;
+          const ghostX = parentNode.x + Math.cos(currentAngle) * mentionRadius;
+          const ghostY = parentNode.y + Math.sin(currentAngle) * mentionRadius;
+          personMentionAngles.set(action.person_id, currentAngle + angleStep);
+
           const ghostNode = {
             id: ghostId,
             label: entry.name,
@@ -324,22 +350,21 @@ function buildGraph(caseData) {
             },
             borderWidth: 2,
             opacity: 0.55,
+            x: ghostX,
+            y: ghostY,
             _isGhost: true,
             _ghostName: entry.name,
             _ghostRole: mentionedRole
           };
 
-          const existingInLane = nodes.length;
-          const col = existingInLane % perRow;
-          const row = Math.floor(existingInLane / perRow);
-          ghostNode.x = col * 140 + 80;
-          ghostNode.y = row * laneSpacing + 60;
-
-          ghostNodes.set(ghostKey, ghostId);
+          ghostNodes.set(ghostKey, { id: ghostId, parentId: action.person_id });
           nodes.push(ghostNode);
+        } else {
+          personMentionAngles.set(action.person_id, (personMentionAngles.get(action.person_id) || 0) + angleStep);
         }
 
-        const ghostNodeId = ghostNodes.get(ghostKey);
+        const ghostInfo = ghostNodes.get(ghostKey);
+        const ghostNodeId = ghostInfo.id;
         const key = [action.person_id, ghostNodeId].sort().join("|");
         if (!edgeSet.has(key)) {
           edgeSet.add(key);
