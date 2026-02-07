@@ -392,6 +392,60 @@
   line-height: 1.5;
 }
 
+.ghost-modal-card {
+  max-width: 340px;
+}
+
+.ghost-modal-body {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 16px 0;
+}
+
+.ghost-avatar {
+  opacity: 0.5;
+  border: 2px dashed var(--text-secondary);
+  border-radius: 50%;
+}
+
+.ghost-info {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.ghost-label {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.ghost-role-badge {
+  display: inline-block;
+  padding: 3px 10px;
+  border-radius: 12px;
+  font-size: 0.82rem;
+  font-weight: 500;
+  border: 1px solid;
+}
+
+.role-unknown { background: rgba(251, 191, 36, 0.1); border-color: rgba(251, 191, 36, 0.4); color: #fbbf24; }
+.role-defendant { background: rgba(209, 213, 219, 0.1); border-color: rgba(209, 213, 219, 0.4); color: #d1d5db; }
+.role-informant { background: rgba(234, 179, 8, 0.1); border-color: rgba(234, 179, 8, 0.4); color: #eab308; }
+.role-witness { background: rgba(59, 130, 246, 0.1); border-color: rgba(59, 130, 246, 0.4); color: #3b82f6; }
+.role-secretWitness { background: rgba(229, 231, 235, 0.1); border-color: rgba(229, 231, 235, 0.4); color: #e5e7eb; }
+.role-victim { background: rgba(168, 85, 247, 0.1); border-color: rgba(168, 85, 247, 0.4); color: #a855f7; }
+.role-fugitive { background: rgba(239, 68, 68, 0.1); border-color: rgba(239, 68, 68, 0.4); color: #ef4444; }
+.role-detained { background: rgba(156, 163, 175, 0.1); border-color: rgba(156, 163, 175, 0.4); color: #9ca3af; }
+
+.ghost-note {
+  font-size: 0.78rem;
+  margin-top: 4px;
+  font-style: italic;
+}
+
 @media (max-width: 900px) {
   .case-panel {
     position: static;

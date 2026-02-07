@@ -37,16 +37,38 @@ const personAccusationList = document.getElementById("person-accusation-list");
 const personEvidenceList = document.getElementById("person-evidence-list");
 const personDefenseList = document.getElementById("person-defense-list");
 const personRelatedList = document.getElementById("person-related-list");
+const personActionsList = document.getElementById("person-actions-list");
 
 
 let network = null;
 let cases = [];
 let selectedCase = null;
 let people = [];
+let allActions = [];
 let nodesCache = [];
 let edgesCache = [];
 
 const fallbackImage = "/assets/default-avatar.svg";
+
+const roleLabels = {
+  defendant: "Defendant",
+  informant: "Informant",
+  witness: "Witness",
+  secretWitness: "Secret Witness",
+  victim: "Victim",
+  fugitive: "Fugitive",
+  detained: "Detained"
+};
+
+const roleColors = {
+  defendant: { border: "#d1d5db", background: "#111827" },
+  informant: { border: "#eab308", background: "#111827" },
+  witness: { border: "#3b82f6", background: "#111827" },
+  secretWitness: { border: "#e5e7eb", background: "#111827" },
+  victim: { border: "#a855f7", background: "#111827" },
+  fugitive: { border: "#ef4444", background: "#111827" },
+  detained: { border: "#9ca3af", background: "#111827" }
+};
 
 async function fetchJSON(url, options) {
   const response = await fetch(url, options);
@@ -196,6 +218,109 @@ function buildGraph(caseData) {
     }
   }
 
+  const nameToIds = new Map();
+  for (const p of caseData.people) {
+    const lowerName = (p.name || "").toLowerCase().trim();
+    if (lowerName) {
+      if (!nameToIds.has(lowerName)) nameToIds.set(lowerName, []);
+      nameToIds.get(lowerName).push(p.id);
+    }
+  }
+
+  const mentionedRoleEdgeColors = {
+    unknown: "rgba(251, 191, 36, 0.5)",
+    defendant: "rgba(209, 213, 219, 0.5)",
+    informant: "rgba(234, 179, 8, 0.5)",
+    witness: "rgba(59, 130, 246, 0.5)",
+    secretWitness: "rgba(229, 231, 235, 0.5)",
+    victim: "rgba(168, 85, 247, 0.5)",
+    fugitive: "rgba(239, 68, 68, 0.5)",
+    detained: "rgba(156, 163, 175, 0.5)"
+  };
+
+  const ghostNodes = new Map();
+  let ghostCounter = 0;
+
+  for (const action of allActions) {
+    const mentionedNames = action.mentioned_names || [];
+    if (!mentionedNames.length || !action.person_id) continue;
+
+    const fromNodes = personNodeMap.get(action.person_id) || [];
+    if (!fromNodes.length) continue;
+
+    for (const mn of mentionedNames) {
+      const entry = typeof mn === "string" ? { name: mn, role: "unknown" } : mn;
+      const lowerMentioned = entry.name.toLowerCase().trim();
+      const mentionedRole = entry.role || "unknown";
+      const matchedIds = nameToIds.get(lowerMentioned) || [];
+
+      if (matchedIds.length) {
+        for (const matchedId of matchedIds) {
+          if (matchedId === action.person_id) continue;
+          const toNodes = personNodeMap.get(matchedId) || [];
+          if (!toNodes.length) continue;
+
+          const key = [action.person_id, matchedId].sort().join("|");
+          if (edgeSet.has(key)) continue;
+          edgeSet.add(key);
+          edges.push({
+            from: fromNodes[0],
+            to: toNodes[0],
+            color: { color: mentionedRoleEdgeColors[mentionedRole] || mentionedRoleEdgeColors.unknown },
+            smooth: { type: "continuous" },
+            dashes: true
+          });
+        }
+      } else {
+        const ghostKey = lowerMentioned;
+        if (!ghostNodes.has(ghostKey)) {
+          ghostCounter++;
+          const ghostId = `ghost:${ghostCounter}`;
+          const ghostColorSet = roleColors[mentionedRole] || roleColors.defendant;
+          const ghostNode = {
+            id: ghostId,
+            label: entry.name,
+            shape: "circularImage",
+            image: fallbackImage,
+            size: 22,
+            font: { color: "rgba(229, 231, 235, 0.5)", size: 11 },
+            color: {
+              border: ghostColorSet.border,
+              background: "rgba(17, 24, 39, 0.4)"
+            },
+            borderWidth: 2,
+            opacity: 0.55,
+            _isGhost: true,
+            _ghostName: entry.name,
+            _ghostRole: mentionedRole
+          };
+
+          const existingInLane = nodes.length;
+          const col = existingInLane % perRow;
+          const row = Math.floor(existingInLane / perRow);
+          ghostNode.x = col * 140 + 80;
+          ghostNode.y = row * laneSpacing + 60;
+
+          ghostNodes.set(ghostKey, ghostId);
+          nodes.push(ghostNode);
+        }
+
+        const ghostNodeId = ghostNodes.get(ghostKey);
+        const key = [action.person_id, ghostNodeId].sort().join("|");
+        if (!edgeSet.has(key)) {
+          edgeSet.add(key);
+          edges.push({
+            from: fromNodes[0],
+            to: ghostNodeId,
+            color: { color: mentionedRoleEdgeColors[mentionedRole] || mentionedRoleEdgeColors.unknown },
+            smooth: { type: "continuous" },
+            dashes: true
+          });
+        }
+      }
+    }
+  }
+
   nodesCache = [...bandNodes, ...nodes];
   edgesCache = edges;
 
@@ -294,7 +419,57 @@ function openPersonModal(person) {
     });
   }
 
+  if (personActionsList) {
+    personActionsList.innerHTML = "";
+    const personActions = allActions.filter((a) => a.person_id === person.id);
+    for (const action of personActions) {
+      const card = document.createElement("div");
+      card.className = "action-card";
+
+      const mentioned = action.mentioned_names || [];
+      if (mentioned.length) {
+        const section = document.createElement("div");
+        section.className = "action-section";
+        const label = document.createElement("span");
+        label.className = "action-label";
+        label.textContent = "Mentioned Names";
+        section.appendChild(label);
+        const namesP = document.createElement("p");
+        namesP.textContent = mentioned.map(mn => {
+          if (typeof mn === "string") return mn;
+          const rl = roleLabels[mn.role] || mn.role || "";
+          return rl && mn.role !== "unknown" ? `${mn.name} (${rl})` : mn.name;
+        }).join(", ");
+        section.appendChild(namesP);
+        card.appendChild(section);
+      }
+
+      if (card.children.length) {
+        personActionsList.appendChild(card);
+      }
+    }
+  }
+
   personModal.showModal();
+}
+
+function openGhostModal(ghostNode) {
+  const ghostModal = document.getElementById("ghost-modal");
+  const ghostName = document.getElementById("ghost-name");
+  const ghostRole = document.getElementById("ghost-role");
+  const ghostClose = document.getElementById("ghost-close");
+
+  ghostName.textContent = ghostNode._ghostName || "";
+  const roleLbl = roleLabels[ghostNode._ghostRole] || ghostNode._ghostRole || "Unknown";
+  ghostRole.textContent = roleLbl;
+
+  const roleTag = document.getElementById("ghost-role-tag");
+  if (roleTag) {
+    roleTag.className = "ghost-role-badge role-" + (ghostNode._ghostRole || "unknown");
+  }
+
+  ghostClose.onclick = () => ghostModal.close();
+  ghostModal.showModal();
 }
 
 function setupTabs() {
@@ -316,6 +491,7 @@ async function loadCase(caseId) {
   const caseData = await fetchJSON(`/api/cases/${caseId}`);
   selectedCase = caseData;
   people = caseData.people || [];
+  allActions = caseData.actions || [];
 
   renderCaseInfo(caseData);
   const tckArticles = caseData.tck_articles || [];
@@ -345,6 +521,11 @@ async function loadCase(caseId) {
     network = new vis.Network(container, { nodes: graph.nodes, edges: graph.edges }, options);
     network.on("selectNode", (params) => {
       const nodeId = params.nodes[0];
+      if (nodeId.startsWith("ghost:")) {
+        const ghostNode = nodesCache.find(n => n.id === nodeId);
+        if (ghostNode) openGhostModal(ghostNode);
+        return;
+      }
       const baseId = nodeId.split(":")[0];
       const person = people.find((p) => p.id === baseId);
       if (person) openPersonModal(person);

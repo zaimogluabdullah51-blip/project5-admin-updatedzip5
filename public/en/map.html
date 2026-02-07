@@ -187,7 +187,26 @@
       </div>
     </dialog>
 
+    <dialog id="ghost-modal" class="modal">
+      <div class="modal-card ghost-modal-card">
+        <header>
+          <h3 id="ghost-name">—</h3>
+          <button id="ghost-close" class="close">Close</button>
+        </header>
+        <div class="ghost-modal-body">
+          <img class="avatar lg ghost-avatar" src="/assets/default-avatar.svg" alt="ghost" />
+          <div class="ghost-info">
+            <p class="ghost-label">Role</p>
+            <span id="ghost-role-tag" class="ghost-role-badge role-unknown">
+              <span id="ghost-role">Unknown</span>
+            </span>
+            <p class="ghost-note muted">This person is mentioned in text but not registered in the system.</p>
+          </div>
+        </div>
+      </div>
+    </dialog>
+
     <script src="https://unpkg.com/vis-network/standalone/umd/vis-network.min.js"></script>
-    <script src="/map.js"></script>
+    <script src="/en/map.js"></script>
   </body>
 </html>

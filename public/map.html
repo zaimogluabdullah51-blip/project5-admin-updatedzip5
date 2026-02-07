@@ -187,6 +187,25 @@
       </div>
     </dialog>
 
+    <dialog id="ghost-modal" class="modal">
+      <div class="modal-card ghost-modal-card">
+        <header>
+          <h3 id="ghost-name">—</h3>
+          <button id="ghost-close" class="close">Kapat</button>
+        </header>
+        <div class="ghost-modal-body">
+          <img class="avatar lg ghost-avatar" src="/assets/default-avatar.svg" alt="ghost" />
+          <div class="ghost-info">
+            <p class="ghost-label">Rol</p>
+            <span id="ghost-role-tag" class="ghost-role-badge role-unknown">
+              <span id="ghost-role">Bilinmiyor</span>
+            </span>
+            <p class="ghost-note muted">Bu kişi metinde bahsedilmiş ancak sisteme kayıtlı değil.</p>
+          </div>
+        </div>
+      </div>
+    </dialog>
+
     <script src="https://unpkg.com/vis-network/standalone/umd/vis-network.min.js"></script>
     <script src="/map.js"></script>
   </body>

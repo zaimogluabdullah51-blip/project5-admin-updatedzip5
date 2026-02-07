@@ -245,6 +245,20 @@ function buildGraph(caseData) {
     }
   }
 
+  const mentionedRoleEdgeColors = {
+    unknown: "rgba(251, 191, 36, 0.5)",
+    defendant: "rgba(209, 213, 219, 0.5)",
+    informant: "rgba(234, 179, 8, 0.5)",
+    witness: "rgba(59, 130, 246, 0.5)",
+    secretWitness: "rgba(229, 231, 235, 0.5)",
+    victim: "rgba(168, 85, 247, 0.5)",
+    fugitive: "rgba(239, 68, 68, 0.5)",
+    detained: "rgba(156, 163, 175, 0.5)"
+  };
+
+  const ghostNodes = new Map();
+  let ghostCounter = 0;
+
   for (const action of allActions) {
     const mentionedNames = action.mentioned_names || [];
     if (!mentionedNames.length || !action.person_id) continue;
@@ -252,25 +266,78 @@ function buildGraph(caseData) {
     const fromNodes = personNodeMap.get(action.person_id) || [];
     if (!fromNodes.length) continue;
 
-    for (const mentionedName of mentionedNames) {
-      const lowerMentioned = mentionedName.toLowerCase().trim();
+    for (const mn of mentionedNames) {
+      const entry = typeof mn === "string" ? { name: mn, role: "unknown" } : mn;
+      const lowerMentioned = entry.name.toLowerCase().trim();
+      const mentionedRole = entry.role || "unknown";
       const matchedIds = nameToIds.get(lowerMentioned) || [];
 
-      for (const matchedId of matchedIds) {
-        if (matchedId === action.person_id) continue;
-        const toNodes = personNodeMap.get(matchedId) || [];
-        if (!toNodes.length) continue;
+      if (matchedIds.length) {
+        for (const matchedId of matchedIds) {
+          if (matchedId === action.person_id) continue;
+          const toNodes = personNodeMap.get(matchedId) || [];
+          if (!toNodes.length) continue;
 
-        const key = [action.person_id, matchedId].sort().join("|");
-        if (edgeSet.has(key)) continue;
-        edgeSet.add(key);
-        edges.push({
-          from: fromNodes[0],
-          to: toNodes[0],
-          color: { color: "rgba(251, 191, 36, 0.5)" },
-          smooth: { type: "continuous" },
-          dashes: true
-        });
+          const key = [action.person_id, matchedId].sort().join("|");
+          if (edgeSet.has(key)) continue;
+          edgeSet.add(key);
+          edges.push({
+            from: fromNodes[0],
+            to: toNodes[0],
+            color: { color: mentionedRoleEdgeColors[mentionedRole] || mentionedRoleEdgeColors.unknown },
+            smooth: { type: "continuous" },
+            dashes: true
+          });
+        }
+      } else {
+        const ghostKey = lowerMentioned;
+        if (!ghostNodes.has(ghostKey)) {
+          ghostCounter++;
+          const ghostId = `ghost:${ghostCounter}`;
+          const ghostColorSet = roleColors[mentionedRole] || roleColors.defendant;
+          const ghostNode = {
+            id: ghostId,
+            label: entry.name,
+            shape: "circularImage",
+            image: fallbackImage,
+            size: 22,
+            font: { color: "rgba(229, 231, 235, 0.5)", size: 11 },
+            color: {
+              border: ghostColorSet.border,
+              background: "rgba(17, 24, 39, 0.4)"
+            },
+            borderWidth: 2,
+            opacity: 0.55,
+            _isGhost: true,
+            _ghostName: entry.name,
+            _ghostRole: mentionedRole,
+            _eylemNum: action.action_num ? String(action.action_num).split(/[,\s]+/)[0] : "other"
+          };
+
+          const eylemIdx = eylemNums.indexOf(ghostNode._eylemNum);
+          const yBase = eylemIdx >= 0 ? eylemIdx * laneHeight : (eylemNums.length - 1) * laneHeight;
+          const existingInLane = nodes.filter(n => n._eylemNum === ghostNode._eylemNum).length;
+          const col = existingInLane % perRow;
+          const row = Math.floor(existingInLane / perRow);
+          ghostNode.x = col * 140 + 80;
+          ghostNode.y = yBase + row * 140 + 60;
+
+          ghostNodes.set(ghostKey, ghostId);
+          nodes.push(ghostNode);
+        }
+
+        const ghostNodeId = ghostNodes.get(ghostKey);
+        const key = [action.person_id, ghostNodeId].sort().join("|");
+        if (!edgeSet.has(key)) {
+          edgeSet.add(key);
+          edges.push({
+            from: fromNodes[0],
+            to: ghostNodeId,
+            color: { color: mentionedRoleEdgeColors[mentionedRole] || mentionedRoleEdgeColors.unknown },
+            smooth: { type: "continuous" },
+            dashes: true
+          });
+        }
       }
     }
   }
@@ -409,7 +476,11 @@ function openPersonModal(person) {
         label.textContent = "Geçen İsimler";
         section.appendChild(label);
         const namesP = document.createElement("p");
-        namesP.textContent = mentioned.join(", ");
+        namesP.textContent = mentioned.map(mn => {
+          if (typeof mn === "string") return mn;
+          const rl = roleLabels[mn.role] || mn.role || "";
+          return rl && mn.role !== "unknown" ? `${mn.name} (${rl})` : mn.name;
+        }).join(", ");
         section.appendChild(namesP);
         card.appendChild(section);
       }
@@ -419,6 +490,25 @@ function openPersonModal(person) {
   }
 
   personModal.showModal();
+}
+
+function openGhostModal(ghostNode) {
+  const ghostModal = document.getElementById("ghost-modal");
+  const ghostName = document.getElementById("ghost-name");
+  const ghostRole = document.getElementById("ghost-role");
+  const ghostClose = document.getElementById("ghost-close");
+
+  ghostName.textContent = ghostNode._ghostName || "";
+  const roleLbl = roleLabels[ghostNode._ghostRole] || ghostNode._ghostRole || "Bilinmiyor";
+  ghostRole.textContent = roleLbl;
+
+  const roleTag = document.getElementById("ghost-role-tag");
+  if (roleTag) {
+    roleTag.className = "ghost-role-badge role-" + (ghostNode._ghostRole || "unknown");
+  }
+
+  ghostClose.onclick = () => ghostModal.close();
+  ghostModal.showModal();
 }
 
 async function loadCase(caseId) {
@@ -452,6 +542,11 @@ async function loadCase(caseId) {
     network = new vis.Network(container, { nodes: graph.nodes, edges: graph.edges }, options);
     network.on("selectNode", (params) => {
       const nodeId = params.nodes[0];
+      if (nodeId.startsWith("ghost:")) {
+        const ghostNode = nodesCache.find(n => n.id === nodeId);
+        if (ghostNode) openGhostModal(ghostNode);
+        return;
+      }
       const baseId = nodeId.split(":")[0];
       const person = people.find((p) => p.id === baseId);
       if (person) openPersonModal(person);

@@ -99,7 +99,10 @@ When making changes, prefer running Express as the primary server (`node server.
 - Map view: PUT /api/people/:id endpoint for inline profile editing from map modal
 - English map.html (public/en/map.html) synced with Turkish version
 - Parser: `extractNamesFromText()` extracts Turkish person names from each accusation block (İddia/Deliller/Savunma text)
-- DB: `actions` table has `mentioned_names` column (JSON array) for storing names found in each action's text
-- Admin: Accusation cards display "Geçen İsimler" when names are found; saved to server with action records
-- Map: Dashed yellow edges drawn between profiles when one profile's action text mentions another profile's name (case-insensitive matching)
-- Map: Person modal action cards show "Geçen İsimler" section listing names found in that action
+- DB: `actions` table has `mentioned_names` column (JSON array of {name, role} objects) for storing names found in each action's text
+- Admin: Accusation cards display "Geçen İsimler" with per-name role dropdown (Bilinmiyor, Sanık, İtirafçı, Tanık, Gizli Tanık, Mağdur, Firari, Tutuklu); saved to server with action records
+- Map: Mentioned names with role → dashed edges colored by role (defendant=gray, informant=yellow, witness=blue, victim=purple, etc.)
+- Map: Ghost nodes created for mentioned names not matching existing profiles — semi-transparent, smaller, role-based border color
+- Map: Ghost node click opens simple info card showing name + role + "not registered" message
+- Map: Person modal action cards show "Geçen İsimler" with role labels (e.g., "Ahmet Yılmaz (İtirafçı)")
+- English map.html (public/en/map.html) synced with ghost modal and script reference fixed to /en/map.js

@@ -461,7 +461,8 @@ function parsePastedText(text) {
       defenseMatch ? defenseMatch[1] : "",
       titleLine || ""
     ].join(" ");
-    const mentionedNames = extractNamesFromText(blockText);
+    const extractedNames = extractNamesFromText(blockText);
+    const mentionedNames = extractedNames.map(n => ({ name: n, role: "unknown" }));
 
     result.accusations.push({
       title: titleLine || "",
@@ -523,11 +524,48 @@ function renderActionCards(parsed) {
         <div class="accusation-meta">
           <span class="accusation-meta-item"><strong>Eylem:</strong> ${actionsLabel}</span>
           <span class="accusation-meta-item"><strong>TCK:</strong> <span class="tck-highlight">${tckList}</span></span>
-          ${acc.mentionedNames && acc.mentionedNames.length > 0 ? `<span class="accusation-meta-item"><strong>Geçen İsimler:</strong> ${acc.mentionedNames.join(", ")}</span>` : ""}
+          ${acc.mentionedNames && acc.mentionedNames.length > 0 ? `
+            <div class="mentioned-names-section">
+              <strong>Geçen İsimler:</strong>
+              <div class="mentioned-names-list" data-acc-idx="${idx}">
+                ${acc.mentionedNames.map((mn, mnIdx) => {
+                  const entry = typeof mn === "string" ? { name: mn, role: "unknown" } : mn;
+                  return `<div class="mentioned-name-item">
+                    <span class="mentioned-name-text">${entry.name}</span>
+                    <select class="mentioned-role-select" data-acc="${idx}" data-mn="${mnIdx}">
+                      <option value="unknown"${entry.role === "unknown" ? " selected" : ""}>Bilinmiyor</option>
+                      <option value="defendant"${entry.role === "defendant" ? " selected" : ""}>Sanık</option>
+                      <option value="informant"${entry.role === "informant" ? " selected" : ""}>İtirafçı</option>
+                      <option value="witness"${entry.role === "witness" ? " selected" : ""}>Tanık</option>
+                      <option value="secretWitness"${entry.role === "secretWitness" ? " selected" : ""}>Gizli Tanık</option>
+                      <option value="victim"${entry.role === "victim" ? " selected" : ""}>Mağdur</option>
+                      <option value="fugitive"${entry.role === "fugitive" ? " selected" : ""}>Firari</option>
+                      <option value="detained"${entry.role === "detained" ? " selected" : ""}>Tutuklu</option>
+                    </select>
+                  </div>`;
+                }).join("")}
+              </div>
+            </div>
+          ` : ""}
         </div>
       </div>
     `;
     actionsContainer.appendChild(card);
+  });
+
+  actionsContainer.addEventListener("change", (e) => {
+    if (e.target.classList.contains("mentioned-role-select")) {
+      const accIdx = parseInt(e.target.dataset.acc, 10);
+      const mnIdx = parseInt(e.target.dataset.mn, 10);
+      if (lastParsed && lastParsed.accusations[accIdx] && lastParsed.accusations[accIdx].mentionedNames[mnIdx]) {
+        const entry = lastParsed.accusations[accIdx].mentionedNames[mnIdx];
+        if (typeof entry === "string") {
+          lastParsed.accusations[accIdx].mentionedNames[mnIdx] = { name: entry, role: e.target.value };
+        } else {
+          entry.role = e.target.value;
+        }
+      }
+    }
   });
 }
 
