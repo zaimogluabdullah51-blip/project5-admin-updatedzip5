@@ -220,6 +220,23 @@
   font-size: 0.75rem;
 }
 
+.tag.small {
+  padding: 2px 7px;
+  font-size: 0.68rem;
+}
+
+.tag.eylem-tag {
+  background: rgba(59, 130, 246, 0.15);
+  color: #93c5fd;
+}
+
+.person-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 4px;
+}
+
 .tabs {
   display: flex;
   gap: 8px;

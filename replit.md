@@ -57,3 +57,7 @@ The project is structured with `server.js` and `db.js` at the root, alongside `v
 - Admin: Eylem range format (e.g., "Eylem 39-43") now expanded to individual numbers [39,40,41,42,43]
 - Admin: 📂 line parsing works with or without [SANIK KARTI] prefix
 - Admin: parseSanikKimligi boundary improved — stops at ⚖️, 🖼️ emojis to prevent content bleed
+- Map: Dynamic lane heights — each eylem band auto-sizes based on profile count (rows × rowHeight), cumulative Y offsets prevent overflow
+- Admin: Case-filtered autocomplete — profile name and mentioned names inputs prioritize people already in the active case with green "Bu dava" tag
+- Map: Person modal header shows TCK article tags (red) and eylem number tags (blue) — both TR and EN versions
+- Map: Tag CSS classes added (.tag.small, .tag.eylem-tag, .person-tags)

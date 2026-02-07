@@ -42,6 +42,7 @@ let currentTckCodes = [];
 let currentActionNums = [];
 let cachedServerCases = [];
 let cachedServerPeople = [];
+let cachedCasePeople = [];
 let cachedTckDefinitions = [];
 
 async function loadTckDefinitions() {
@@ -391,6 +392,18 @@ async function loadServerPeople() {
   return [];
 }
 
+async function loadCasePeople(caseId) {
+  if (!caseId) return [];
+  try {
+    const res = await fetch(`/api/cases/${caseId}`);
+    if (res.ok) {
+      const data = await res.json();
+      return data.people || [];
+    }
+  } catch (e) {}
+  return [];
+}
+
 async function sync() {
   const data = loadData();
   cachedServerCases = await loadServerCases();
@@ -411,7 +424,21 @@ async function sync() {
   } else {
     fillSelect(activeCaseSelect, data.cases, "title");
   }
+
+  const caseId = activeCaseSelect.value;
+  if (caseId) {
+    cachedCasePeople = await loadCasePeople(caseId);
+  }
 }
+
+activeCaseSelect.addEventListener("change", async () => {
+  const caseId = activeCaseSelect.value;
+  if (caseId) {
+    cachedCasePeople = await loadCasePeople(caseId);
+  } else {
+    cachedCasePeople = [];
+  }
+});
 
 function setInput(form, name, value) {
   const el = form.querySelector(`[name="${name}"]`);
@@ -975,15 +1002,24 @@ function renderMentionedNamesForCard(container, accIdx) {
 
   setupAutocomplete(mnNameInput, (query) => {
     const q = query.toLowerCase();
-    return cachedServerPeople
+    const caseMatches = cachedCasePeople
       .filter(p => p.name && p.name.toLowerCase().includes(q))
-      .slice(0, 6)
       .map(p => ({
         label: p.name,
         fillValue: p.name,
-        html: `<div>${highlightMatch(p.name, query)}<div class="ac-meta">${roleLabelsMap[(p.role || "").split(",")[0].trim()] || ""}</div></div>`,
+        html: `<div>${highlightMatch(p.name, query)}<div class="ac-meta">${roleLabelsMap[(p.role || "").split(",")[0].trim()] || ""}${p.organization ? ' · ' + p.organization : ''} <span style="color:#6ee7b7;font-size:0.7rem">Bu dava</span></div></div>`,
         person: p
       }));
+    const caseIds = new Set(cachedCasePeople.map(p => p.id));
+    const otherMatches = cachedServerPeople
+      .filter(p => p.name && p.name.toLowerCase().includes(q) && !caseIds.has(p.id))
+      .map(p => ({
+        label: p.name,
+        fillValue: p.name,
+        html: `<div>${highlightMatch(p.name, query)}<div class="ac-meta">${roleLabelsMap[(p.role || "").split(",")[0].trim()] || ""}${p.organization ? ' · ' + p.organization : ''}</div></div>`,
+        person: p
+      }));
+    return [...caseMatches, ...otherMatches].slice(0, 8);
   }, (item) => {
     mnNameInput._acSelected = true;
     mnNameInput.value = item.fillValue;
@@ -1462,15 +1498,24 @@ async function initAuth() {
 const nameInput = profileForm.querySelector('[name="name"]');
 setupAutocomplete(nameInput, (query) => {
   const q = query.toLowerCase();
-  return cachedServerPeople
+  const caseMatches = cachedCasePeople
     .filter(p => p.name && p.name.toLowerCase().includes(q))
-    .slice(0, 8)
+    .map(p => ({
+      label: p.name,
+      fillValue: p.name,
+      html: `<div>${highlightMatch(p.name, query)}<div class="ac-meta">${roleLabelsMap[(p.role || "defendant").split(",")[0].trim()] || p.role || ""}${p.organization ? ' · ' + p.organization : ''} <span style="color:#6ee7b7;font-size:0.7rem">Bu dava</span></div></div>`,
+      person: p
+    }));
+  const caseIds = new Set(cachedCasePeople.map(p => p.id));
+  const otherMatches = cachedServerPeople
+    .filter(p => p.name && p.name.toLowerCase().includes(q) && !caseIds.has(p.id))
     .map(p => ({
       label: p.name,
       fillValue: p.name,
       html: `<div>${highlightMatch(p.name, query)}<div class="ac-meta">${roleLabelsMap[(p.role || "defendant").split(",")[0].trim()] || p.role || ""}${p.organization ? ' · ' + p.organization : ''}</div></div>`,
       person: p
     }));
+  return [...caseMatches, ...otherMatches].slice(0, 8);
 }, (item) => {
   editProfile(item.person);
 }, { minLength: 2 });

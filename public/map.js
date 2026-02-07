@@ -178,11 +178,31 @@ function buildGraph(caseData) {
   const hasNoEylem = peopleList.some((p) => !(p.action_numbers || []).length);
   if (hasNoEylem) eylemNums.push("other");
 
-  const laneHeight = 180;
   const perRow = 6;
+  const rowHeight = 100;
+  const bandPadding = 50;
+  const bandTopMargin = 18;
+  const personTopOffset = 50;
+  const spacing = 140;
 
   const nodes = [];
   const personNodeMap = new Map();
+
+  const laneHeights = eylemNums.map((num) => {
+    const peopleInEylem = peopleList.filter((p) => {
+      const raw = p.action_numbers || [];
+      const split = raw.flatMap((n) => String(n).split(/[,\s]+/).map((v) => v.trim()).filter(Boolean));
+      if (num === "other") return !split.length;
+      return split.includes(num);
+    });
+    const rows = Math.max(1, Math.ceil(peopleInEylem.length / perRow));
+    return personTopOffset + rows * rowHeight + bandPadding;
+  });
+
+  const cumulativeY = [0];
+  for (let i = 1; i < eylemNums.length; i++) {
+    cumulativeY.push(cumulativeY[i - 1] + laneHeights[i - 1]);
+  }
 
   const bandNodes = eylemNums.map((num, index) => {
     return {
@@ -192,7 +212,7 @@ function buildGraph(caseData) {
       widthConstraint: { minimum: 720, maximum: 960 },
       heightConstraint: { minimum: 36, maximum: 36 },
       x: 420,
-      y: index * laneHeight + 18,
+      y: cumulativeY[index] + bandTopMargin,
       fixed: { x: true, y: true },
       selectable: false,
       color: {
@@ -213,7 +233,7 @@ function buildGraph(caseData) {
     });
 
     const totalInRow = Math.min(peopleInEylem.length, perRow);
-    const spacing = 140;
+    const baseY = cumulativeY[index];
 
     peopleInEylem.forEach((person, idx) => {
       const column = idx % perRow;
@@ -231,7 +251,7 @@ function buildGraph(caseData) {
         image: person.photo_url || fallbackImage,
         size: person.is_external ? 26 : 30,
         x: rowStartX + column * spacing,
-        y: index * laneHeight + row * 140 + 60,
+        y: baseY + personTopOffset + row * rowHeight,
         font: { color: "#e5e7eb", size: 12 },
         color: colorSet,
         borderWidth: 3,
@@ -438,6 +458,31 @@ function openPersonModal(person) {
   personRole.textContent = roles.map(r => roleLabels[r] || r).join(", ") || "";
   personSentence.textContent = person.sentence_demand ? `Talep: ${person.sentence_demand}` : "";
   personPhoto.src = person.photo_url || fallbackImage;
+
+  const tckTagsEl = document.getElementById("person-tck-tags");
+  const eylemTagsEl = document.getElementById("person-eylem-tags");
+  tckTagsEl.innerHTML = "";
+  eylemTagsEl.innerHTML = "";
+
+  const tckArticles = person.tck_articles || [];
+  if (tckArticles.length) {
+    tckArticles.forEach(code => {
+      const tag = document.createElement("span");
+      tag.className = "tag small";
+      tag.textContent = String(code).startsWith("TCK") ? code : `TCK ${code}`;
+      tckTagsEl.appendChild(tag);
+    });
+  }
+
+  const actionNums = person.action_numbers || [];
+  if (actionNums.length) {
+    actionNums.forEach(num => {
+      const tag = document.createElement("span");
+      tag.className = "tag small eylem-tag";
+      tag.textContent = `Eylem ${num}`;
+      eylemTagsEl.appendChild(tag);
+    });
+  }
 
   const summary = person.charge || person.summary || "";
   if (summary) {

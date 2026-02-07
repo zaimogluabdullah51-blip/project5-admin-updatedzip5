@@ -159,9 +159,12 @@ function renderCaseInfo(caseData) {
 function buildGraph(caseData) {
   const tckArticles = caseData.tck_articles || [];
   const extraCodes = new Map();
-  const laneHeight = 180;
-  const laneSpacing = 140;
   const perRow = 6;
+  const rowHeight = 100;
+  const bandPadding = 50;
+  const bandTopMargin = 18;
+  const personTopOffset = 50;
+  const spacing = 140;
 
   for (const person of caseData.people) {
     const codes = person.tck_articles && person.tck_articles.length ? person.tck_articles : ["other"];
@@ -181,6 +184,20 @@ function buildGraph(caseData) {
   const personNodeMap = new Map();
   const personById = new Map(caseData.people.map((p) => [p.id, p]));
 
+  const laneHeights = allTck.map((article) => {
+    const peopleInArticle = caseData.people.filter((p) => {
+      const codes = p.tck_articles && p.tck_articles.length ? p.tck_articles : ["other"];
+      return codes.includes(article.code);
+    });
+    const rows = Math.max(1, Math.ceil(peopleInArticle.length / perRow));
+    return personTopOffset + rows * rowHeight + bandPadding;
+  });
+
+  const cumulativeY = [0];
+  for (let i = 1; i < allTck.length; i++) {
+    cumulativeY.push(cumulativeY[i - 1] + laneHeights[i - 1]);
+  }
+
   const bandNodes = allTck.map((article, index) => ({
     id: `band:${article.code}`,
     label: `TCK ${article.code} - ${article.title}`,
@@ -188,7 +205,7 @@ function buildGraph(caseData) {
     widthConstraint: { minimum: 720, maximum: 960 },
     heightConstraint: { minimum: 36, maximum: 36 },
     x: 420,
-    y: index * laneHeight + 18,
+    y: cumulativeY[index] + bandTopMargin,
     fixed: { x: true, y: true },
     selectable: false,
     color: {
@@ -204,7 +221,7 @@ function buildGraph(caseData) {
       return codes.includes(article.code);
     });
     const totalInRow = Math.min(peopleInArticle.length, perRow);
-    const spacing = 140;
+    const baseY = cumulativeY[index];
 
     peopleInArticle.forEach((person, idx) => {
       const column = idx % perRow;
@@ -223,7 +240,7 @@ function buildGraph(caseData) {
         image: person.photo_url || fallbackImage,
         size: person.is_external ? 26 : 30,
         x: rowStartX + column * spacing,
-        y: index * laneHeight + row * laneSpacing + yOffset + 60,
+        y: baseY + personTopOffset + row * rowHeight + yOffset,
         font: { color: "#e5e7eb", size: 12 },
         color: person.is_external
           ? { border: "#4b5563", background: "#111827" }
@@ -427,6 +444,31 @@ function openPersonModal(person) {
   personRole.textContent = roles.map(r => roleLabels[r] || r).join(", ") || "";
   personSentence.textContent = person.sentence_demand ? `Demand: ${person.sentence_demand}` : "";
   personPhoto.src = person.photo_url || fallbackImage;
+
+  const tckTagsEl = document.getElementById("person-tck-tags");
+  const eylemTagsEl = document.getElementById("person-eylem-tags");
+  tckTagsEl.innerHTML = "";
+  eylemTagsEl.innerHTML = "";
+
+  const tckArticles = person.tck_articles || [];
+  if (tckArticles.length) {
+    tckArticles.forEach(code => {
+      const tag = document.createElement("span");
+      tag.className = "tag small";
+      tag.textContent = String(code).startsWith("TCK") ? code : `TCK ${code}`;
+      tckTagsEl.appendChild(tag);
+    });
+  }
+
+  const actionNums = person.action_numbers || [];
+  if (actionNums.length) {
+    actionNums.forEach(num => {
+      const tag = document.createElement("span");
+      tag.className = "tag small eylem-tag";
+      tag.textContent = `Action ${num}`;
+      eylemTagsEl.appendChild(tag);
+    });
+  }
 
   const summary = person.charge || person.summary || "";
   if (summary) {
