@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Case Selection · CourtCase Clarity</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body class="home-body">
+    <div class="ambient"></div>
+    <header class="home-header">
+      <div class="admin-top-left">
+        <a class="btn ghost small" href="/admin">Admin Login</a>
+      </div>
+      <div style="position: absolute; top: 12px; right: 12px; z-index: 100;">
+        <a href="/index.html" class="btn small" style="background: rgba(255, 255, 255, 0.15); backdrop-filter: blur(4px); border: 1px solid rgba(255, 255, 255, 0.2); color: #fff; text-decoration: none; padding: 4px 10px; font-size: 0.7rem; border-radius: 999px; display: flex; align-items: center; gap: 5px;">
+            <span style="font-size: 1rem;">🇹🇷</span> TR
+        </a>
+      </div>
+      <div class="hero-copy">
+        <p class="eyebrow">CourtCase Clarity</p>
+        <h1>Case Tracking Without Noise</h1>
+        <p class="subhead">
+          Select a case and examine relationships, evidence, and hierarchy on a single screen in map view.
+        </p>
+        <div class="hero-actions">
+          <a class="btn primary" href="#case-grid">Select Case</a>
+        </div>
+      </div>
+      <div class="hero-panel">
+        <div class="stat">
+          <span id="stat-cases">0</span>
+          <label>Total cases</label>
+        </div>
+        <div class="stat">
+          <span id="stat-defendants">0</span>
+          <label>Total defendants</label>
+        </div>
+      </div>
+    </header>
+
+    <section class="feature-strip">
+      <div class="feature-card">
+        <h3>Profile-based reading</h3>
+        <p>View charges, evidence, and defenses in a single card with a clear hierarchy.</p>
+      </div>
+      <div class="feature-card">
+        <h3>TCK clusters</h3>
+        <p>Each TCK article is a separate band. The same person appears multiple times.</p>
+      </div>
+      <div class="feature-card">
+        <h3>Relationship network</h3>
+        <p>Connections are automatically established through names in the cards.</p>
+      </div>
+    </section>
+
+    <main class="home-main">
+      <section class="panel">
+        <div class="panel-header">
+          <input id="case-search" type="search" placeholder="Search cases" />
+        </div>
+        <div id="case-grid" class="case-grid"></div>
+      </section>
+
+      <section class="panel preview-panel">
+        <div class="panel-header">
+          <div>
+            <h2>Sample Map</h2>
+            <p class="muted">A small preview for your selected case.</p>
+          </div>
+          <a id="open-full" class="btn primary small" href="/en/map.html">Click for full page</a>
+        </div>
+        <a class="preview-wrap" href="/en/map.html">
+          <div id="preview-map" class="network preview"></div>
+          <div class="preview-overlay">
+            <span class="preview-cta">Click for full page</span>
+          </div>
+        </a>
+      </section>
+    </main>
+
+    <script src="https://unpkg.com/vis-network/standalone/umd/vis-network.min.js"></script>
+    <script src="/en/app.js"></script>
+  </body>
+</html>

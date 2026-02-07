@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="tr">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Admin · CourtCase Clarity</title>
+    <link rel="stylesheet" href="/admin/admin.css" />
+  </head>
+  <body class="admin-body">
+    <div id="login-screen" class="login-screen">
+      <form id="login-form" class="login-card">
+        <h1>Admin Giriş</h1>
+        <p class="muted">Kullanıcı adı ve şifre ile devam edin.</p>
+        <label>
+          Kullanıcı adı
+          <input name="username" required />
+        </label>
+        <label>
+          Şifre
+          <input name="password" type="password" required />
+        </label>
+        <button class="btn primary" type="submit">Giriş</button>
+        <p id="login-error" class="error"></p>
+      </form>
+    </div>
+
+    <div class="admin-shell">
+      <aside class="sidebar">
+        <div class="brand">
+          <p class="eyebrow">CourtCase Clarity</p>
+          <h2>Admin Panel</h2>
+        </div>
+        <nav class="menu">
+          <button data-tab="cases" class="menu-item active">Davalar</button>
+          <button data-tab="actions" class="menu-item">Eylemler</button>
+          <button data-tab="profiles" class="menu-item">Profiller</button>
+          <button data-tab="connections" class="menu-item">Bağlantılar</button>
+        </nav>
+        <div class="menu-footer">
+          <button id="export-json" class="btn ghost">JSON Export</button>
+          <label class="btn ghost">
+            JSON Import
+            <input id="import-json" type="file" accept="application/json" hidden />
+          </label>
+          <button id="logout" class="btn ghost">Çıkış</button>
+        </div>
+      </aside>
+
+      <main class="content">
+        <section class="panel" data-section="cases">
+          <h2>Dava Oluştur</h2>
+          <div class="parser">
+            <h3>Yapıştır ve Ayrıştır</h3>
+            <textarea id="parse-input" rows="8" placeholder="Metni buraya yapıştırın..."></textarea>
+            <label>Aktif dava seç
+              <select id="active-case"></select>
+            </label>
+            <div class="parser-actions">
+              <button id="parse-btn" class="btn primary" type="button">Ayrıştır</button>
+              <button id="apply-btn" class="btn ghost" type="button">Uygula</button>
+              <button id="clear-btn" class="btn ghost" type="button">Temizle</button>
+            </div>
+            <div id="parse-results" class="list"></div>
+          </div>
+          <form id="case-form">
+            <label>Dava başlığı<input name="title" required /></label>
+            <label>İddianame Özeti<textarea name="summary" rows="3"></textarea></label>
+            <div class="form-grid">
+              <label>Esas No<input name="caseNumber" required /></label>
+              <label>Mahkeme<input name="courtName" required /></label>
+              <label>Savcı<input name="prosecutor" /></label>
+              <label>Hakim<input name="judge" /></label>
+            </div>
+            <label>Heyet (virgülle ayır)<input name="panel" /></label>
+            <div class="form-grid">
+              <label>Tarih<input name="date" type="date" /></label>
+              <label>Durum
+                <select name="status">
+                  <option value="Devam Ediyor">Devam Ediyor</option>
+                  <option value="Karara Bağlandı">Karara Bağlandı</option>
+                </select>
+              </label>
+              <label>Talep edilen ceza<input name="sentenceDemand" placeholder="5-12 yıl / 12 yıl" /></label>
+            </div>
+            <button class="btn primary" type="submit">Kaydet</button>
+          </form>
+          <div class="list" id="case-list"></div>
+        </section>
+
+        <section class="panel" data-section="actions" hidden>
+          <h2>Eylem Ekle</h2>
+          <form id="action-form">
+            <label>Dava seç<select name="caseId" id="action-case"></select></label>
+            <label>Eylem başlığı<input name="title" required /></label>
+            <label>Açıklama<textarea name="description" rows="2"></textarea></label>
+            <div class="form-grid">
+              <label>Tarih<input name="date" type="date" /></label>
+              <label>TCK Maddeleri (virgülle ayır)
+                <input name="tckCodes" placeholder="314/2, 220/7" />
+              </label>
+            </div>
+            <button class="btn primary" type="submit">Kaydet</button>
+          </form>
+          <div class="list" id="action-list"></div>
+        </section>
+
+        <section class="panel" data-section="profiles" hidden>
+          <h2>Profil Ekle</h2>
+          <form id="profile-form">
+            <label>Dava seç<select name="caseId" id="profile-case"></select></label>
+            <label>İsim Soyad<input name="name" required /></label>
+            <label>Fotoğraf URL<input name="photo" placeholder="https://..." /></label>
+            <label>Rol
+              <select name="role">
+                <option value="defendant">Sanık</option>
+                <option value="informant">İtirafçı</option>
+                <option value="witness">Tanık</option>
+                <option value="secretWitness">Gizli Tanık</option>
+                <option value="victim">Mağdur</option>
+                <option value="fugitive">Firari</option>
+                <option value="detained">Tutuklu</option>
+              </select>
+            </label>
+            <label>Eylemler<select name="actionIds" id="profile-actions" multiple></select></label>
+            <label>TCK Maddeleri<select name="tckCodes" id="profile-tcks" multiple></select></label>
+            <label>Suçlama<textarea name="accusations" rows="2"></textarea></label>
+            <label>Deliller<textarea name="evidence" rows="2"></textarea></label>
+            <label>Savunma<textarea name="defense" rows="2"></textarea></label>
+            <button class="btn primary" type="submit">Kaydet</button>
+          </form>
+          <div class="list" id="profile-list"></div>
+        </section>
+
+        <section class="panel" data-section="connections" hidden>
+          <h2>Bağlantı Kur</h2>
+          <form id="connection-form">
+            <label>Dava seç<select name="caseId" id="connection-case"></select></label>
+            <label>Profil 1<select name="fromId" id="connection-from"></select></label>
+            <label>Profil 2<select name="toId" id="connection-to"></select></label>
+            <label>Eylem<select name="actionId" id="connection-action"></select></label>
+            <label>Yön
+              <select name="direction">
+                <option value="one-way">Tek yönlü</option>
+                <option value="two-way">Çift yönlü</option>
+              </select>
+            </label>
+            <button class="btn primary" type="submit">Bağlantı Ekle</button>
+          </form>
+          <div class="list" id="connection-list"></div>
+        </section>
+      </main>
+    </div>
+
+    <script src="/admin/admin.js"></script>
+  </body>
+</html>

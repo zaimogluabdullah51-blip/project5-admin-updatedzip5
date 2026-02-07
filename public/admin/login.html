@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Admin Login · CourtCase Clarity</title>
+    <link rel="stylesheet" href="/admin/admin.css" />
+  </head>
+  <body class="admin-body">
+    <div class="admin-shell">
+      <div class="card">
+        <h1>Admin Login</h1>
+        <p class="muted">Sign in to manage court cases and profiles.</p>
+        <form id="login-form">
+          <label>
+            Username
+            <input name="username" autocomplete="username" required />
+          </label>
+          <label>
+            Password
+            <input name="password" type="password" autocomplete="current-password" required />
+          </label>
+          <button class="btn primary" type="submit">Sign in</button>
+          <p id="login-error" class="error"></p>
+        </form>
+      </div>
+    </div>
+    <script src="/admin/login.js"></script>
+  </body>
+</html>

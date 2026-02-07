@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="tr">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Dava Seçimi · CourtCase Clarity</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body class="home-body">
+    <div class="ambient"></div>
+    <header class="home-header">
+      <div class="hero-copy">
+        <p class="eyebrow">CourtCase Clarity</p>
+        <h1>Gürültüden Uzak Dava Takibi</h1>
+        <p class="subhead">
+          Dava seçin, harita görünümünde ilişkileri, delilleri ve hiyerarşiyi tek ekranda inceleyin. TCK maddeleri
+          altında kümelenen profillerle yapıyı görünür kılın.
+        </p>
+        <div class="hero-actions">
+          <a class="btn primary" href="#case-grid">Dava Seç</a>
+          <a class="btn ghost" href="/admin">Admin</a>
+        </div>
+      </div>
+        <div class="hero-panel">
+          <div class="stat">
+            <span id="stat-cases">0</span>
+            <label>Toplam dava</label>
+          </div>
+          <div class="stat">
+            <span id="stat-prosecutor">—</span>
+            <label>Seçili savcı</label>
+          </div>
+          <div class="stat">
+            <span id="stat-panel">—</span>
+            <label>Mahkeme heyeti</label>
+          </div>
+        </div>
+    </header>
+
+    <section class="feature-strip">
+      <div class="feature-card">
+        <h3>Profil tabanlı okuma</h3>
+        <p>Suçlama, delil ve savunmaları tek kartta, net bir hiyerarşiyle görün.</p>
+      </div>
+      <div class="feature-card">
+        <h3>TCK kümeleri</h3>
+        <p>Her TCK maddesi ayrı bir bant. Aynı kişi farklı maddelerde tekrar görünür.</p>
+      </div>
+      <div class="feature-card">
+        <h3>İlişki ağı</h3>
+        <p>Kartlarda geçen isimler üzerinden bağlantılar otomatik kurulur.</p>
+      </div>
+    </section>
+
+    <main class="home-main">
+      <section class="panel">
+        <div class="panel-header">
+          <h2>Dava Seç</h2>
+          <input id="case-search" type="search" placeholder="Dava ara" />
+        </div>
+        <div id="case-grid" class="case-grid"></div>
+      </section>
+
+      <section class="panel preview-panel">
+        <div class="panel-header">
+          <div>
+            <h2>Örnek harita</h2>
+            <p class="muted">Seçtiğiniz dava için küçük bir ön izleme.</p>
+          </div>
+          <a id="open-full" class="btn primary small" href="/map.html">Tam sayfa için tıklayınız</a>
+        </div>
+        <div class="preview-wrap">
+          <div id="preview-map" class="network preview"></div>
+          <div class="preview-overlay">
+            <span>Tam sayfa için tıklayınız</span>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <script src="https://unpkg.com/vis-network/standalone/umd/vis-network.min.js"></script>
+    <script src="/app.js"></script>
+  </body>
+</html>
