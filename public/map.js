@@ -1,7 +1,6 @@
 const caseSelect = document.getElementById("case-select");
 const eylemFilter = document.getElementById("eylem-filter");
 const nameSearch = document.getElementById("name-search");
-const mapClose = document.getElementById("map-close");
 
 const caseTitle = document.getElementById("case-title");
 const caseNumber = document.getElementById("case-number");
@@ -594,9 +593,6 @@ casePanelToggle.addEventListener("click", () => {
 });
 caseClose.addEventListener("click", () => caseModal.close());
 personClose.addEventListener("click", () => personModal.close());
-mapClose.addEventListener("click", () => {
-  window.location.href = "/";
-});
 
 window.addEventListener("keydown", (event) => {
   if (event.key === "Escape") {
