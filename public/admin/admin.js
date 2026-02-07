@@ -252,6 +252,8 @@ function renderActionCards(parsed) {
 function applyParsedToForm(parsed) {
   if (!parsed) return;
 
+  setInput(profileForm, "summary", parsed.summary || "");
+
   if (parsed.profiles[0]) {
     const rawRole = parsed.profiles[0].role || "San\u0131k";
     const name = parsed.profiles[0].name;
@@ -278,31 +280,7 @@ function applyParsedToForm(parsed) {
     setInput(profileForm, "role", roleMap[rawRole] || "defendant");
   }
 
-  const claimText = parsed.accusations
-    .map((a, idx) => {
-      const label = a.actionNum ? `Eylem ${a.actionNum}` : `${idx + 1}`;
-      return `${label}) ${a.claim}`;
-    })
-    .filter((s) => s.replace(/^[^)]+\)\s*/, ""))
-    .join("\n");
-  const evidenceText = parsed.accusations
-    .map((a, idx) => {
-      const label = a.actionNum ? `Eylem ${a.actionNum}` : `${idx + 1}`;
-      return `${label}) ${a.evidence}`;
-    })
-    .filter((s) => s.replace(/^[^)]+\)\s*/, ""))
-    .join("\n");
-  const defenseText = parsed.accusations
-    .map((a, idx) => {
-      const label = a.actionNum ? `Eylem ${a.actionNum}` : `${idx + 1}`;
-      return `${label}) ${a.defense}`;
-    })
-    .filter((s) => s.replace(/^[^)]+\)\s*/, ""))
-    .join("\n\n");
-
-  setInput(profileForm, "accusations", claimText);
-  setInput(profileForm, "evidence", evidenceText);
-  setInput(profileForm, "defense", defenseText);
+  setInput(profileForm, "sentenceDemand", parsed.sentenceDemand || "");
 
   renderActionCards(parsed);
 }
@@ -409,8 +387,7 @@ caseForm.addEventListener("submit", async (event) => {
     panel,
     date: formData.get("date"),
     status: formData.get("status"),
-    summary: formData.get("summary"),
-    sentenceDemand: formData.get("sentenceDemand")
+    summary: formData.get("summary")
   };
   data.cases.push(caseObj);
   saveData(data);
@@ -463,9 +440,8 @@ profileForm.addEventListener("submit", async (event) => {
     name: formData.get("name"),
     role: formData.get("role"),
     photo: formData.get("photo"),
-    accusations: formData.get("accusations"),
-    evidence: formData.get("evidence"),
-    defense: formData.get("defense"),
+    summary: formData.get("summary"),
+    sentenceDemand: formData.get("sentenceDemand"),
     tckCodes: uniqueTck,
     actionsWithTck
   };
@@ -478,9 +454,6 @@ profileForm.addEventListener("submit", async (event) => {
         name: profileObj.name,
         role: profileObj.role,
         photo_url: profileObj.photo,
-        accusations: profileObj.accusations,
-        evidence: profileObj.evidence,
-        defense: profileObj.defense,
         tck_articles: profileObj.tckCodes
       })
     });

@@ -65,7 +65,6 @@
                   <option value="Karara Bağlandı">Karara Bağlandı</option>
                 </select>
               </label>
-              <label>Talep edilen ceza<input name="sentenceDemand" placeholder="5-12 yıl / 12 yıl" /></label>
             </div>
             <button class="btn primary" type="submit">Kaydet</button>
           </form>
@@ -87,7 +86,8 @@
             <div id="parse-results" class="list"></div>
           </div>
           <form id="profile-form">
-            <label>İsim Soyad<input name="name" required /></label>
+            <label>İddianame Özeti<textarea name="summary" rows="3" readonly></textarea></label>
+            <label>İsim Soyad / Ünvan<input name="name" required /></label>
             <label>Fotoğraf URL<input name="photo" placeholder="https://..." /></label>
             <label>Rol
               <select name="role">
@@ -101,9 +101,7 @@
               </select>
             </label>
             <div id="actions-container"></div>
-            <label>Suçlama<textarea name="accusations" rows="2"></textarea></label>
-            <label>Deliller<textarea name="evidence" rows="2"></textarea></label>
-            <label>Savunma<textarea name="defense" rows="2"></textarea></label>
+            <label>Talep Edilen Ceza<input name="sentenceDemand" placeholder="5-12 yıl / 12 yıl" /></label>
             <button class="btn primary" type="submit">Kaydet</button>
           </form>
           <div class="list" id="profile-list"></div>

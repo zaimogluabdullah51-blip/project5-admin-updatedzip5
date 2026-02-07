@@ -201,6 +201,13 @@ textarea {
   border-radius: 10px;
 }
 
+textarea[readonly] {
+  opacity: 0.85;
+  cursor: default;
+  background: rgba(31, 41, 55, 0.6);
+  border-style: dashed;
+}
+
 .btn {
   border: 1px solid var(--border);
   background: transparent;
