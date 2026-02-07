@@ -139,6 +139,7 @@ app.get("/api/cases/:id", async (req, res) => {
       defense: parseJsonField(person.defense, []),
       related_profiles: parseJsonField(person.related_profiles, []),
       hierarchy: parseJsonField(person.hierarchy, {}),
+      action_numbers: parseJsonField(person.action_numbers, []),
       is_external: !!person.is_external
     }));
 
@@ -164,6 +165,7 @@ app.get("/api/people", async (req, res) => {
       defense: parseJsonField(person.defense, []),
       related_profiles: parseJsonField(person.related_profiles, []),
       hierarchy: parseJsonField(person.hierarchy, {}),
+      action_numbers: parseJsonField(person.action_numbers, []),
       is_external: !!person.is_external
     }));
     res.json(mapped);

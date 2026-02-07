@@ -27,7 +27,16 @@ const clearBtn = document.getElementById("clear-btn");
 const parseResults = document.getElementById("parse-results");
 const activeCaseSelect = document.getElementById("active-case");
 
+const tckInput = document.getElementById("tck-input");
+const tckAddBtn = document.getElementById("tck-add-btn");
+const tckChips = document.getElementById("tck-chips");
+const actionInput = document.getElementById("action-input");
+const actionAddBtn = document.getElementById("action-add-btn");
+const actionChips = document.getElementById("action-chips");
+
 let lastParsed = null;
+let currentTckCodes = [];
+let currentActionNums = [];
 
 function loadData() {
   const raw = localStorage.getItem(STORAGE_KEY);
@@ -113,6 +122,67 @@ function setInput(form, name, value) {
   const el = form.querySelector(`[name="${name}"]`);
   if (el) el.value = value || "";
 }
+
+function renderChips(container, items, onRemove) {
+  container.innerHTML = "";
+  items.forEach((item, idx) => {
+    const chip = document.createElement("span");
+    chip.className = "chip";
+    chip.innerHTML = `${item} <button type="button" class="chip-remove">&times;</button>`;
+    chip.querySelector(".chip-remove").addEventListener("click", () => {
+      onRemove(idx);
+    });
+    container.appendChild(chip);
+  });
+}
+
+function renderTckChips() {
+  renderChips(tckChips, currentTckCodes, (idx) => {
+    currentTckCodes.splice(idx, 1);
+    renderTckChips();
+  });
+}
+
+function renderActionChips() {
+  const displayItems = currentActionNums.map((n) => `Eylem ${n}`);
+  renderChips(actionChips, displayItems, (idx) => {
+    currentActionNums.splice(idx, 1);
+    renderActionChips();
+  });
+}
+
+tckAddBtn.addEventListener("click", () => {
+  const val = tckInput.value.trim();
+  if (val && !currentTckCodes.includes(val)) {
+    currentTckCodes.push(val);
+    renderTckChips();
+  }
+  tckInput.value = "";
+});
+
+tckInput.addEventListener("keydown", (e) => {
+  if (e.key === "Enter") {
+    e.preventDefault();
+    tckAddBtn.click();
+  }
+});
+
+actionAddBtn.addEventListener("click", () => {
+  let val = actionInput.value.trim();
+  val = val.replace(/^Eylem\s*/i, "").trim();
+  if (val && !currentActionNums.includes(val)) {
+    currentActionNums.push(val);
+    renderActionChips();
+  }
+  actionInput.value = "";
+});
+
+actionInput.addEventListener("keydown", (e) => {
+  if (e.key === "Enter") {
+    e.preventDefault();
+    actionAddBtn.click();
+  }
+});
 
 function parseTck(text) {
   const codes = new Set();
@@ -203,16 +273,33 @@ function parsePastedText(text) {
     if (personPart) {
       const unvanMatch = personPart.match(/^([^(]+)\(([^)]+)\)/);
       if (unvanMatch) {
+        const nameStr = unvanMatch[1].trim();
+        const unvanStr = unvanMatch[2].trim();
+        let organization = "";
+        let titleVal = "";
+        if (unvanStr.includes(",")) {
+          const parts = unvanStr.split(",").map((s) => s.trim());
+          organization = parts[0];
+          titleVal = parts.slice(1).join(", ");
+        } else if (unvanStr.includes(" - ")) {
+          const parts = unvanStr.split(" - ").map((s) => s.trim());
+          organization = parts[0];
+          titleVal = parts.slice(1).join(" - ");
+        } else {
+          titleVal = unvanStr;
+        }
         result.profiles.push({
-          name: unvanMatch[1].trim(),
+          name: nameStr,
           role: foundRole || "San\u0131k",
-          unvan: unvanMatch[2].trim()
+          organization: organization,
+          title: titleVal
         });
       } else {
         result.profiles.push({
           name: personPart.trim(),
           role: foundRole || "San\u0131k",
-          unvan: ""
+          organization: "",
+          title: ""
         });
       }
     }
@@ -273,6 +360,16 @@ function parsePastedText(text) {
   return result;
 }
 
+function formatNumberedItems(text) {
+  if (!text) return "\u2014";
+  const items = text.split(/\n/).map((l) => l.trim()).filter(Boolean);
+  if (items.length <= 1) return text;
+  return items.map((item, i) => {
+    const cleaned = item.replace(/^\d+[\.\)]\s*/, "");
+    return `${i + 1}) ${cleaned}`;
+  }).join("<br>");
+}
+
 function renderActionCards(parsed) {
   actionsContainer.innerHTML = "";
   if (!parsed || !parsed.accusations || parsed.accusations.length === 0) return;
@@ -295,15 +392,15 @@ function renderActionCards(parsed) {
       <div class="accusation-card-body">
         <div class="accusation-row">
           <span class="accusation-label">\u0130ddia</span>
-          <p class="accusation-text">${acc.claim || "\u2014"}</p>
+          <p class="accusation-text">${formatNumberedItems(acc.claim)}</p>
         </div>
         <div class="accusation-row">
           <span class="accusation-label">Deliller</span>
-          <p class="accusation-text">${acc.evidence || "\u2014"}</p>
+          <p class="accusation-text">${formatNumberedItems(acc.evidence)}</p>
         </div>
         <div class="accusation-row">
           <span class="accusation-label">Savunma</span>
-          <p class="accusation-text">${acc.defense || "\u2014"}</p>
+          <p class="accusation-text">${formatNumberedItems(acc.defense)}</p>
         </div>
         <div class="accusation-meta">
           <span class="accusation-meta-item"><strong>Eylem:</strong> ${actionsLabel}</span>
@@ -324,10 +421,9 @@ function applyParsedToForm(parsed) {
     const profile = parsed.profiles[0];
     const rawRole = profile.role || "San\u0131k";
 
-    const nameWithUnvan = profile.unvan
-      ? `${profile.name} (${profile.unvan})`
-      : profile.name;
-    setInput(profileForm, "name", nameWithUnvan);
+    setInput(profileForm, "name", profile.name);
+    setInput(profileForm, "organization", profile.organization || "");
+    setInput(profileForm, "title", profile.title || "");
 
     const roleMap = {
       "San\u0131k": "defendant",
@@ -343,10 +439,11 @@ function applyParsedToForm(parsed) {
 
   setInput(profileForm, "sentenceDemand", parsed.sentenceDemand || "");
 
-  const actionsText = parsed.actionNumbers.length > 0
-    ? parsed.actionNumbers.map((n) => `Eylem ${n}`).join(", ")
-    : "";
-  setInput(profileForm, "actionNums", actionsText);
+  currentTckCodes = [...(parsed.tckCodes || [])];
+  renderTckChips();
+
+  currentActionNums = [...(parsed.actionNumbers || [])];
+  renderActionChips();
 
   renderActionCards(parsed);
 }
@@ -402,6 +499,10 @@ clearBtn.addEventListener("click", () => {
   parseResults.innerHTML = "";
   actionsContainer.innerHTML = "";
   profileForm.reset();
+  currentTckCodes = [];
+  currentActionNums = [];
+  renderTckChips();
+  renderActionChips();
 });
 
 caseForm.addEventListener("submit", async (event) => {
@@ -459,26 +560,16 @@ profileForm.addEventListener("submit", async (event) => {
   const formData = new FormData(profileForm);
   const caseId = activeCaseSelect.value;
 
-  const allTckCodes = lastParsed
-    ? lastParsed.accusations.flatMap((a) => a.tckCodes)
-    : [];
-  const uniqueTck = Array.from(new Set(allTckCodes));
-
-  const actionsWithTck = lastParsed
-    ? lastParsed.accusations.map((acc, idx) => ({
-        actionNums: acc.actionNums || [],
-        tckCodes: acc.tckCodes
-      }))
-    : [];
-
   const profileObj = {
     name: formData.get("name"),
     role: formData.get("role"),
+    organization: formData.get("organization"),
+    title: formData.get("title"),
     photo: formData.get("photo"),
     summary: formData.get("summary"),
     sentenceDemand: formData.get("sentenceDemand"),
-    tckCodes: uniqueTck,
-    actionsWithTck
+    tckCodes: [...currentTckCodes],
+    actionNumbers: [...currentActionNums]
   };
 
   try {
@@ -488,8 +579,13 @@ profileForm.addEventListener("submit", async (event) => {
       body: JSON.stringify({
         name: profileObj.name,
         role: profileObj.role,
+        organization: profileObj.organization,
+        title: profileObj.title,
         photo_url: profileObj.photo,
-        tck_articles: profileObj.tckCodes
+        tck_articles: profileObj.tckCodes,
+        sentence_demand: profileObj.sentenceDemand,
+        action_numbers: profileObj.actionNumbers,
+        charge: profileObj.summary
       })
     });
     if (res.ok) {
@@ -539,6 +635,10 @@ profileForm.addEventListener("submit", async (event) => {
   actionsContainer.innerHTML = "";
   parseResults.innerHTML = "";
   lastParsed = null;
+  currentTckCodes = [];
+  currentActionNums = [];
+  renderTckChips();
+  renderActionChips();
   sync();
 });
 

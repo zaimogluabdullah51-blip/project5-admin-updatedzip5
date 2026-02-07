@@ -120,6 +120,10 @@ async function init() {
   await ensureColumn("people", "related_profiles", "TEXT");
   await ensureColumn("people", "hierarchy", "TEXT");
   await ensureColumn("people", "is_external", "INTEGER");
+  await ensureColumn("people", "organization", "TEXT");
+  await ensureColumn("people", "title", "TEXT");
+  await ensureColumn("people", "sentence_demand", "TEXT");
+  await ensureColumn("people", "action_numbers", "TEXT");
   await ensureColumn("actions", "sentence_demand", "TEXT");
 
   const row = await get("SELECT COUNT(*) as count FROM cases");
@@ -365,13 +369,17 @@ async function createPerson(payload) {
     defense: payload.defense || [],
     related_profiles: payload.related_profiles || payload.relatedProfiles || [],
     hierarchy: payload.hierarchy || {},
-    is_external: payload.is_external ? 1 : 0
+    is_external: payload.is_external ? 1 : 0,
+    organization: payload.organization || "",
+    title: payload.title || "",
+    sentence_demand: payload.sentence_demand || payload.sentenceDemand || "",
+    action_numbers: payload.action_numbers || payload.actionNumbers || []
   };
 
   await run(
     `INSERT INTO people
-      (id, name, role, charge, claim, evidence, photo_url, tck_articles, accusations, evidence_items, defense, related_profiles, hierarchy, is_external)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      (id, name, role, charge, claim, evidence, photo_url, tck_articles, accusations, evidence_items, defense, related_profiles, hierarchy, is_external, organization, title, sentence_demand, action_numbers)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     [
       record.id,
       record.name,
@@ -386,7 +394,11 @@ async function createPerson(payload) {
       JSON.stringify(record.defense),
       JSON.stringify(record.related_profiles),
       JSON.stringify(record.hierarchy),
-      record.is_external
+      record.is_external,
+      record.organization,
+      record.title,
+      record.sentence_demand,
+      JSON.stringify(record.action_numbers)
     ]
   );
 

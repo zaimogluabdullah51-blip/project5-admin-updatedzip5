@@ -252,6 +252,52 @@ input[readonly] {
   border-style: dashed;
 }
 
+.tck-input-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.tck-input-row input {
+  flex: 1;
+}
+
+.tck-input-row .btn {
+  white-space: nowrap;
+  padding: 8px 12px;
+  font-size: 0.85rem;
+}
+
+.chips-container {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  min-height: 8px;
+}
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(139, 30, 30, 0.18);
+  border: 1px solid rgba(139, 30, 30, 0.4);
+  color: #fbbf24;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 0.8rem;
+  font-weight: 500;
+}
+
+.chip-remove {
+  background: none;
+  border: none;
+  color: #ef4444;
+  cursor: pointer;
+  font-size: 1rem;
+  line-height: 1;
+  padding: 0 2px;
+}
+
 .profile-header-section {
   display: grid;
   gap: 12px;

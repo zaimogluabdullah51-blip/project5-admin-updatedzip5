@@ -77,12 +77,18 @@ When making changes, prefer running Express as the primary server (`node server.
 
 ### 2026-02-07
 - Redesigned Profil Ekle section with structured layout:
-  - Top section: İsim Soyad/Ünvan (editable), İddianame Özeti (readonly), Toplam Talep Edilen Ceza (readonly), Rol, Suçlanan Eylemler (readonly), Fotoğraf URL
-  - Per-accusation cards: Suçlama başlığı, İddia, Deliller, Savunma, Eylem numaraları, TCK maddeleri
-- Improved parser to extract: name + ünvan separately, role keywords, per-accusation action numbers (actionNums array), sentence demand from summary text
-- Added `actions` table with sentence_demand column for storing parsed eylemler per person per case
+  - Separate fields: İsim Soyad (editable), Kurum (editable), Ünvan (editable)
+  - Savcılık Suçlamaları (editable, was İddianame Özeti)
+  - Toplam Talep Edilen Ceza (editable)
+  - Suçlanılan Kanun Maddeleri: chip-based input, each TCK code saved separately
+  - Suçlanan Eylemler: chip-based input, each action number saved separately (stored as plain numbers, displayed as "Eylem X")
+  - Per-accusation cards: Suçlama başlığı, İddia (numbered), Deliller (numbered), Savunma (numbered), Eylem numaraları, TCK maddeleri
+- Parser extracts: name, organization (kurum), title (ünvan) from parentheses (comma or dash separated), role keywords, action numbers, sentence demand
+- DB: `people` table has organization, title, sentence_demand, action_numbers columns
+- `actions` table with sentence_demand column for storing parsed eylemler per person per case
 - Each action stores: action_num, title, claim, evidence, defense, tck_codes (JSON), sentence_demand
 - POST /api/actions and GET /api/actions endpoints (GET supports filtering by caseId/personId)
-- Profile form submit saves person + links case + creates action records with TCK codes and sentence demand
+- Profile form submit saves person (with organization, title, tck_articles, action_numbers, sentence_demand, charge/summary) + links case + creates action records
 - "Ayrıştır" fills form only; "Kaydet" saves to server and localStorage
+- İddia/Deliller/Savunma in accusation cards formatted with 1), 2), 3) numbering
 - Admin panel uses localStorage with camelCase field names; server/DB uses snake_case
