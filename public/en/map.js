@@ -244,6 +244,18 @@ function buildGraph(caseData) {
   }));
 
   if (unassignedPeople.length > 0) {
+    const totalBandHeight = allTck.length > 0
+      ? cumulativeY[cumulativeY.length - 1] + laneHeights[laneHeights.length - 1]
+      : 400;
+    const bandCenterY = totalBandHeight / 2;
+
+    const totalRows = Math.ceil(unassignedPeople.length / sidePanelCols);
+    const panelContentHeight = totalRows * sidePanel.spacingY;
+    const labelGap = 40;
+    const totalPanelHeight = labelGap + panelContentHeight;
+
+    const panelStartY = bandCenterY - totalPanelHeight / 2;
+
     const panelWidth = (sidePanelCols - 1) * sidePanel.colSpacing;
     const panelCenterX = sidePanel.x + panelWidth / 2;
     bandNodes.push({
@@ -253,7 +265,7 @@ function buildGraph(caseData) {
       widthConstraint: { minimum: panelWidth + 60, maximum: panelWidth + 100 },
       heightConstraint: { minimum: 28, maximum: 28 },
       x: panelCenterX,
-      y: sidePanel.startY - 30,
+      y: panelStartY,
       fixed: { x: true, y: true },
       selectable: false,
       color: {
@@ -276,7 +288,7 @@ function buildGraph(caseData) {
         image: person.photo_url || fallbackImage,
         size: sidePanel.nodeSize,
         x: sidePanel.x + col * sidePanel.colSpacing,
-        y: sidePanel.startY + row * sidePanel.spacingY,
+        y: panelStartY + labelGap + row * sidePanel.spacingY,
         font: { color: "#e5e7eb", size: 10 },
         color: colorSet,
         borderWidth: 2
