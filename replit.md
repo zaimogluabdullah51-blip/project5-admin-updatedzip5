@@ -67,3 +67,10 @@ The project is structured with `server.js` and `db.js` at the root, alongside `v
 - Map: Person modal now shows "Bahsedildiği Eylemler" section — lists all actions where this person is mentioned by other profiles, with parent person name, eylem number, and context
 - Map: EN version shows "Mentioned In Actions" with "Referenced By" and "Involvement" labels
 - Map: mentioned-in-card CSS styling with orange accent border to distinguish from own actions
+- Parser: parseMentionedNames now supports both "GEÇEN İSİMLER" and "OLAYLA DAHLİ OLANLAR" headers
+- Parser: supports both [Rol] bracket and (Rol1/Rol2) parenthesis formats for mentioned names
+- Data model: mentioned names now use `roles` array instead of single `role` string, with backward compatibility via normalizeRoles()
+- Admin: multi-role checkbox system for mentioned names replaces single-role dropdown
+- Map TR/EN: ghost nodes show multi-role labels below name (e.g. "Sanık | İtirafçı"), ghost modals display joined roles
+- Map TR/EN: person modal mentioned names display multi-roles with pipe separator
+- Map: getRoles(), getRolesLabel(), getPrimaryRole() helper functions for consistent role handling across components

@@ -73,6 +73,25 @@ const roleLabels = {
   detained: "Tutuklu"
 };
 
+function getRoles(entry) {
+  if (entry.roles && Array.isArray(entry.roles)) return entry.roles.filter(r => r !== "unknown");
+  if (entry.role && entry.role !== "unknown") {
+    return entry.role.split(",").map(r => r.trim()).filter(Boolean);
+  }
+  return [];
+}
+
+function getRolesLabel(entry) {
+  const roles = getRoles(entry);
+  if (!roles.length) return "";
+  return roles.map(r => roleLabels[r] || r).join(" | ");
+}
+
+function getPrimaryRole(entry) {
+  const roles = getRoles(entry);
+  return roles.length ? roles[0] : "unknown";
+}
+
 const roleColors = {
   defendant: { border: "#d1d5db", background: "#111827" },
   informant: { border: "#eab308", background: "#111827" },
@@ -356,7 +375,8 @@ function buildGraph(caseData) {
     for (const mn of mentionedNames) {
       const entry = typeof mn === "string" ? { name: mn, role: "unknown" } : mn;
       const lowerMentioned = entry.name.toLowerCase().trim();
-      const mentionedRole = entry.role || "unknown";
+      const mentionedRole = getPrimaryRole(entry);
+      const mentionedRolesAll = getRoles(entry);
       const matchedIds = nameToIds.get(lowerMentioned) || [];
 
       if (matchedIds.length) {
@@ -388,13 +408,15 @@ function buildGraph(caseData) {
           const ghostY = parentNode.y + Math.sin(currentAngle) * mentionRadius;
           personMentionAngles.set(action.person_id, currentAngle + angleStep);
 
+          const rolesLbl = getRolesLabel(entry);
+          const ghostLabel = rolesLbl ? `${entry.name}\n(${rolesLbl})` : entry.name;
           const ghostNode = {
             id: ghostId,
-            label: entry.name,
+            label: ghostLabel,
             shape: "circularImage",
             image: fallbackImage,
             size: 22,
-            font: { color: "rgba(229, 231, 235, 0.5)", size: 11 },
+            font: { color: "rgba(229, 231, 235, 0.5)", size: 11, multi: "md" },
             color: {
               border: ghostColorSet.border,
               background: "rgba(17, 24, 39, 0.4)"
@@ -406,6 +428,7 @@ function buildGraph(caseData) {
             _isGhost: true,
             _ghostName: entry.name,
             _ghostRole: mentionedRole,
+            _ghostRoles: mentionedRolesAll,
             _eylemNum: action.action_num ? String(action.action_num).split(/[,\s]+/)[0] : "other"
           };
 
@@ -595,9 +618,9 @@ function openPersonModal(person) {
         section.appendChild(label);
         for (const mn of mentioned) {
           const entry = typeof mn === "string" ? { name: mn, role: "unknown" } : mn;
-          const rl = roleLabels[entry.role] || entry.role || "";
+          const rl = getRolesLabel(entry);
           const nameSpan = document.createElement("p");
-          let text = rl && entry.role !== "unknown" ? `${entry.name} (${rl})` : entry.name;
+          let text = rl ? `${entry.name} (${rl})` : entry.name;
           if (entry.context) text += ` — ${entry.context}`;
           nameSpan.textContent = text;
           nameSpan.style.fontSize = "0.85rem";
@@ -686,12 +709,15 @@ function openGhostModal(ghostNode) {
   const mentionsList = document.getElementById("ghost-mentions-list");
 
   ghostName.textContent = ghostNode._ghostName || "";
-  const roleLbl = roleLabels[ghostNode._ghostRole] || ghostNode._ghostRole || "Bilinmiyor";
+  const ghostRoles = ghostNode._ghostRoles || (ghostNode._ghostRole ? [ghostNode._ghostRole] : []);
+  const roleLbl = ghostRoles.length
+    ? ghostRoles.map(r => roleLabels[r] || r).join(" | ")
+    : "Bilinmiyor";
   ghostRole.textContent = roleLbl;
 
   const roleTag = document.getElementById("ghost-role-tag");
   if (roleTag) {
-    roleTag.className = "ghost-role-badge role-" + (ghostNode._ghostRole || "unknown");
+    roleTag.className = "ghost-role-badge role-" + (ghostRoles[0] || "unknown");
   }
 
   mentionsList.innerHTML = "";

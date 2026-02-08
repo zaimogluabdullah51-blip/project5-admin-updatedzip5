@@ -445,21 +445,33 @@ input[readonly] {
   min-width: 0;
 }
 
-.mentioned-role-select {
-  font-family: "Inter", sans-serif;
-  font-size: 0.78rem;
-  background: var(--panel);
-  color: var(--text);
-  border: 1px solid var(--border);
-  border-radius: 4px;
-  padding: 3px 6px;
-  cursor: pointer;
-  min-width: 100px;
+.mentioned-roles-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 10px;
+  padding: 2px 0;
 }
 
-.mentioned-role-select:focus {
-  outline: 1px solid var(--accent);
-  border-color: var(--accent);
+.role-checkbox-label {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  font-size: 0.75rem;
+  color: var(--muted);
+  cursor: pointer;
+  user-select: none;
+}
+
+.role-checkbox-label input[type="checkbox"] {
+  accent-color: var(--accent);
+  width: 13px;
+  height: 13px;
+  cursor: pointer;
+}
+
+.role-checkbox-label:has(input:checked) {
+  color: var(--text);
+  font-weight: 500;
 }
 
 .btn-remove-name {
