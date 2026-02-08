@@ -8,6 +8,26 @@ let cases = [];
 let previewNetwork = null;
 let selectedCaseId = null;
 
+const READY_CASE_TITLE = "Beşiktaş Davası";
+
+function isReadyCase(caseItem) {
+  return caseItem && caseItem.title === READY_CASE_TITLE;
+}
+
+function showIncompleteToast() {
+  let toast = document.getElementById("incomplete-toast");
+  if (!toast) {
+    toast = document.createElement("div");
+    toast.id = "incomplete-toast";
+    toast.style.cssText = "position:fixed;bottom:40px;left:50%;transform:translateX(-50%);background:#7f1d1d;color:#fca5a5;padding:14px 28px;border-radius:10px;font-size:15px;z-index:9999;opacity:0;transition:opacity 0.3s;border:1px solid rgba(239,68,68,0.3);font-family:'Inter',sans-serif;pointer-events:none;";
+    document.body.appendChild(toast);
+  }
+  toast.textContent = "Veri Girişi Tamamlanmamıştır";
+  toast.style.opacity = "1";
+  clearTimeout(toast._timer);
+  toast._timer = setTimeout(() => { toast.style.opacity = "0"; }, 2500);
+}
+
 function getStatusClass(status) {
   if (!status) return "";
   const s = status.toLowerCase();
@@ -76,7 +96,11 @@ function renderCaseGrid() {
       </div>
     `;
     card.addEventListener("click", () => {
-      window.location.href = `/map.html?caseId=${item.id}`;
+      if (item.title === "Beşiktaş Davası") {
+        window.location.href = `/map.html?caseId=${item.id}`;
+      } else {
+        showIncompleteToast();
+      }
     });
     caseGrid.appendChild(card);
   }
@@ -93,9 +117,17 @@ function updateStats() {
 async function buildPreview(caseId) {
   if (!caseId) return;
   const data = await fetchJSON(`/api/cases/${caseId}`);
-  if (openFull) openFull.href = `/map.html?caseId=${caseId}`;
+  const caseItem = cases.find(c => c.id === caseId);
+  const mapUrl = isReadyCase(caseItem) ? `/map.html?caseId=${caseId}` : "#";
+  if (openFull) {
+    openFull.href = mapUrl;
+    openFull.onclick = isReadyCase(caseItem) ? null : (e) => { e.preventDefault(); showIncompleteToast(); };
+  }
   const previewLink = document.querySelector(".preview-wrap");
-  if (previewLink) previewLink.href = `/map.html?caseId=${caseId}`;
+  if (previewLink) {
+    previewLink.href = mapUrl;
+    previewLink.onclick = isReadyCase(caseItem) ? null : (e) => { e.preventDefault(); showIncompleteToast(); };
+  }
 
   const nodes = (data.people || []).map((p) => ({
     id: p.id,
@@ -128,7 +160,12 @@ async function buildPreview(caseId) {
     previewNetwork = new vis.Network(previewMap, { nodes, edges }, options);
     previewNetwork.on("click", (params) => {
       if (selectedCaseId) {
-        window.location.href = `/map.html?caseId=${selectedCaseId}`;
+        const selectedCase = cases.find(c => c.id === selectedCaseId);
+        if (isReadyCase(selectedCase)) {
+          window.location.href = `/map.html?caseId=${selectedCaseId}`;
+        } else {
+          showIncompleteToast();
+        }
       }
     });
   } else {
