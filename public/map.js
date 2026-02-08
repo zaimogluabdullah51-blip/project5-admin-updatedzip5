@@ -1048,10 +1048,17 @@ async function loadCase(caseId) {
         return true;
       });
 
-      const startX = activeNode.x - ((uniqueConnected.length - 1) * cloneSpacing) / 2;
-      const cloneY = activeNode.y + 60;
+      const maxPerRow = 7;
+      const maxRows = 2;
+      const rowGap = 50;
+      const clamped = uniqueConnected.slice(0, maxPerRow * maxRows);
 
-      uniqueConnected.forEach((connId, idx) => {
+      clamped.forEach((connId, idx) => {
+        const row = Math.floor(idx / maxPerRow);
+        const col = idx % maxPerRow;
+        const rowCount = Math.min(clamped.length - row * maxPerRow, maxPerRow);
+        const rowStartX = activeNode.x - ((rowCount - 1) * cloneSpacing) / 2;
+        const cloneY = activeNode.y + 100 + row * rowGap;
         const origNode = nodesCache.find(n => n.id === connId);
         if (!origNode) return;
         const baseId = origNode.id.startsWith("ghost:") ? origNode.id : (origNode.id.includes(":") ? origNode.id.split(":")[0] : origNode.id);
@@ -1062,7 +1069,7 @@ async function loadCase(caseId) {
           shape: origNode.shape || "circularImage",
           image: origNode.image || fallbackImage,
           size: cloneSize,
-          x: startX + idx * cloneSpacing,
+          x: rowStartX + col * cloneSpacing,
           y: cloneY,
           fixed: { x: true, y: true },
           font: { color: "#fbbf24", size: 9, face: "Space Grotesk" },
