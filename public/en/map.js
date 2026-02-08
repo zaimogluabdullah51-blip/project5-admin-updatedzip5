@@ -185,14 +185,23 @@ function buildGraph(caseData) {
   const personTopOffset = 80;
   const spacing = 160;
 
+  const sidePanelCols = 2;
+  const sidePanel = {
+    x: 920,
+    colSpacing: 140,
+    startY: 40,
+    spacingY: 80,
+    nodeSize: 22
+  };
+
+  const unassignedPeople = caseData.people.filter((p) => !(p.tck_articles && p.tck_articles.length));
+
   for (const person of caseData.people) {
-    const codes = person.tck_articles && person.tck_articles.length ? person.tck_articles : ["other"];
-    if (codes.includes("other")) {
-      extraCodes.set("other", { code: "other", title: "Diğer" });
-    }
+    if (!(person.tck_articles && person.tck_articles.length)) continue;
+    const codes = person.tck_articles;
     for (const code of codes) {
       if (!tckArticles.find((tck) => tck.code === code)) {
-        extraCodes.set(code, { code, title: "Diğer" });
+        extraCodes.set(code, { code, title: "Other" });
       }
     }
   }
@@ -205,7 +214,7 @@ function buildGraph(caseData) {
 
   const laneHeights = allTck.map((article) => {
     const peopleInArticle = caseData.people.filter((p) => {
-      const codes = p.tck_articles && p.tck_articles.length ? p.tck_articles : ["other"];
+      const codes = p.tck_articles && p.tck_articles.length ? p.tck_articles : [];
       return codes.includes(article.code);
     });
     const rows = Math.max(1, Math.ceil(peopleInArticle.length / perRow));
@@ -234,9 +243,53 @@ function buildGraph(caseData) {
     font: { color: "#e5e7eb", size: 12, face: "Space Grotesk" }
   }));
 
+  if (unassignedPeople.length > 0) {
+    const panelWidth = (sidePanelCols - 1) * sidePanel.colSpacing;
+    const panelCenterX = sidePanel.x + panelWidth / 2;
+    bandNodes.push({
+      id: "band:unassigned",
+      label: "No TCK Assigned",
+      shape: "box",
+      widthConstraint: { minimum: panelWidth + 60, maximum: panelWidth + 100 },
+      heightConstraint: { minimum: 28, maximum: 28 },
+      x: panelCenterX,
+      y: sidePanel.startY - 30,
+      fixed: { x: true, y: true },
+      selectable: false,
+      color: {
+        background: "rgba(100, 80, 30, 0.55)",
+        border: "rgba(180, 150, 60, 0.4)"
+      },
+      font: { color: "#fbbf24", size: 11, face: "Space Grotesk" }
+    });
+
+    unassignedPeople.forEach((person, idx) => {
+      const col = idx % sidePanelCols;
+      const row = Math.floor(idx / sidePanelCols);
+      const nodeId = `${person.id}:unassigned`;
+      const personRole = getPrimaryRole(person);
+      const colorSet = roleColors[personRole] || roleColors.defendant;
+      const node = {
+        id: nodeId,
+        label: person.name,
+        shape: "circularImage",
+        image: person.photo_url || fallbackImage,
+        size: sidePanel.nodeSize,
+        x: sidePanel.x + col * sidePanel.colSpacing,
+        y: sidePanel.startY + row * sidePanel.spacingY,
+        font: { color: "#e5e7eb", size: 10 },
+        color: colorSet,
+        borderWidth: 2
+      };
+      nodes.push(node);
+      if (!personNodeMap.has(person.id)) personNodeMap.set(person.id, []);
+      personNodeMap.get(person.id).push(nodeId);
+    });
+  }
+
   allTck.forEach((article, index) => {
     const peopleInArticle = caseData.people.filter((p) => {
-      const codes = p.tck_articles && p.tck_articles.length ? p.tck_articles : ["other"];
+      const codes = p.tck_articles && p.tck_articles.length ? p.tck_articles : [];
       return codes.includes(article.code);
     });
     const totalInRow = Math.min(peopleInArticle.length, perRow);
@@ -749,9 +802,7 @@ async function loadCase(caseId) {
 
   renderCaseInfo(caseData);
   const tckArticles = caseData.tck_articles || [];
-  const hasOther = people.some((p) => !(p.tck_articles || []).length);
-  const fullArticles = hasOther ? [...tckArticles, { code: "other", title: "Diğer" }] : tckArticles;
-  setTckOptions(fullArticles);
+  setTckOptions(tckArticles);
 
   const graph = buildGraph(caseData);
 

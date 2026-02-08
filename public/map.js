@@ -194,8 +194,8 @@ function buildGraph(caseData) {
     return a.localeCompare(b);
   });
 
-  const hasNoEylem = peopleList.some((p) => !(p.action_numbers || []).length);
-  if (hasNoEylem) eylemNums.push("other");
+  const unassignedPeople = peopleList.filter((p) => !(p.action_numbers || []).length);
+  const hasNoEylem = unassignedPeople.length > 0;
 
   const perRow = 6;
   const rowHeight = 160;
@@ -203,6 +203,15 @@ function buildGraph(caseData) {
   const bandTopMargin = 18;
   const personTopOffset = 80;
   const spacing = 160;
+
+  const sidePanelCols = 2;
+  const sidePanel = {
+    x: 920,
+    colSpacing: 140,
+    startY: 40,
+    spacingY: 80,
+    nodeSize: 22
+  };
 
   const nodes = [];
   const personNodeMap = new Map();
@@ -234,7 +243,6 @@ function buildGraph(caseData) {
     const peopleInEylem = peopleList.filter((p) => {
       const raw = p.action_numbers || [];
       const split = raw.flatMap((n) => String(n).split(/[,\s]+/).map((v) => v.trim()).filter(Boolean));
-      if (num === "other") return !split.length;
       return split.includes(num);
     });
     const rows = Math.max(1, Math.ceil(peopleInEylem.length / perRow));
@@ -251,7 +259,7 @@ function buildGraph(caseData) {
   const bandNodes = eylemNums.map((num, index) => {
     return {
       id: `band:${num}`,
-      label: num === "other" ? "Eyleme Atanmamış" : `Eylem ${num}`,
+      label: `Eylem ${num}`,
       shape: "box",
       widthConstraint: { minimum: 720, maximum: 960 },
       heightConstraint: { minimum: 36, maximum: 36 },
@@ -268,11 +276,57 @@ function buildGraph(caseData) {
     };
   });
 
+  if (hasNoEylem) {
+    const panelWidth = (sidePanelCols - 1) * sidePanel.colSpacing;
+    const panelCenterX = sidePanel.x + panelWidth / 2;
+    const sideLabelNode = {
+      id: "band:unassigned",
+      label: "Eyleme Atanmamış",
+      shape: "box",
+      widthConstraint: { minimum: panelWidth + 60, maximum: panelWidth + 100 },
+      heightConstraint: { minimum: 28, maximum: 28 },
+      x: panelCenterX,
+      y: sidePanel.startY - 30,
+      fixed: { x: true, y: true },
+      selectable: false,
+      color: {
+        background: "rgba(100, 80, 30, 0.55)",
+        border: "rgba(180, 150, 60, 0.4)"
+      },
+      font: { color: "#fbbf24", size: 11, face: "Space Grotesk" },
+      _eylemNum: "other"
+    };
+    bandNodes.push(sideLabelNode);
+
+    unassignedPeople.forEach((person, idx) => {
+      const col = idx % sidePanelCols;
+      const row = Math.floor(idx / sidePanelCols);
+      const nodeId = `${person.id}:other`;
+      const personRole = getPrimaryRole(person);
+      const colorSet = roleColors[personRole] || roleColors.defendant;
+      const node = {
+        id: nodeId,
+        label: person.name,
+        shape: "circularImage",
+        image: person.photo_url || fallbackImage,
+        size: sidePanel.nodeSize,
+        x: sidePanel.x + col * sidePanel.colSpacing,
+        y: sidePanel.startY + row * sidePanel.spacingY,
+        font: { color: "#e5e7eb", size: 10 },
+        color: colorSet,
+        borderWidth: 2,
+        _eylemNum: "other"
+      };
+      nodes.push(node);
+      if (!personNodeMap.has(person.id)) personNodeMap.set(person.id, []);
+      personNodeMap.get(person.id).push(nodeId);
+    });
+  }
+
   eylemNums.forEach((num, index) => {
     const peopleInEylem = peopleList.filter((p) => {
       const raw = p.action_numbers || [];
       const split = raw.flatMap((n) => String(n).split(/[,\s]+/).map((v) => v.trim()).filter(Boolean));
-      if (num === "other") return !split.length;
       return split.includes(num);
     });
 

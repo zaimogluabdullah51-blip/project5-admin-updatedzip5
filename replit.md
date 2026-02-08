@@ -78,3 +78,7 @@ The project is structured with `server.js` and `db.js` at the root, alongside `v
 - Parser: parseMentionedNames rewritten as hybrid line+position parser — handles both multi-line and same-line multi-entry formats (e.g. "Name1 [Rol]: context. Name2 [Rol]: context.")
 - Parser: sentence demand extraction now captures "X yıldan Y yıla kadar hapis cezası" pattern from ⚖️ SAVCILIK SUÇLAMALARI section
 - Parser: parseMentionedNames header regex generalized — now matches any `👥 ... DAHLİ OLANLAR` variant (BU SUÇLAMAYLA, BU EYLEMLE, OLAYLA, etc.)
+- Map TR/EN: Unassigned profiles (no eylem) moved from bottom band to right-side 2-column compact vertical panel
+- Map TR/EN: Side panel uses role-based coloring via getPrimaryRole() helper for consistent styling
+- Map TR/EN: "Diğer" / "Other" removed from eylem filter dropdown since unassigned profiles are separate
+- Admin: Fixed roleSelect bug in mentioned names autocomplete — updated to use multi-role checkbox system

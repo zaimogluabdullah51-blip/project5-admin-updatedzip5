@@ -1083,10 +1083,11 @@ function renderMentionedNamesForCard(container, accIdx) {
   }, (item) => {
     mnNameInput._acSelected = true;
     mnNameInput.value = item.fillValue;
-    const personRole = (item.person.role || "").split(",")[0].trim();
-    if (personRole && roleSelect.querySelector(`option[value="${personRole}"]`)) {
-      roleSelect.value = personRole;
-    }
+    const personRoles = (item.person.role || "").split(",").map(r => r.trim()).filter(Boolean);
+    const checkboxes = container.querySelectorAll('.role-checkbox-label input[type="checkbox"]');
+    checkboxes.forEach(cb => {
+      cb.checked = personRoles.includes(cb.value);
+    });
   }, { minLength: 2 });
 }
 
