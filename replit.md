@@ -82,3 +82,8 @@ The project is structured with `server.js` and `db.js` at the root, alongside `v
 - Map TR/EN: Side panel uses role-based coloring via getPrimaryRole() helper for consistent styling
 - Map TR/EN: "Diğer" / "Other" removed from eylem filter dropdown since unassigned profiles are separate
 - Admin: Fixed roleSelect bug in mentioned names autocomplete — updated to use multi-role checkbox system
+- Map TR/EN: Hover interaction enabled — `hover: true` added to vis-network interaction options
+- Map TR/EN: Sticky hover clones — connected profile thumbnails persist after mouse leaves, cleared on empty canvas click or hovering a different person
+- Map TR/EN: Hover clones clickable — clicking a clone thumbnail opens that person's profile modal (or ghost modal)
+- Map TR/EN: Person-level connection tracking — all node variants (across multiple eylem bands) of connected people are properly highlighted/undimmed
+- Map TR/EN: Edge highlighting — connected edges shown in gold (rgba(251,191,36,0.85)), unrelated edges dimmed

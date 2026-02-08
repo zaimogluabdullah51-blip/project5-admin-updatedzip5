@@ -858,7 +858,7 @@ async function loadCase(caseId) {
   setEylemOptions(graph.eylemNums.filter((n) => n !== "other"));
 
   const options = {
-    interaction: { dragView: true, zoomView: true },
+    interaction: { dragView: true, zoomView: true, hover: true },
     physics: false,
     edges: {
       smooth: { type: "continuous" },
@@ -891,10 +891,18 @@ async function loadCase(caseId) {
     });
     let hoverClones = [];
     let hoverActive = false;
-    network.on("hoverNode", (params) => {
-      const active = params.node;
-      if (active.startsWith("band:") || active.startsWith("hoverclone:")) return;
+    let lastHoveredNode = null;
 
+    function clearHoverState() {
+      if (hoverActive) {
+        hoverClones = [];
+        hoverActive = false;
+        lastHoveredNode = null;
+        network.setData({ nodes: nodesCache, edges: edgesCache });
+      }
+    }
+
+    function applyHover(active) {
       const activeBaseId = active.includes(":") && !active.startsWith("ghost:") ? active.split(":")[0] : active;
 
       const connectedNodeIds = new Set();
@@ -942,6 +950,7 @@ async function loadCase(caseId) {
       uniqueConnected.forEach((connId, idx) => {
         const origNode = nodesCache.find(n => n.id === connId);
         if (!origNode) return;
+        const baseId = origNode.id.startsWith("ghost:") ? origNode.id : (origNode.id.includes(":") ? origNode.id.split(":")[0] : origNode.id);
         const cloneId = `hoverclone:${active}:${connId}`;
         hoverClones.push({
           id: cloneId,
@@ -956,7 +965,8 @@ async function loadCase(caseId) {
           color: { border: "#fbbf24", background: "rgba(17, 24, 39, 0.9)" },
           borderWidth: 2,
           opacity: 0.95,
-          _isHoverClone: true
+          _isHoverClone: true,
+          _sourceBaseId: baseId
         });
       });
 
@@ -975,13 +985,40 @@ async function loadCase(caseId) {
       }));
 
       hoverActive = true;
+      lastHoveredNode = active;
       network.setData({ nodes: [...dimmedNodes, ...hoverClones], edges: highlightedEdges });
+    }
+
+    network.on("hoverNode", (params) => {
+      const active = params.node;
+      if (active.startsWith("band:") || active.startsWith("hoverclone:")) return;
+      if (active === lastHoveredNode) return;
+      applyHover(active);
     });
+
     network.on("blurNode", () => {
-      if (hoverActive) {
-        hoverClones = [];
-        hoverActive = false;
-        network.setData({ nodes: nodesCache, edges: edgesCache });
+    });
+
+    network.on("click", (params) => {
+      if (params.nodes && params.nodes.length > 0) {
+        const clickedId = params.nodes[0];
+        if (clickedId.startsWith("hoverclone:")) {
+          const clone = hoverClones.find(c => c.id === clickedId);
+          if (clone && clone._sourceBaseId) {
+            clearHoverState();
+            if (clone._sourceBaseId.startsWith("ghost:")) {
+              const ghostNode = nodesCache.find(n => n.id === clone._sourceBaseId);
+              if (ghostNode) openGhostModal(ghostNode);
+            } else {
+              const person = people.find(p => p.id === clone._sourceBaseId);
+              if (person) openPersonModal(person);
+            }
+          }
+          return;
+        }
+        clearHoverState();
+      } else {
+        clearHoverState();
       }
     });
   } else {
