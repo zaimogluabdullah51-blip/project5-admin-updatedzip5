@@ -39,6 +39,13 @@ const clearBtn = document.getElementById("clear-btn");
 const parseResults = document.getElementById("parse-results");
 const activeCaseSelect = document.getElementById("active-case");
 
+const eylemSummariesList = document.getElementById("eylem-summaries-list");
+const eylemAddBtn = document.getElementById("eylem-add-btn");
+const eylemSaveBtn = document.getElementById("eylem-save-btn");
+const eylemBulkPaste = document.getElementById("eylem-bulk-paste");
+const eylemBulkParseBtn = document.getElementById("eylem-bulk-parse-btn");
+const eylemCaseSelect = document.getElementById("eylem-case-select");
+
 const tckInput = document.getElementById("tck-input");
 const tckAddBtn = document.getElementById("tck-add-btn");
 const tckChips = document.getElementById("tck-chips");
@@ -1674,13 +1681,6 @@ setupAutocomplete(actionInput, (query) => {
   }
   actionInput.value = "";
 }, { clearOnSelect: true });
-
-const eylemSummariesList = document.getElementById("eylem-summaries-list");
-const eylemAddBtn = document.getElementById("eylem-add-btn");
-const eylemSaveBtn = document.getElementById("eylem-save-btn");
-const eylemBulkPaste = document.getElementById("eylem-bulk-paste");
-const eylemBulkParseBtn = document.getElementById("eylem-bulk-parse-btn");
-const eylemCaseSelect = document.getElementById("eylem-case-select");
 
 let currentEylemCaseId = null;
 
