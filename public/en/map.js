@@ -854,13 +854,27 @@ async function loadCase(caseId) {
     let hoverActive = false;
     let lastHoveredNode = null;
 
+    function stableSetData(data) {
+      const viewPos = network.getViewPosition();
+      const scale = network.getScale();
+      network.setData(data);
+      network.moveTo({ position: viewPos, scale: scale, animation: false });
+    }
+
     function clearHoverState() {
       if (hoverActive) {
         hoverClones = [];
         hoverActive = false;
         lastHoveredNode = null;
-        network.setData({ nodes: nodesCache, edges: edgesCache });
+        stableSetData({ nodes: nodesCache, edges: edgesCache });
       }
+    }
+
+    function shortenName(label) {
+      if (!label) return "";
+      const parts = label.trim().split(/\s+/);
+      if (parts.length <= 2) return label;
+      return parts[0] + " " + parts[parts.length - 1];
     }
 
     function applyHover(active) {
@@ -894,7 +908,7 @@ async function loadCase(caseId) {
 
       hoverClones = [];
       const cloneSize = 18;
-      const cloneSpacing = 50;
+      const cloneSpacing = 85;
       const seenBaseIds = new Set();
       const uniqueConnected = [...connectedNodeIds].filter(id => {
         if (id.startsWith("band:")) return false;
@@ -915,7 +929,7 @@ async function loadCase(caseId) {
         const cloneId = `hoverclone:${active}:${connId}`;
         hoverClones.push({
           id: cloneId,
-          label: origNode.label,
+          label: shortenName(origNode.label),
           shape: origNode.shape || "circularImage",
           image: origNode.image || fallbackImage,
           size: cloneSize,
@@ -947,7 +961,7 @@ async function loadCase(caseId) {
 
       hoverActive = true;
       lastHoveredNode = active;
-      network.setData({ nodes: [...dimmedNodes, ...hoverClones], edges: highlightedEdges });
+      stableSetData({ nodes: [...dimmedNodes, ...hoverClones], edges: highlightedEdges });
     }
 
     network.on("hoverNode", (params) => {
