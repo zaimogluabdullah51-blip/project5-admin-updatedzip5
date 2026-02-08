@@ -12,7 +12,7 @@ app.use(express.json({ limit: "1mb" }));
 
 const AUTH_COOKIE = "cc_admin";
 const ADMIN_USER = process.env.ADMIN_USER || "admin";
-const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || "admin123";
+const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || "admin135";
 const AUTH_SECRET = process.env.AUTH_SECRET || "change-this-secret";
 
 function parseCookies(header) {
