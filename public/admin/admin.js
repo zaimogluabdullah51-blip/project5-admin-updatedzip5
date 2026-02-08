@@ -2,7 +2,10 @@ const STORAGE_KEY = "dcc_data";
 
 function cleanName(str) {
   if (!str) return "";
-  return str.replace(/^[\s\u2022\u2023\u25E6\u2043\u2219\u25AA\u25AB\u25CF\u25CB\u2013\u2014\u2015\u2010\u2012\u2018\u2019\u201C\u201D\u00AB\u00BB\u2039\u203A\u2190-\u21FF\u2600-\u26FF\u2700-\u27BF\u2B50\u2B55\uFE0F\u200D\u20E3\u{1F000}-\u{1FFFF}\u{E0020}-\u{E007F}\*\-\#]+/u, "").trim();
+  var s = str.replace(/^[\s\u2022\u2023\u25E6\u2043\u2219\u25AA\u25AB\u25CF\u25CB\u2013\u2014\u2015\u2010\u2012\u2018\u2019\u201C\u201D\u00AB\u00BB\u2039\u203A*#\-]+/, "");
+  s = s.replace(/^[\u2190-\u21FF\u2600-\u26FF\u2700-\u27BF\u2B50\u2B55\uFE0F\u200D\u20E3]+/, "");
+  s = s.replace(/^(?:\uD83C[\uDF00-\uDFFF]|\uD83D[\uDC00-\uDFFF]|\uD83E[\uDD00-\uDDFF]|\uD83C[\uDDE0-\uDDFF])+/, "");
+  return s.trim();
 }
 
 const loginScreen = document.getElementById("login-screen");
