@@ -859,7 +859,7 @@ function parsePastedText(text) {
   accBlocks.forEach((block) => {
     const firstLine = block.split("\n").find((l) => l.trim())?.trim() || "";
 
-    const eylemMatch = block.match(/EYLEM\s*:\s*([^\n]+)/i);
+    const eylemMatch = block.match(/EYLEM\s*:\s*(.*?)(?=\s*TCK\s*:|$)/i);
     const tckMatch = block.match(/TCK\s*:\s*([^\n]+)/i);
     const claimMatch = block.match(/İDDİA\s*:\s*([\s\S]*?)(?=DELİL|SAVUNMA|👥|$)/i);
     const evidenceMatch = block.match(/DELİLLER?\s*:\s*([\s\S]*?)(?=SAVUNMA|👥|$)/i);

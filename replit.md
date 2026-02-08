@@ -61,3 +61,9 @@ The project is structured with `server.js` and `db.js` at the root, alongside `v
 - Admin: Case-filtered autocomplete — profile name and mentioned names inputs prioritize people already in the active case with green "Bu dava" tag
 - Map: Person modal header shows TCK article tags (red) and eylem number tags (blue) — both TR and EN versions
 - Map: Tag CSS classes added (.tag.small, .tag.eylem-tag, .person-tags)
+
+### 2026-02-08
+- Admin: EYLEM regex in accusation parser fixed — stops at TCK: boundary to prevent TCK article numbers being captured as eylem numbers
+- Map: Person modal now shows "Bahsedildiği Eylemler" section — lists all actions where this person is mentioned by other profiles, with parent person name, eylem number, and context
+- Map: EN version shows "Mentioned In Actions" with "Referenced By" and "Involvement" labels
+- Map: mentioned-in-card CSS styling with orange accent border to distinguish from own actions

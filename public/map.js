@@ -610,6 +610,71 @@ function openPersonModal(person) {
     }
   }
 
+  const lowerPersonName = (person.name || "").toLowerCase().trim();
+  const mentionedInActions = [];
+  for (const action of allActions) {
+    if (action.person_id === person.id) continue;
+    const mentionedNames = action.mentioned_names || [];
+    for (const mn of mentionedNames) {
+      const entry = typeof mn === "string" ? { name: mn, role: "unknown" } : mn;
+      if (entry.name.toLowerCase().trim() === lowerPersonName) {
+        const parentPerson = people.find(p => p.id === action.person_id);
+        mentionedInActions.push({
+          personName: parentPerson ? parentPerson.name : "—",
+          actionNum: action.action_num || "—",
+          actionTitle: action.title || "",
+          context: entry.context || "",
+          role: entry.role || "unknown"
+        });
+      }
+    }
+  }
+
+  if (mentionedInActions.length) {
+    const sectionHeader = document.createElement("h4");
+    sectionHeader.className = "actions-section-title";
+    sectionHeader.textContent = `Bahsedildiği Eylemler (${mentionedInActions.length})`;
+    personActionsList.appendChild(sectionHeader);
+
+    for (const m of mentionedInActions) {
+      const card = document.createElement("div");
+      card.className = "action-card mentioned-in-card";
+
+      const header = document.createElement("div");
+      header.className = "action-card-header";
+      const title = document.createElement("h5");
+      title.textContent = `Eylem ${m.actionNum}${m.actionTitle ? " — " + m.actionTitle : ""}`;
+      header.appendChild(title);
+      card.appendChild(header);
+
+      const personLine = document.createElement("div");
+      personLine.className = "action-section";
+      const personLabel = document.createElement("span");
+      personLabel.className = "action-label";
+      personLabel.textContent = "Bahseden Profil";
+      personLine.appendChild(personLabel);
+      const personText = document.createElement("p");
+      personText.textContent = m.personName;
+      personLine.appendChild(personText);
+      card.appendChild(personLine);
+
+      if (m.context) {
+        const contextSection = document.createElement("div");
+        contextSection.className = "action-section";
+        const contextLabel = document.createElement("span");
+        contextLabel.className = "action-label";
+        contextLabel.textContent = "Dahili";
+        contextSection.appendChild(contextLabel);
+        const contextText = document.createElement("p");
+        contextText.textContent = m.context;
+        contextSection.appendChild(contextText);
+        card.appendChild(contextSection);
+      }
+
+      personActionsList.appendChild(card);
+    }
+  }
+
   personModal.showModal();
 }
 

@@ -354,6 +354,7 @@
   text-transform: uppercase;
   color: var(--text-muted);
   letter-spacing: 0.1em;
+  margin-top: 18px;
   margin-bottom: 10px;
 }
 
@@ -367,6 +368,11 @@
   border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: 12px;
   padding: 14px;
+}
+
+.action-card.mentioned-in-card {
+  border-left: 3px solid var(--accent);
+  background: rgba(255, 165, 0, 0.04);
 }
 
 .action-card-header {
