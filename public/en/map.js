@@ -850,19 +850,100 @@ async function loadCase(caseId) {
       const person = people.find((p) => p.id === baseId);
       if (person) openPersonModal(person);
     });
+    let hoverClones = [];
+    let hoverActive = false;
     network.on("hoverNode", (params) => {
       const active = params.node;
-      const edges = edgesCache.map((edge) => ({
+      if (active.startsWith("band:") || active.startsWith("hoverclone:")) return;
+
+      const activeBaseId = active.includes(":") && !active.startsWith("ghost:") ? active.split(":")[0] : active;
+
+      const connectedNodeIds = new Set();
+      edgesCache.forEach(edge => {
+        if (edge.from === active) connectedNodeIds.add(edge.to);
+        if (edge.to === active) connectedNodeIds.add(edge.from);
+      });
+
+      const connectedBaseIds = new Set();
+      connectedBaseIds.add(activeBaseId);
+      connectedNodeIds.forEach(nid => {
+        if (nid.startsWith("ghost:")) {
+          connectedBaseIds.add(nid);
+        } else {
+          connectedBaseIds.add(nid.includes(":") ? nid.split(":")[0] : nid);
+        }
+      });
+
+      const allRelatedNodeIds = new Set();
+      allRelatedNodeIds.add(active);
+      nodesCache.forEach(n => {
+        const baseId = n.id.startsWith("ghost:") ? n.id : (n.id.includes(":") ? n.id.split(":")[0] : n.id);
+        if (connectedBaseIds.has(baseId)) allRelatedNodeIds.add(n.id);
+      });
+
+      const activeNode = nodesCache.find(n => n.id === active);
+      if (!activeNode) return;
+
+      hoverClones = [];
+      const cloneSize = 18;
+      const cloneSpacing = 50;
+      const seenBaseIds = new Set();
+      const uniqueConnected = [...connectedNodeIds].filter(id => {
+        if (id.startsWith("band:")) return false;
+        const base = id.startsWith("ghost:") ? id : (id.includes(":") ? id.split(":")[0] : id);
+        if (base === activeBaseId) return false;
+        if (seenBaseIds.has(base)) return false;
+        seenBaseIds.add(base);
+        return true;
+      });
+
+      const startX = activeNode.x - ((uniqueConnected.length - 1) * cloneSpacing) / 2;
+      const cloneY = activeNode.y + 60;
+
+      uniqueConnected.forEach((connId, idx) => {
+        const origNode = nodesCache.find(n => n.id === connId);
+        if (!origNode) return;
+        const cloneId = `hoverclone:${active}:${connId}`;
+        hoverClones.push({
+          id: cloneId,
+          label: origNode.label,
+          shape: origNode.shape || "circularImage",
+          image: origNode.image || fallbackImage,
+          size: cloneSize,
+          x: startX + idx * cloneSpacing,
+          y: cloneY,
+          fixed: { x: true, y: true },
+          font: { color: "#fbbf24", size: 9, face: "Space Grotesk" },
+          color: { border: "#fbbf24", background: "rgba(17, 24, 39, 0.9)" },
+          borderWidth: 2,
+          opacity: 0.95,
+          _isHoverClone: true
+        });
+      });
+
+      const dimmedNodes = nodesCache.map(n => {
+        if (allRelatedNodeIds.has(n.id)) return n;
+        if (n.id.startsWith("band:")) return n;
+        return { ...n, opacity: 0.15 };
+      });
+
+      const highlightedEdges = edgesCache.map(edge => ({
         ...edge,
-        color:
-          edge.from === active || edge.to === active
-            ? { color: "rgba(226, 232, 240, 0.75)" }
-            : { color: "rgba(148, 163, 184, 0.2)" }
+        color: edge.from === active || edge.to === active
+          ? { color: "rgba(251, 191, 36, 0.85)" }
+          : { color: "rgba(148, 163, 184, 0.08)" },
+        width: edge.from === active || edge.to === active ? 2.5 : 1
       }));
-      network.setData({ nodes: nodesCache, edges });
+
+      hoverActive = true;
+      network.setData({ nodes: [...dimmedNodes, ...hoverClones], edges: highlightedEdges });
     });
     network.on("blurNode", () => {
-      network.setData({ nodes: nodesCache, edges: edgesCache });
+      if (hoverActive) {
+        hoverClones = [];
+        hoverActive = false;
+        network.setData({ nodes: nodesCache, edges: edgesCache });
+      }
     });
   } else {
     network.setData({ nodes: graph.nodes, edges: graph.edges });
