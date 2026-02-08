@@ -694,6 +694,7 @@ function parseSanikKimligi(textBlock) {
   const sentencePatterns = [
     /toplam\s+(.*?hapis\s*cezası)\s*talep/i,
     /(\d+\s*yıl.*?hapis.*?cezası)\s*talep/i,
+    /(\d+\s*yıldan\s+\d+\s*yıla\s+kadar.*?hapis\s*cezası)/i,
     /Talep edilen ceza:\s*([^\n]+)/i,
     /(\d+[-–]\d+\s*yıl(?:\s*(?:ve|ile)\s*\d+[-–]\d+\s*ay)?\s*(?:hapis|ağır hapis)(?:\s*cezası)?)/i
   ];
@@ -740,7 +741,7 @@ function parseMentionedNames(block) {
   };
 
   const mentionedNames = [];
-  const mnSection = block.match(/👥\s*(?:GEÇEN\s*İSİMLER|OLAYLA\s*DAHLİ\s*OLANLAR)\s*:?\s*([\s\S]*?)(?=🚨|📂|👤|🚩|🖼|$)/u);
+  const mnSection = block.match(/👥\s*(?:GEÇEN\s*İSİMLER|(?:BU\s*EYLEMLE\s*)?(?:OLAYLA\s*)?DAHLİ\s*OLANLAR)\s*:?\s*([\s\S]*?)(?=🚨|📂|👤|🚩|🖼|$)/u);
   if (!mnSection) {
     const blockText = block.replace(/👥[\s\S]*$/u, "");
     const autoNames = extractNamesFromText(blockText);
@@ -750,21 +751,46 @@ function parseMentionedNames(block) {
   const mnBody = mnSection[1].trim();
   const mnLines = mnBody.split("\n").map(l => l.trim()).filter(l => l && !/^(🚨|📂|👤|🚩)/.test(l));
 
-  for (const line of mnLines) {
-    const bracketMatch = line.match(/^([A-ZÇĞİÖŞÜa-zçğıöşü\s.]+)\s*\[([^\]]+)\]\s*:\s*(.*)/i);
-    const parenMatch = line.match(/^([A-ZÇĞİÖŞÜa-zçğıöşü\s.]+)\s*\(([^)]+)\)\s*:\s*(.*)/i);
-    const match = bracketMatch || parenMatch;
-    if (match) {
-      const mnName = match[1].trim();
-      const mnRolesRaw = match[2].trim();
-      const mnContext = match[3].trim().replace(/[.;,]$/, "").trim();
-      const parsedRoles = mnRolesRaw.split(/[\/,]/).map(r => r.trim()).filter(Boolean);
+  function parseLineEntries(line) {
+    const entries = [];
+    const rolePat = /\s*[\[\(]([^\]\)]+)[\]\)]\s*:\s*/g;
+    const positions = [];
+    let rm;
+    while ((rm = rolePat.exec(line)) !== null) {
+      positions.push({ index: rm.index, end: rm.index + rm[0].length, roles: rm[1] });
+    }
+    if (positions.length === 0) return entries;
+
+    for (let i = 0; i < positions.length; i++) {
+      const rp = positions[i];
+      const nameStart = i === 0 ? 0 : positions[i - 1].end;
+      const contextEnd = i + 1 < positions.length ? positions[i + 1].index : line.length;
+      let nameText = line.slice(nameStart, rp.index).trim();
+      if (i > 0) {
+        const lastPeriod = nameText.lastIndexOf(". ");
+        if (lastPeriod >= 0) nameText = nameText.substring(lastPeriod + 2).trim();
+      }
+      const rawContext = line.slice(rp.end, contextEnd).trim().replace(/[.;,\s]+$/, "").trim();
+      let finalContext = rawContext;
+      if (i + 1 < positions.length) {
+        const lastPeriod = rawContext.lastIndexOf(". ");
+        if (lastPeriod >= 0) finalContext = rawContext.substring(0, lastPeriod).trim();
+      }
+      const parsedRoles = rp.roles.split(/[\/,]/).map(r => r.trim()).filter(Boolean);
       const mappedRoles = parsedRoles.map(r => roleMap[r] || "unknown").filter(Boolean);
-      mentionedNames.push({
-        name: mnName,
+      entries.push({
+        name: nameText,
         roles: mappedRoles.length ? mappedRoles : ["unknown"],
-        context: mnContext
+        context: finalContext
       });
+    }
+    return entries;
+  }
+
+  for (const line of mnLines) {
+    const entries = parseLineEntries(line);
+    if (entries.length > 0) {
+      mentionedNames.push(...entries);
     } else {
       const simpleName = line.replace(/^[-•]\s*/, "").trim();
       if (simpleName && /[A-ZÇĞİÖŞÜ]/.test(simpleName[0])) {
@@ -848,13 +874,17 @@ function parsePastedText(text) {
   }
 
   if (!result.sentenceDemand) {
+    const searchIn = result.summary || textBlock;
     const sentencePatterns = [
       /toplam\s+(.*?hapis\s*cezası)\s*talep/i,
+      /(\d+\s*yıldan\s+\d+\s*yıla\s+kadar.*?hapis\s*cezası)/i,
+      /(\d+\s*yıl.*?hapis.*?cezası)\s*talep/i,
       /Talep edilen ceza:\s*([^\n]+)/i,
       /(\d+[-–]\d+\s*yıl(?:\s*(?:ve|ile)\s*\d+[-–]\d+\s*ay)?\s*(?:hapis|ağır hapis)(?:\s*cezası)?)/i
     ];
     for (const pat of sentencePatterns) {
-      const m = textBlock.match(pat);
+      let m = searchIn.match(pat);
+      if (!m && searchIn !== textBlock) m = textBlock.match(pat);
       if (m) { result.sentenceDemand = m[1] ? m[1].trim() : m[0].trim(); break; }
     }
   }

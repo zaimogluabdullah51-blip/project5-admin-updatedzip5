@@ -74,3 +74,6 @@ The project is structured with `server.js` and `db.js` at the root, alongside `v
 - Map TR/EN: ghost nodes show multi-role labels below name (e.g. "Sanık | İtirafçı"), ghost modals display joined roles
 - Map TR/EN: person modal mentioned names display multi-roles with pipe separator
 - Map: getRoles(), getRolesLabel(), getPrimaryRole() helper functions for consistent role handling across components
+- Parser: parseMentionedNames header regex now matches "BU EYLEMLE DAHLİ OLANLAR" in addition to existing headers
+- Parser: parseMentionedNames rewritten as hybrid line+position parser — handles both multi-line and same-line multi-entry formats (e.g. "Name1 [Rol]: context. Name2 [Rol]: context.")
+- Parser: sentence demand extraction now captures "X yıldan Y yıla kadar hapis cezası" pattern from ⚖️ SAVCILIK SUÇLAMALARI section
