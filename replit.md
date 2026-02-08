@@ -87,3 +87,6 @@ The project is structured with `server.js` and `db.js` at the root, alongside `v
 - Map TR/EN: Hover clones clickable — clicking a clone thumbnail opens that person's profile modal (or ghost modal)
 - Map TR/EN: Person-level connection tracking — all node variants (across multiple eylem bands) of connected people are properly highlighted/undimmed
 - Map TR/EN: Edge highlighting — connected edges shown in gold (rgba(251,191,36,0.85)), unrelated edges dimmed
+- Admin: Eylem Özetleri moved to its own "Eylemler" tab in left sidebar menu (below Profiller)
+- Admin: Eylemler tab has its own case selector dropdown independent from profiles tab
+- Admin: Three-tab layout: Davalar | Profiller | Eylemler in sidebar navigation

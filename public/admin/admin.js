@@ -14,7 +14,8 @@ const loginError = document.getElementById("login-error");
 const menuItems = document.querySelectorAll(".menu-item[data-tab]");
 const tabPanels = {
   cases: document.getElementById("tab-cases"),
-  profiles: document.getElementById("tab-profiles")
+  profiles: document.getElementById("tab-profiles"),
+  eylemler: document.getElementById("tab-eylemler")
 };
 
 const caseForm = document.getElementById("case-form");
@@ -232,8 +233,6 @@ function editCase(c) {
   caseFormTitle.textContent = `Düzenleniyor: ${c.title}`;
   caseFormReset.style.display = "inline-block";
   caseSubmitBtn.textContent = "Güncelle";
-  loadEylemSummaries(c.id);
-
   setInput(caseForm, "editId", c.id);
   setInput(caseForm, "title", c.title);
   setInput(caseForm, "summary", c.summary);
@@ -272,8 +271,6 @@ function resetCaseForm() {
   caseSubmitBtn.textContent = "Kaydet";
   judgeTypeSelect.value = "single";
   judgeTypeSelect.dispatchEvent(new Event("change"));
-  const esSection = document.getElementById("eylem-summaries-section");
-  if (esSection) esSection.style.display = "none";
 }
 
 async function editProfile(p) {
@@ -439,7 +436,20 @@ async function sync() {
   const caseId = activeCaseSelect.value;
   if (caseId) {
     cachedCasePeople = await loadCasePeople(caseId);
-    loadEylemSummaries(caseId);
+  }
+
+  if (eylemCaseSelect) {
+    const prevEylemCase = eylemCaseSelect.value;
+    eylemCaseSelect.innerHTML = "";
+    casesToUse.forEach(c => {
+      const opt = document.createElement("option");
+      opt.value = c.id;
+      opt.textContent = c.title;
+      eylemCaseSelect.appendChild(opt);
+    });
+    if (prevEylemCase) eylemCaseSelect.value = prevEylemCase;
+    const selectedEylemCase = eylemCaseSelect.value;
+    if (selectedEylemCase) loadEylemSummaries(selectedEylemCase);
   }
 }
 
@@ -447,10 +457,8 @@ activeCaseSelect.addEventListener("change", async () => {
   const caseId = activeCaseSelect.value;
   if (caseId) {
     cachedCasePeople = await loadCasePeople(caseId);
-    loadEylemSummaries(caseId);
   } else {
     cachedCasePeople = [];
-    eylemSummariesSection.style.display = "none";
   }
 });
 
@@ -1667,23 +1675,23 @@ setupAutocomplete(actionInput, (query) => {
   actionInput.value = "";
 }, { clearOnSelect: true });
 
-const eylemSummariesSection = document.getElementById("eylem-summaries-section");
 const eylemSummariesList = document.getElementById("eylem-summaries-list");
 const eylemAddBtn = document.getElementById("eylem-add-btn");
 const eylemSaveBtn = document.getElementById("eylem-save-btn");
 const eylemBulkPaste = document.getElementById("eylem-bulk-paste");
 const eylemBulkParseBtn = document.getElementById("eylem-bulk-parse-btn");
+const eylemCaseSelect = document.getElementById("eylem-case-select");
 
 let currentEylemCaseId = null;
 
 async function loadEylemSummaries(caseId) {
   currentEylemCaseId = caseId;
-  eylemSummariesSection.style.display = "block";
   eylemSummariesList.innerHTML = "";
+  if (!caseId) return;
   const label = document.getElementById("eylem-case-label");
   if (label) {
-    const opt = activeCaseSelect.querySelector(`option[value="${caseId}"]`);
-    label.textContent = opt ? `(${opt.textContent})` : "";
+    const opt = eylemCaseSelect.querySelector(`option[value="${caseId}"]`);
+    label.textContent = opt ? opt.textContent : "";
   }
   try {
     const res = await fetch(`/api/eylem-summaries?caseId=${caseId}`);
@@ -1693,6 +1701,11 @@ async function loadEylemSummaries(caseId) {
     }
   } catch (e) {}
 }
+
+eylemCaseSelect.addEventListener("change", () => {
+  const caseId = eylemCaseSelect.value;
+  loadEylemSummaries(caseId);
+});
 
 function addEylemRow(num, summary) {
   const row = document.createElement("div");
