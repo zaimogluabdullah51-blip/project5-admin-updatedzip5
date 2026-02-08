@@ -513,6 +513,46 @@
   font-style: italic;
 }
 
+.eylem-modal-card {
+  max-width: 600px;
+}
+
+.eylem-modal-body {
+  padding: 12px 0 8px;
+}
+
+.eylem-summary-text {
+  font-size: 0.9rem;
+  line-height: 1.65;
+  color: var(--text-primary);
+  white-space: pre-wrap;
+}
+
+.eylem-modal-card header h3 {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.eylem-num-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(139, 30, 30, 0.55);
+  color: #fca5a5;
+  font-size: 0.75rem;
+  font-weight: 700;
+  padding: 3px 10px;
+  border-radius: 8px;
+  border: 1px solid rgba(200, 60, 60, 0.4);
+}
+
+.eylem-no-summary {
+  color: var(--text-muted);
+  font-style: italic;
+  font-size: 0.85rem;
+}
+
 @media (max-width: 900px) {
   .case-panel {
     position: static;

@@ -2,7 +2,7 @@ import express from "express";
 import path from "path";
 import { fileURLToPath } from "url";
 import crypto from "crypto";
-import { all, get, run, init, createCase, updateCase, createPerson, linkPerson, createAction, createOfficial, linkOfficial } from "./db.js";
+import { all, get, run, init, createCase, updateCase, createPerson, linkPerson, createAction, createOfficial, linkOfficial, upsertEylemSummary, getEylemSummaries } from "./db.js";
 
 const app = express();
 const __filename = fileURLToPath(import.meta.url);
@@ -358,6 +358,43 @@ app.get("/api/actions", async (req, res) => {
     res.json(mapped);
   } catch (err) {
     res.status(500).json({ error: "Eylemler yüklenemedi." });
+  }
+});
+
+app.get("/api/eylem-summaries", async (req, res) => {
+  try {
+    const { caseId } = req.query;
+    if (!caseId) return res.status(400).json({ error: "caseId gerekli." });
+    const rows = await getEylemSummaries(caseId);
+    res.json(rows);
+  } catch (err) {
+    res.status(500).json({ error: "Eylem özetleri yüklenemedi." });
+  }
+});
+
+app.post("/api/eylem-summaries", requireAuthApi, async (req, res) => {
+  try {
+    const { caseId, eylemNum, summary } = req.body;
+    if (!caseId || !eylemNum) return res.status(400).json({ error: "caseId ve eylemNum gerekli." });
+    const record = await upsertEylemSummary(caseId, eylemNum, summary || "");
+    res.status(201).json(record);
+  } catch (err) {
+    res.status(500).json({ error: "Eylem özeti kaydedilemedi." });
+  }
+});
+
+app.post("/api/eylem-summaries/bulk", requireAuthApi, async (req, res) => {
+  try {
+    const { caseId, summaries } = req.body;
+    if (!caseId || !Array.isArray(summaries)) return res.status(400).json({ error: "caseId ve summaries dizisi gerekli." });
+    const results = [];
+    for (const s of summaries) {
+      const record = await upsertEylemSummary(caseId, s.eylemNum, s.summary || "");
+      results.push(record);
+    }
+    res.status(201).json(results);
+  } catch (err) {
+    res.status(500).json({ error: "Eylem özetleri kaydedilemedi." });
   }
 });
 

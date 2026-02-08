@@ -35,6 +35,11 @@ const caseDetailVerdictDate = document.getElementById("case-detail-verdict-date"
 const caseDetailStatus = document.getElementById("case-detail-status");
 const caseDetailSummary = document.getElementById("case-detail-summary");
 
+const eylemModal = document.getElementById("eylem-modal");
+const eylemClose = document.getElementById("eylem-close");
+const eylemModalTitle = document.getElementById("eylem-modal-title");
+const eylemSummaryText = document.getElementById("eylem-summary-text");
+
 const personModal = document.getElementById("person-modal");
 const personClose = document.getElementById("person-close");
 const personName = document.getElementById("person-name");
@@ -58,6 +63,7 @@ let cases = [];
 let selectedCase = null;
 let people = [];
 let allActions = [];
+let eylemSummaries = {};
 let nodesCache = [];
 let edgesCache = [];
 
@@ -266,12 +272,14 @@ function buildGraph(caseData) {
       x: 420,
       y: cumulativeY[index] + bandTopMargin,
       fixed: { x: true, y: true },
-      selectable: false,
+      selectable: true,
+      chosen: false,
       color: {
         background: "rgba(139, 30, 30, 0.55)",
         border: "rgba(200, 60, 60, 0.4)"
       },
       font: { color: "#fca5a5", size: 12, face: "Space Grotesk" },
+      borderWidth: 0,
       _eylemNum: num
     };
   });
@@ -846,11 +854,32 @@ function openGhostModal(ghostNode) {
   ghostModal.showModal();
 }
 
+function openEylemModal(eylemNum) {
+  eylemModalTitle.innerHTML = `<span class="eylem-num-badge">Eylem ${eylemNum}</span> Eylem Özeti`;
+  const summary = eylemSummaries[eylemNum];
+  if (summary) {
+    eylemSummaryText.textContent = summary;
+    eylemSummaryText.className = "eylem-summary-text";
+  } else {
+    eylemSummaryText.textContent = "Bu eylem için henüz özet girilmemiş.";
+    eylemSummaryText.className = "eylem-summary-text eylem-no-summary";
+  }
+  eylemModal.showModal();
+}
+
 async function loadCase(caseId) {
   const caseData = await fetchJSON(`/api/cases/${caseId}`);
   selectedCase = caseData;
   people = caseData.people || [];
   allActions = caseData.actions || [];
+
+  try {
+    const summaries = await fetchJSON(`/api/eylem-summaries?caseId=${caseId}`);
+    eylemSummaries = {};
+    for (const s of summaries) {
+      eylemSummaries[s.eylem_num] = s.summary;
+    }
+  } catch (e) { eylemSummaries = {}; }
 
   renderCaseInfo(caseData);
 
@@ -880,6 +909,12 @@ async function loadCase(caseId) {
     });
     network.on("selectNode", (params) => {
       const nodeId = params.nodes[0];
+      if (nodeId.startsWith("band:")) {
+        const eylemNum = nodeId.replace("band:", "");
+        if (eylemNum && eylemNum !== "unassigned") openEylemModal(eylemNum);
+        network.unselectAll();
+        return;
+      }
       if (nodeId.startsWith("ghost:")) {
         const ghostNode = nodesCache.find(n => n.id === nodeId);
         if (ghostNode) openGhostModal(ghostNode);
@@ -1065,9 +1100,11 @@ casePanelToggle.addEventListener("click", () => {
 });
 caseClose.addEventListener("click", () => caseModal.close());
 personClose.addEventListener("click", () => personModal.close());
+eylemClose.addEventListener("click", () => eylemModal.close());
 
 window.addEventListener("keydown", (event) => {
   if (event.key === "Escape") {
+    if (eylemModal.open) return eylemModal.close();
     if (personModal.open) return personModal.close();
     if (caseModal.open) return caseModal.close();
     window.location.href = "/";

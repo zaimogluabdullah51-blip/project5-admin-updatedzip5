@@ -232,6 +232,7 @@ function editCase(c) {
   caseFormTitle.textContent = `Düzenleniyor: ${c.title}`;
   caseFormReset.style.display = "inline-block";
   caseSubmitBtn.textContent = "Güncelle";
+  loadEylemSummaries(c.id);
 
   setInput(caseForm, "editId", c.id);
   setInput(caseForm, "title", c.title);
@@ -271,6 +272,8 @@ function resetCaseForm() {
   caseSubmitBtn.textContent = "Kaydet";
   judgeTypeSelect.value = "single";
   judgeTypeSelect.dispatchEvent(new Event("change"));
+  const esSection = document.getElementById("eylem-summaries-section");
+  if (esSection) esSection.style.display = "none";
 }
 
 async function editProfile(p) {
@@ -1660,6 +1663,107 @@ setupAutocomplete(actionInput, (query) => {
   }
   actionInput.value = "";
 }, { clearOnSelect: true });
+
+const eylemSummariesSection = document.getElementById("eylem-summaries-section");
+const eylemSummariesList = document.getElementById("eylem-summaries-list");
+const eylemAddBtn = document.getElementById("eylem-add-btn");
+const eylemSaveBtn = document.getElementById("eylem-save-btn");
+const eylemBulkPaste = document.getElementById("eylem-bulk-paste");
+const eylemBulkParseBtn = document.getElementById("eylem-bulk-parse-btn");
+
+let currentEylemCaseId = null;
+
+async function loadEylemSummaries(caseId) {
+  currentEylemCaseId = caseId;
+  eylemSummariesSection.style.display = "block";
+  eylemSummariesList.innerHTML = "";
+  try {
+    const res = await fetch(`/api/eylem-summaries?caseId=${caseId}`);
+    const summaries = await res.json();
+    for (const s of summaries) {
+      addEylemRow(s.eylem_num, s.summary);
+    }
+  } catch (e) {}
+}
+
+function addEylemRow(num, summary) {
+  const row = document.createElement("div");
+  row.style.cssText = "margin-bottom: 10px; display: flex; gap: 8px; align-items: flex-start;";
+  row.innerHTML = `
+    <input type="text" class="eylem-num-input" value="${num || ""}" placeholder="No" style="width: 60px; flex-shrink: 0;" />
+    <textarea class="eylem-summary-input" rows="2" style="flex: 1;">${summary || ""}</textarea>
+    <button type="button" class="btn ghost eylem-remove-btn" style="flex-shrink: 0; padding: 4px 8px;">✕</button>
+  `;
+  row.querySelector(".eylem-remove-btn").addEventListener("click", () => row.remove());
+  eylemSummariesList.appendChild(row);
+}
+
+eylemAddBtn.addEventListener("click", () => {
+  const existing = eylemSummariesList.querySelectorAll(".eylem-num-input");
+  let nextNum = 1;
+  existing.forEach(inp => {
+    const n = parseInt(inp.value);
+    if (n >= nextNum) nextNum = n + 1;
+  });
+  addEylemRow(String(nextNum), "");
+});
+
+eylemBulkParseBtn.addEventListener("click", () => {
+  const text = eylemBulkPaste.value || "";
+  const lines = text.split(/\n/);
+  let current = null;
+  const parsed = [];
+
+  for (const line of lines) {
+    const m = line.match(/^EYLEM\s+(\d+)\s*:\s*(.*)/i);
+    if (m) {
+      if (current) parsed.push(current);
+      current = { num: m[1], summary: m[2].trim() };
+    } else if (current && line.trim()) {
+      current.summary += " " + line.trim();
+    }
+  }
+  if (current) parsed.push(current);
+
+  for (const p of parsed) {
+    const existingInputs = eylemSummariesList.querySelectorAll(".eylem-num-input");
+    let found = false;
+    existingInputs.forEach(inp => {
+      if (inp.value === p.num) {
+        inp.closest("div").querySelector(".eylem-summary-input").value = p.summary;
+        found = true;
+      }
+    });
+    if (!found) addEylemRow(p.num, p.summary);
+  }
+  eylemBulkPaste.value = "";
+});
+
+eylemSaveBtn.addEventListener("click", async () => {
+  if (!currentEylemCaseId) return;
+  const rows = eylemSummariesList.querySelectorAll(".eylem-num-input");
+  const summaries = [];
+  rows.forEach(inp => {
+    const num = inp.value.trim();
+    const summary = inp.closest("div").querySelector(".eylem-summary-input").value.trim();
+    if (num) summaries.push({ eylemNum: num, summary });
+  });
+
+  try {
+    const res = await fetch("/api/eylem-summaries/bulk", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ caseId: currentEylemCaseId, summaries })
+    });
+    if (res.ok) {
+      alert("Eylem özetleri kaydedildi!");
+    } else {
+      alert("Kaydetme hatası.");
+    }
+  } catch (e) {
+    alert("Kaydetme hatası: " + e.message);
+  }
+});
 
 initAuth();
 loadTckDefinitions();

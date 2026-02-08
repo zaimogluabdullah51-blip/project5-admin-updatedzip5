@@ -95,6 +95,22 @@
             <button class="btn primary" type="submit" id="case-submit-btn">Kaydet</button>
           </form>
           <div class="list" id="case-list"></div>
+
+          <div id="eylem-summaries-section" style="display:none; margin-top: 24px;">
+            <h3 style="margin-bottom: 12px; color: #e5e7eb;">Eylem Özetleri</h3>
+            <p style="font-size: 0.82rem; color: #9ca3af; margin-bottom: 12px;">
+              Her eylem için haritada gösterilecek özeti girin. Toplu metin yapıştırarak da ekleyebilirsiniz.
+            </p>
+            <div style="margin-bottom: 12px;">
+              <label style="font-size: 0.82rem; color: #9ca3af;">Toplu Yapıştır (EYLEM 1: ... formatında)
+                <textarea id="eylem-bulk-paste" rows="4" placeholder="EYLEM 1: Özet metni...\nEYLEM 2: Özet metni..." style="width:100%; margin-top: 4px;"></textarea>
+              </label>
+              <button id="eylem-bulk-parse-btn" class="btn ghost" type="button" style="margin-top: 6px;">Yapıştırılanı Ayrıştır</button>
+            </div>
+            <div id="eylem-summaries-list"></div>
+            <button id="eylem-add-btn" class="btn ghost" type="button" style="margin-top: 8px;">+ Eylem Ekle</button>
+            <button id="eylem-save-btn" class="btn primary" type="button" style="margin-top: 8px; margin-left: 8px;">Özetleri Kaydet</button>
+          </div>
         </section>
 
         <section class="panel tab-panel" id="tab-profiles">

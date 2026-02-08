@@ -139,6 +139,16 @@ async function init() {
   `);
 
   await run(`
+    CREATE TABLE IF NOT EXISTS eylem_summaries (
+      id TEXT PRIMARY KEY,
+      case_id TEXT NOT NULL,
+      eylem_num TEXT NOT NULL,
+      summary TEXT,
+      UNIQUE(case_id, eylem_num)
+    )
+  `);
+
+  await run(`
     CREATE TABLE IF NOT EXISTS indictments (
       id TEXT PRIMARY KEY,
       case_id TEXT,
@@ -681,4 +691,28 @@ async function linkOfficial(caseId, officialId, roleInCase) {
   );
 }
 
-export { db, run, get, all, init, createCase, updateCase, createPerson, linkPerson, createAction, createOfficial, linkOfficial };
+async function upsertEylemSummary(caseId, eylemNum, summary) {
+  const existing = await get(
+    "SELECT * FROM eylem_summaries WHERE case_id = ? AND eylem_num = ?",
+    [caseId, eylemNum]
+  );
+  if (existing) {
+    await run("UPDATE eylem_summaries SET summary = ? WHERE id = ?", [summary, existing.id]);
+    return { ...existing, summary };
+  }
+  const id = nanoid();
+  await run(
+    "INSERT INTO eylem_summaries (id, case_id, eylem_num, summary) VALUES (?, ?, ?, ?)",
+    [id, caseId, eylemNum, summary]
+  );
+  return { id, case_id: caseId, eylem_num: eylemNum, summary };
+}
+
+async function getEylemSummaries(caseId) {
+  return all(
+    "SELECT * FROM eylem_summaries WHERE case_id = ? ORDER BY CAST(eylem_num AS INTEGER) ASC",
+    [caseId]
+  );
+}
+
+export { db, run, get, all, init, createCase, updateCase, createPerson, linkPerson, createAction, createOfficial, linkOfficial, upsertEylemSummary, getEylemSummaries };
