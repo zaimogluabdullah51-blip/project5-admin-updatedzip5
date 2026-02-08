@@ -439,6 +439,7 @@ async function sync() {
   const caseId = activeCaseSelect.value;
   if (caseId) {
     cachedCasePeople = await loadCasePeople(caseId);
+    loadEylemSummaries(caseId);
   }
 }
 
@@ -446,8 +447,10 @@ activeCaseSelect.addEventListener("change", async () => {
   const caseId = activeCaseSelect.value;
   if (caseId) {
     cachedCasePeople = await loadCasePeople(caseId);
+    loadEylemSummaries(caseId);
   } else {
     cachedCasePeople = [];
+    eylemSummariesSection.style.display = "none";
   }
 });
 
@@ -1677,6 +1680,11 @@ async function loadEylemSummaries(caseId) {
   currentEylemCaseId = caseId;
   eylemSummariesSection.style.display = "block";
   eylemSummariesList.innerHTML = "";
+  const label = document.getElementById("eylem-case-label");
+  if (label) {
+    const opt = activeCaseSelect.querySelector(`option[value="${caseId}"]`);
+    label.textContent = opt ? `(${opt.textContent})` : "";
+  }
   try {
     const res = await fetch(`/api/eylem-summaries?caseId=${caseId}`);
     const summaries = await res.json();
@@ -1715,15 +1723,24 @@ eylemBulkParseBtn.addEventListener("click", () => {
   const parsed = [];
 
   for (const line of lines) {
-    const m = line.match(/^EYLEM\s+(\d+)\s*:\s*(.*)/i);
-    if (m) {
+    const mColon = line.match(/^EYLEM\s+(\d+)\s*:\s*(.*)/i);
+    const mNoColon = line.match(/^EYLEM\s+(\d+)\s*$/i);
+    if (mColon) {
       if (current) parsed.push(current);
-      current = { num: m[1], summary: m[2].trim() };
+      current = { num: mColon[1], summary: mColon[2].trim() };
+    } else if (mNoColon) {
+      if (current) parsed.push(current);
+      current = { num: mNoColon[1], summary: "" };
     } else if (current && line.trim()) {
-      current.summary += " " + line.trim();
+      current.summary += (current.summary ? " " : "") + line.trim();
     }
   }
   if (current) parsed.push(current);
+
+  if (parsed.length === 0) {
+    alert("Ayrıştırılacak eylem bulunamadı. Format: EYLEM 1: metin veya EYLEM 1 (sonraki satırda metin)");
+    return;
+  }
 
   for (const p of parsed) {
     const existingInputs = eylemSummariesList.querySelectorAll(".eylem-num-input");
@@ -1737,6 +1754,9 @@ eylemBulkParseBtn.addEventListener("click", () => {
     if (!found) addEylemRow(p.num, p.summary);
   }
   eylemBulkPaste.value = "";
+  const details = document.getElementById("eylem-bulk-details");
+  if (details) details.removeAttribute("open");
+  alert(`${parsed.length} eylem ayrıştırıldı ve eklendi.`);
 });
 
 eylemSaveBtn.addEventListener("click", async () => {

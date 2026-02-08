@@ -864,7 +864,7 @@ function openEylemModal(eylemNum) {
     eylemSummaryText.textContent = "Bu eylem için henüz özet girilmemiş.";
     eylemSummaryText.className = "eylem-summary-text eylem-no-summary";
   }
-  eylemModal.showModal();
+  eylemModal.style.display = "block";
 }
 
 async function loadCase(caseId) {
@@ -1100,11 +1100,11 @@ casePanelToggle.addEventListener("click", () => {
 });
 caseClose.addEventListener("click", () => caseModal.close());
 personClose.addEventListener("click", () => personModal.close());
-eylemClose.addEventListener("click", () => eylemModal.close());
+eylemClose.addEventListener("click", () => eylemModal.style.display = "none");
 
 window.addEventListener("keydown", (event) => {
   if (event.key === "Escape") {
-    if (eylemModal.open) return eylemModal.close();
+    if (eylemModal.style.display !== "none") { eylemModal.style.display = "none"; return; }
     if (personModal.open) return personModal.close();
     if (caseModal.open) return caseModal.close();
     window.location.href = "/";

@@ -228,17 +228,15 @@
       </div>
     </dialog>
 
-    <dialog id="eylem-modal" class="modal">
-      <div class="modal-card eylem-modal-card">
-        <header>
-          <h3 id="eylem-modal-title">Eylem</h3>
-          <button id="eylem-close" class="close">Kapat</button>
-        </header>
-        <div id="eylem-modal-body" class="eylem-modal-body">
-          <p id="eylem-summary-text" class="eylem-summary-text"></p>
-        </div>
+    <div id="eylem-modal" class="eylem-floating-panel" style="display:none;">
+      <header>
+        <h3 id="eylem-modal-title">Eylem</h3>
+        <button id="eylem-close" class="close">✕</button>
+      </header>
+      <div id="eylem-modal-body" class="eylem-modal-body">
+        <p id="eylem-summary-text" class="eylem-summary-text"></p>
       </div>
-    </dialog>
+    </div>
 
     <script src="https://unpkg.com/vis-network/standalone/umd/vis-network.min.js"></script>
     <script src="/map.js"></script>

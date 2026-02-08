@@ -513,25 +513,75 @@
   font-style: italic;
 }
 
-.eylem-modal-card {
-  max-width: 600px;
-}
-
-.eylem-modal-body {
-  padding: 12px 0 8px;
-}
-
-.eylem-summary-text {
-  font-size: 0.9rem;
-  line-height: 1.65;
+.eylem-floating-panel {
+  position: fixed;
+  bottom: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 900;
+  background: rgba(17, 24, 39, 0.95);
+  border-radius: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  padding: 16px 20px;
+  width: min(92vw, 620px);
+  max-height: 40vh;
+  overflow-y: auto;
   color: var(--text-primary);
-  white-space: pre-wrap;
+  backdrop-filter: blur(14px);
+  box-shadow: 0 -4px 30px rgba(0,0,0,0.5);
+  pointer-events: auto;
+  animation: eylemSlideUp 0.25s ease-out;
 }
 
-.eylem-modal-card header h3 {
+@keyframes eylemSlideUp {
+  from { transform: translateX(-50%) translateY(30px); opacity: 0; }
+  to { transform: translateX(-50%) translateY(0); opacity: 1; }
+}
+
+.eylem-floating-panel header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+
+.eylem-floating-panel header h3 {
   display: flex;
   align-items: center;
   gap: 10px;
+  margin: 0;
+  font-size: 1rem;
+}
+
+.eylem-floating-panel header .close {
+  background: rgba(255,255,255,0.08);
+  border: none;
+  color: var(--text-secondary);
+  font-size: 1.1rem;
+  cursor: pointer;
+  border-radius: 8px;
+  width: 30px;
+  height: 30px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.15s;
+}
+
+.eylem-floating-panel header .close:hover {
+  background: rgba(255,255,255,0.15);
+  color: var(--text-primary);
+}
+
+.eylem-modal-body {
+  padding: 4px 0 0;
+}
+
+.eylem-summary-text {
+  font-size: 0.88rem;
+  line-height: 1.6;
+  color: var(--text-primary);
+  white-space: pre-wrap;
 }
 
 .eylem-num-badge {
