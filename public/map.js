@@ -206,7 +206,7 @@ function buildGraph(caseData) {
 
   const sidePanelCols = 2;
   const sidePanel = {
-    x: 4600,
+    x: 1150,
     colSpacing: 140,
     startY: 40,
     spacingY: 80,
