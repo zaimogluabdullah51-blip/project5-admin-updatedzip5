@@ -77,3 +77,4 @@ The project is structured with `server.js` and `db.js` at the root, alongside `v
 - Parser: parseMentionedNames header regex now matches "BU EYLEMLE DAHLİ OLANLAR" in addition to existing headers
 - Parser: parseMentionedNames rewritten as hybrid line+position parser — handles both multi-line and same-line multi-entry formats (e.g. "Name1 [Rol]: context. Name2 [Rol]: context.")
 - Parser: sentence demand extraction now captures "X yıldan Y yıla kadar hapis cezası" pattern from ⚖️ SAVCILIK SUÇLAMALARI section
+- Parser: parseMentionedNames header regex generalized — now matches any `👥 ... DAHLİ OLANLAR` variant (BU SUÇLAMAYLA, BU EYLEMLE, OLAYLA, etc.)

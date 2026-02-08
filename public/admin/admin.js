@@ -741,7 +741,7 @@ function parseMentionedNames(block) {
   };
 
   const mentionedNames = [];
-  const mnSection = block.match(/👥\s*(?:GEÇEN\s*İSİMLER|(?:BU\s*EYLEMLE\s*)?(?:OLAYLA\s*)?DAHLİ\s*OLANLAR)\s*:?\s*([\s\S]*?)(?=🚨|📂|👤|🚩|🖼|$)/u);
+  const mnSection = block.match(/👥\s*(?:GEÇEN\s*İSİMLER|(?:[A-ZÇĞİÖŞÜa-zçğıöşü\s]+\s+)?DAHLİ\s*OLANLAR)\s*:?\s*([\s\S]*?)(?=🚨|📂|👤|🚩|🖼|$)/u);
   if (!mnSection) {
     const blockText = block.replace(/👥[\s\S]*$/u, "");
     const autoNames = extractNamesFromText(blockText);
