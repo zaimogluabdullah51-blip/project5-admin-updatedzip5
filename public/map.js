@@ -39,6 +39,10 @@ const eylemModal = document.getElementById("eylem-modal");
 const eylemClose = document.getElementById("eylem-close");
 const eylemModalTitle = document.getElementById("eylem-modal-title");
 const eylemSummaryText = document.getElementById("eylem-summary-text");
+const edgePanel = document.getElementById("edge-panel");
+const edgePanelClose = document.getElementById("edge-panel-close");
+const edgePanelTitle = document.getElementById("edge-panel-title");
+const edgePanelBody = document.getElementById("edge-panel-body");
 
 const personModal = document.getElementById("person-modal");
 const personClose = document.getElementById("person-close");
@@ -393,11 +397,16 @@ function buildGraph(caseData) {
       const key = [person.id, targetId].sort().join("|");
       if (edgeSet.has(key)) continue;
       edgeSet.add(key);
+      const targetPerson = peopleList.find(p => p.id === targetId);
       edges.push({
         from: fromNodes[0],
         to: toNodes[0],
         color: { color: "rgba(148, 163, 184, 0.35)" },
-        smooth: { type: "continuous" }
+        smooth: { type: "continuous" },
+        _fromName: person.name,
+        _toName: targetPerson ? targetPerson.name : targetId,
+        _type: "related",
+        _details: []
       });
     }
   }
@@ -462,12 +471,18 @@ function buildGraph(caseData) {
           const key = [action.person_id, matchedId].sort().join("|");
           if (edgeSet.has(key)) continue;
           edgeSet.add(key);
+          const parentPerson = peopleList.find(p => p.id === action.person_id);
+          const matchedPerson = peopleList.find(p => p.id === matchedId);
           edges.push({
             from: fromNodes[0],
             to: toNodes[0],
             color: { color: mentionedRoleEdgeColors[mentionedRole] || mentionedRoleEdgeColors.unknown },
             smooth: { type: "continuous" },
-            dashes: true
+            dashes: true,
+            _fromName: parentPerson ? parentPerson.name : "",
+            _toName: matchedPerson ? matchedPerson.name : entry.name,
+            _type: "mention",
+            _details: [{ eylem: action.action_num || "", role: getRolesLabel(entry), context: entry.context || "" }]
           });
         }
       } else {
@@ -518,12 +533,17 @@ function buildGraph(caseData) {
         const key = [action.person_id, ghostNodeId].sort().join("|");
         if (!edgeSet.has(key)) {
           edgeSet.add(key);
+          const parentPerson = peopleList.find(p => p.id === action.person_id);
           edges.push({
             from: fromNodes[0],
             to: ghostNodeId,
             color: { color: mentionedRoleEdgeColors[mentionedRole] || mentionedRoleEdgeColors.unknown },
             smooth: { type: "continuous" },
-            dashes: true
+            dashes: true,
+            _fromName: parentPerson ? parentPerson.name : "",
+            _toName: entry.name,
+            _type: "mention",
+            _details: [{ eylem: action.action_num || "", role: getRolesLabel(entry), context: entry.context || "" }]
           });
         }
       }
@@ -867,6 +887,28 @@ function openEylemModal(eylemNum) {
   eylemModal.style.display = "block";
 }
 
+function openEdgePanel(edge) {
+  const fromName = edge._fromName || "?";
+  const toName = edge._toName || "?";
+  edgePanelTitle.innerHTML = `<span class="edge-from-name">${fromName}</span> <span class="edge-arrow">→</span> <span class="edge-to-name">${toName}</span>`;
+  let html = "";
+  if (edge._type === "mention" && edge._details && edge._details.length) {
+    html += `<div class="edge-relation-type">Bahsedilen İsim Bağlantısı</div>`;
+    for (const d of edge._details) {
+      html += `<div class="edge-detail-card">`;
+      if (d.eylem) html += `<div class="edge-detail-row"><span class="edge-label">Eylem:</span> <span class="edge-value">${d.eylem}</span></div>`;
+      if (d.role) html += `<div class="edge-detail-row"><span class="edge-label">Rol:</span> <span class="edge-value">${d.role}</span></div>`;
+      if (d.context) html += `<div class="edge-detail-row"><span class="edge-label">Dahili:</span> <span class="edge-value">${d.context}</span></div>`;
+      html += `</div>`;
+    }
+  } else {
+    html += `<div class="edge-relation-type">Ortak Dava İlişkisi</div>`;
+    html += `<p class="edge-relation-desc">Her iki kişi de aynı davada yer almaktadır ve profilleri birbirine bağlanmıştır.</p>`;
+  }
+  edgePanelBody.innerHTML = html;
+  edgePanel.style.display = "block";
+}
+
 async function loadCase(caseId) {
   const caseData = await fetchJSON(`/api/cases/${caseId}`);
   selectedCase = caseData;
@@ -887,7 +929,7 @@ async function loadCase(caseId) {
   setEylemOptions(graph.eylemNums.filter((n) => n !== "other"));
 
   const options = {
-    interaction: { dragView: true, zoomView: true, hover: true },
+    interaction: { dragView: true, zoomView: true, hover: true, selectConnectedEdges: false },
     physics: false,
     edges: {
       smooth: { type: "continuous" },
@@ -923,6 +965,19 @@ async function loadCase(caseId) {
       const baseId = nodeId.split(":")[0];
       const person = people.find((p) => p.id === baseId);
       if (person) openPersonModal(person);
+    });
+    network.on("selectEdge", (params) => {
+      if (params.nodes && params.nodes.length > 0) return;
+      if (!params.edges || params.edges.length === 0) return;
+      const edgeId = params.edges[0];
+      try {
+        const dsEdge = network.body.data.edges.get(edgeId);
+        if (dsEdge) {
+          const edge = edgesCache.find(e => e.from === dsEdge.from && e.to === dsEdge.to);
+          if (edge && edge._fromName) openEdgePanel(edge);
+        }
+      } catch (e) {}
+      network.unselectAll();
     });
     let hoverClones = [];
     let hoverActive = false;
@@ -1101,9 +1156,11 @@ casePanelToggle.addEventListener("click", () => {
 caseClose.addEventListener("click", () => caseModal.close());
 personClose.addEventListener("click", () => personModal.close());
 eylemClose.addEventListener("click", () => eylemModal.style.display = "none");
+edgePanelClose.addEventListener("click", () => edgePanel.style.display = "none");
 
 window.addEventListener("keydown", (event) => {
   if (event.key === "Escape") {
+    if (edgePanel.style.display !== "none") { edgePanel.style.display = "none"; return; }
     if (eylemModal.style.display !== "none") { eylemModal.style.display = "none"; return; }
     if (personModal.open) return personModal.close();
     if (caseModal.open) return caseModal.close();
