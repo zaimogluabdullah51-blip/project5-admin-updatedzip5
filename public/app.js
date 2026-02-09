@@ -96,7 +96,7 @@ function renderCaseGrid() {
       </div>
     `;
     card.addEventListener("click", () => {
-      if (item.title === "Beşiktaş Davası") {
+      if (isReadyCase(item)) {
         window.location.href = `/map.html?caseId=${item.id}`;
       } else {
         showIncompleteToast();
