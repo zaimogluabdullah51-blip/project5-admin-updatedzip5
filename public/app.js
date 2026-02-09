@@ -8,10 +8,10 @@ let cases = [];
 let previewNetwork = null;
 let selectedCaseId = null;
 
-const READY_CASE_TITLE = "Beşiktaş Davası";
+const READY_CASE_TITLES = ["Beşiktaş Davası", "İBB Suç Örgütü Davası"];
 
 function isReadyCase(caseItem) {
-  return caseItem && caseItem.title === READY_CASE_TITLE;
+  return caseItem && READY_CASE_TITLES.includes(caseItem.title);
 }
 
 function showIncompleteToast() {
