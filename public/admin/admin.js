@@ -391,6 +391,24 @@ function renderLists(data, serverCases, serverPeople) {
   });
 }
 
+function renderFilteredProfiles(casePeople) {
+  profileList.innerHTML = "";
+  if (!casePeople || casePeople.length === 0) {
+    profileList.innerHTML = `<div class="muted" style="padding:12px;text-align:center;">Bu davada kayıtlı profil yok</div>`;
+    return;
+  }
+  casePeople.forEach((p) => {
+    const div = document.createElement("div");
+    div.className = "list-item";
+    const editId = profileForm.querySelector('[name="editId"]').value;
+    if (editId === p.id) div.classList.add("list-item-active");
+    div.innerHTML = `<div class="list-item-content"><strong>${p.name}</strong><br /><span class="muted">${p.role || ''}</span></div><button class="btn-delete" title="Sil">&times;</button>`;
+    div.querySelector(".list-item-content").addEventListener("click", () => editProfile(p));
+    div.querySelector(".btn-delete").addEventListener("click", (e) => { e.stopPropagation(); deleteProfile(p.id); });
+    profileList.appendChild(div);
+  });
+}
+
 async function loadServerCases() {
   try {
     const res = await fetch("/api/cases");
@@ -440,9 +458,16 @@ async function sync() {
     fillSelect(activeCaseSelect, data.cases, "title");
   }
 
+  const savedCaseId = localStorage.getItem("dcc_admin_active_case");
+  if (savedCaseId && casesToUse.find(c => c.id === savedCaseId)) {
+    activeCaseSelect.value = savedCaseId;
+  }
+
   const caseId = activeCaseSelect.value;
   if (caseId) {
+    localStorage.setItem("dcc_admin_active_case", caseId);
     cachedCasePeople = await loadCasePeople(caseId);
+    renderFilteredProfiles(cachedCasePeople);
   }
 
   if (eylemCaseSelect) {
@@ -463,9 +488,12 @@ async function sync() {
 activeCaseSelect.addEventListener("change", async () => {
   const caseId = activeCaseSelect.value;
   if (caseId) {
+    localStorage.setItem("dcc_admin_active_case", caseId);
     cachedCasePeople = await loadCasePeople(caseId);
+    renderFilteredProfiles(cachedCasePeople);
   } else {
     cachedCasePeople = [];
+    renderFilteredProfiles([]);
   }
 });
 

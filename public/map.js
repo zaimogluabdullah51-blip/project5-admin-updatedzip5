@@ -1143,9 +1143,12 @@ async function loadCase(caseId) {
 async function loadData() {
   cases = await fetchJSON("/api/cases");
   setCaseOptions();
-  if (cases[0]) {
-    caseSelect.value = cases[0].id;
-    await loadCase(cases[0].id);
+  const params = new URLSearchParams(window.location.search);
+  const urlCaseId = params.get("caseId");
+  const targetCase = urlCaseId && cases.find(c => c.id === urlCaseId) ? urlCaseId : (cases[0] ? cases[0].id : null);
+  if (targetCase) {
+    caseSelect.value = targetCase;
+    await loadCase(targetCase);
   }
 }
 
