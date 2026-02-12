@@ -1087,13 +1087,21 @@ async function loadCase(caseId) {
         return { ...n, opacity: 0.15 };
       });
 
-      const highlightedEdges = edgesCache.map(edge => ({
-        ...edge,
-        color: edge.from === active || edge.to === active
-          ? { color: "rgba(251, 191, 36, 0.85)" }
-          : { color: "rgba(148, 163, 184, 0.08)" },
-        width: edge.from === active || edge.to === active ? 2.5 : 1
-      }));
+      const activeNodeIds = new Set();
+      nodesCache.forEach(n => {
+        const base = n.id.startsWith("ghost:") ? n.id : (n.id.includes(":") ? n.id.split(":")[0] : n.id);
+        if (base === activeBaseId) activeNodeIds.add(n.id);
+      });
+      const highlightedEdges = edgesCache.map(edge => {
+        const isConnected = activeNodeIds.has(edge.from) || activeNodeIds.has(edge.to);
+        return {
+          ...edge,
+          color: isConnected
+            ? { color: "rgba(251, 191, 36, 0.85)" }
+            : { color: "rgba(148, 163, 184, 0.08)" },
+          width: isConnected ? 2.5 : 1
+        };
+      });
 
       hoverActive = true;
       lastHoveredNode = active;
