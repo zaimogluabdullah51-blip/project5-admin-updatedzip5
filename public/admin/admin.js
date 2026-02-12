@@ -1759,24 +1759,36 @@ eylemAddBtn.addEventListener("click", () => {
 
 eylemBulkParseBtn.addEventListener("click", () => {
   const text = eylemBulkPaste.value || "";
-  const lines = text.split(/\n/);
-  let current = null;
   const parsed = [];
+  const eylemPattern = /EYLEM\s+(\d+)\s*(?:\([^)]*\))?\s*[:\-]?\s*/gi;
+  const matches = [...text.matchAll(eylemPattern)];
 
-  for (const line of lines) {
-    const mColon = line.match(/^EYLEM\s+(\d+)\s*:\s*(.*)/i);
-    const mNoColon = line.match(/^EYLEM\s+(\d+)\s*$/i);
-    if (mColon) {
-      if (current) parsed.push(current);
-      current = { num: mColon[1], summary: mColon[2].trim() };
-    } else if (mNoColon) {
-      if (current) parsed.push(current);
-      current = { num: mNoColon[1], summary: "" };
-    } else if (current && line.trim()) {
-      current.summary += (current.summary ? " " : "") + line.trim();
+  if (matches.length > 0) {
+    for (let i = 0; i < matches.length; i++) {
+      const m = matches[i];
+      const startIdx = m.index + m[0].length;
+      const endIdx = i + 1 < matches.length ? matches[i + 1].index : text.length;
+      const content = text.substring(startIdx, endIdx).trim();
+      parsed.push({ num: m[1], summary: content });
     }
+  } else {
+    const lines = text.split(/\n/);
+    let current = null;
+    for (const line of lines) {
+      const mColon = line.match(/^EYLEM\s+(\d+)\s*:\s*(.*)/i);
+      const mNoColon = line.match(/^EYLEM\s+(\d+)\s*$/i);
+      if (mColon) {
+        if (current) parsed.push(current);
+        current = { num: mColon[1], summary: mColon[2].trim() };
+      } else if (mNoColon) {
+        if (current) parsed.push(current);
+        current = { num: mNoColon[1], summary: "" };
+      } else if (current && line.trim()) {
+        current.summary += (current.summary ? " " : "") + line.trim();
+      }
+    }
+    if (current) parsed.push(current);
   }
-  if (current) parsed.push(current);
 
   if (parsed.length === 0) {
     alert("Ayrıştırılacak eylem bulunamadı. Format: EYLEM 1: metin veya EYLEM 1 (sonraki satırda metin)");
