@@ -1094,16 +1094,11 @@ async function loadCase(caseId) {
         return { ...n, opacity: 0.15 };
       });
 
-      const highlightedEdges = edgesCache.map(edge => {
-        const isConnected = hoveredPersonNodes.has(edge.from) || hoveredPersonNodes.has(edge.to);
-        return {
-          ...edge,
-          color: isConnected
-            ? { color: "rgba(251, 191, 36, 0.85)" }
-            : { color: "rgba(148, 163, 184, 0.08)" },
-          width: isConnected ? 2.5 : 1
-        };
-      });
+      const hiddenEdges = edgesCache.map(edge => ({
+        ...edge,
+        color: { color: "rgba(148, 163, 184, 0)" },
+        width: 0
+      }));
 
       const cloneEdges = hoverClones.map(clone => ({
         from: active,
@@ -1117,7 +1112,7 @@ async function loadCase(caseId) {
 
       hoverActive = true;
       lastHoveredNode = active;
-      stableSetData({ nodes: [...dimmedNodes, ...hoverClones], edges: [...highlightedEdges, ...cloneEdges] });
+      stableSetData({ nodes: [...dimmedNodes, ...hoverClones], edges: [...hiddenEdges, ...cloneEdges] });
     }
 
     network.on("hoverNode", (params) => {
