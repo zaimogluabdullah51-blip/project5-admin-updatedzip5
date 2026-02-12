@@ -1094,12 +1094,6 @@ async function loadCase(caseId) {
         return { ...n, opacity: 0.15 };
       });
 
-      const hiddenEdges = edgesCache.map(edge => ({
-        ...edge,
-        color: { color: "rgba(148, 163, 184, 0)" },
-        width: 0
-      }));
-
       const cloneEdges = hoverClones.map(clone => ({
         from: active,
         to: clone.id,
@@ -1112,7 +1106,7 @@ async function loadCase(caseId) {
 
       hoverActive = true;
       lastHoveredNode = active;
-      stableSetData({ nodes: [...dimmedNodes, ...hoverClones], edges: [...hiddenEdges, ...cloneEdges] });
+      stableSetData({ nodes: [...dimmedNodes, ...hoverClones], edges: cloneEdges });
     }
 
     network.on("hoverNode", (params) => {
@@ -1123,6 +1117,7 @@ async function loadCase(caseId) {
     });
 
     network.on("blurNode", () => {
+      clearHoverState();
     });
 
     network.on("click", (params) => {

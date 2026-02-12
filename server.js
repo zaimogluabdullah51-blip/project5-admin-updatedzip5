@@ -730,7 +730,11 @@ app.delete("/api/people/:id", requireAuthApi, async (req, res) => {
   }
 });
 
-app.use(express.static(path.join(__dirname, "public")));
+app.use(express.static(path.join(__dirname, "public"), {
+  setHeaders: (res) => {
+    res.setHeader("Cache-Control", "no-cache, no-store, must-revalidate");
+  }
+}));
 
 const port = process.env.PORT || 5000;
 
