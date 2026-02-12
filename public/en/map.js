@@ -971,17 +971,17 @@ async function loadCase(caseId) {
     function applyHover(active) {
       const activeBaseId = active.includes(":") && !active.startsWith("ghost:") ? active.split(":")[0] : active;
 
-      const activeNodeIds = new Set();
-      activeNodeIds.add(active);
+      const hoveredPersonNodes = new Set();
+      hoveredPersonNodes.add(active);
       nodesCache.forEach(n => {
         const baseId = n.id.startsWith("ghost:") ? n.id : (n.id.includes(":") ? n.id.split(":")[0] : n.id);
-        if (baseId === activeBaseId) activeNodeIds.add(n.id);
+        if (baseId === activeBaseId) hoveredPersonNodes.add(n.id);
       });
 
       const connectedNodeIds = new Set();
       edgesCache.forEach(edge => {
-        if (activeNodeIds.has(edge.from)) connectedNodeIds.add(edge.to);
-        if (activeNodeIds.has(edge.to)) connectedNodeIds.add(edge.from);
+        if (hoveredPersonNodes.has(edge.from)) connectedNodeIds.add(edge.to);
+        if (hoveredPersonNodes.has(edge.to)) connectedNodeIds.add(edge.from);
       });
 
       const connectedBaseIds = new Set();
@@ -1057,7 +1057,7 @@ async function loadCase(caseId) {
       });
 
       const highlightedEdges = edgesCache.map(edge => {
-        const isConnected = activeNodeIds.has(edge.from) || activeNodeIds.has(edge.to);
+        const isConnected = hoveredPersonNodes.has(edge.from) || hoveredPersonNodes.has(edge.to);
         return {
           ...edge,
           color: isConnected
