@@ -973,8 +973,13 @@ async function loadCase(caseId) {
       try {
         const dsEdge = network.body.data.edges.get(edgeId);
         if (dsEdge) {
-          const edge = edgesCache.find(e => e.from === dsEdge.from && e.to === dsEdge.to);
-          if (edge && edge._fromName) openEdgePanel(edge);
+          if (dsEdge._isCloneEdge && dsEdge._fromName) {
+            if (hoverBlurTimer) { clearTimeout(hoverBlurTimer); hoverBlurTimer = null; }
+            openEdgePanel(dsEdge);
+          } else {
+            const edge = edgesCache.find(e => e.from === dsEdge.from && e.to === dsEdge.to);
+            if (edge && edge._fromName) openEdgePanel(edge);
+          }
         }
       } catch (e) {}
       network.unselectAll();
@@ -1096,15 +1101,36 @@ async function loadCase(caseId) {
         return { ...n, opacity: 0.15 };
       });
 
-      const cloneEdges = hoverClones.map(clone => ({
-        from: active,
-        to: clone.id,
-        color: { color: "rgba(251, 191, 36, 0.6)" },
-        width: 1.5,
-        dashes: [4, 4],
-        smooth: { type: "curvedCW", roundness: 0.2 },
-        _isCloneEdge: true
-      }));
+      const cloneEdges = hoverClones.map(clone => {
+        const targetBase = clone._sourceBaseId;
+        const matchingEdges = edgesCache.filter(e => {
+          const eFromBase = e.from.startsWith("ghost:") ? e.from : (e.from.includes(":") ? e.from.split(":")[0] : e.from);
+          const eToBase = e.to.startsWith("ghost:") ? e.to : (e.to.includes(":") ? e.to.split(":")[0] : e.to);
+          return (eFromBase === activeBaseId && eToBase === targetBase) || (eToBase === activeBaseId && eFromBase === targetBase);
+        });
+        const allDetails = [];
+        let edgeType = "related";
+        let fromName, toName;
+        matchingEdges.forEach(e => {
+          if (!fromName && e._fromName) fromName = e._fromName;
+          if (!toName && e._toName) toName = e._toName;
+          if (e._type === "mention") edgeType = "mention";
+          if (e._details) allDetails.push(...e._details);
+        });
+        return {
+          from: active,
+          to: clone.id,
+          color: { color: "rgba(251, 191, 36, 0.6)" },
+          width: 1.5,
+          dashes: [4, 4],
+          smooth: { type: "curvedCW", roundness: 0.2 },
+          _isCloneEdge: true,
+          _fromName: fromName,
+          _toName: toName,
+          _type: edgeType,
+          _details: allDetails.length ? allDetails : undefined
+        };
+      });
 
       hoverActive = true;
       lastHoveredNode = active;
@@ -1113,8 +1139,11 @@ async function loadCase(caseId) {
 
     network.on("hoverNode", (params) => {
       const active = params.node;
-      if (active.startsWith("band:") || active.startsWith("hoverclone:")) return;
-      if (active === lastHoveredNode) return;
+      if (active.startsWith("band:")) return;
+      if (active.startsWith("hoverclone:") || active === lastHoveredNode) {
+        if (hoverBlurTimer) { clearTimeout(hoverBlurTimer); hoverBlurTimer = null; }
+        return;
+      }
       if (hoverBlurTimer) { clearTimeout(hoverBlurTimer); hoverBlurTimer = null; }
       applyHover(active);
     });
@@ -1124,6 +1153,19 @@ async function loadCase(caseId) {
       hoverBlurTimer = setTimeout(() => {
         clearHoverState();
       }, 5000);
+    });
+
+    network.on("hoverEdge", () => {
+      if (hoverBlurTimer) { clearTimeout(hoverBlurTimer); hoverBlurTimer = null; }
+    });
+
+    network.on("blurEdge", () => {
+      if (hoverActive) {
+        if (hoverBlurTimer) clearTimeout(hoverBlurTimer);
+        hoverBlurTimer = setTimeout(() => {
+          clearHoverState();
+        }, 5000);
+      }
     });
 
     network.on("click", (params) => {
