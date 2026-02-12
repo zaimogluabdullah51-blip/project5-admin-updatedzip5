@@ -982,6 +982,7 @@ async function loadCase(caseId) {
     let hoverClones = [];
     let hoverActive = false;
     let lastHoveredNode = null;
+    let hoverBlurTimer = null;
 
     function stableSetData(data) {
       const viewPos = network.getViewPosition();
@@ -991,6 +992,7 @@ async function loadCase(caseId) {
     }
 
     function clearHoverState() {
+      if (hoverBlurTimer) { clearTimeout(hoverBlurTimer); hoverBlurTimer = null; }
       if (hoverActive) {
         hoverClones = [];
         hoverActive = false;
@@ -1113,11 +1115,15 @@ async function loadCase(caseId) {
       const active = params.node;
       if (active.startsWith("band:") || active.startsWith("hoverclone:")) return;
       if (active === lastHoveredNode) return;
+      if (hoverBlurTimer) { clearTimeout(hoverBlurTimer); hoverBlurTimer = null; }
       applyHover(active);
     });
 
     network.on("blurNode", () => {
-      clearHoverState();
+      if (hoverBlurTimer) clearTimeout(hoverBlurTimer);
+      hoverBlurTimer = setTimeout(() => {
+        clearHoverState();
+      }, 5000);
     });
 
     network.on("click", (params) => {
