@@ -938,6 +938,12 @@ async function loadCase(caseId) {
           if (dsEdge._isCloneEdge && dsEdge._fromName) {
             if (hoverBlurTimer) { clearTimeout(hoverBlurTimer); hoverBlurTimer = null; }
             openEdgePanel(dsEdge);
+            preserveHoverOnClick = true;
+            suppressBlur = true;
+            network.unselectAll();
+            suppressBlur = false;
+            setTimeout(() => { preserveHoverOnClick = false; }, 50);
+            return;
           } else {
             const edge = edgesCache.find(e => e.from === dsEdge.from && e.to === dsEdge.to);
             if (edge && edge._fromName) openEdgePanel(edge);
@@ -950,6 +956,8 @@ async function loadCase(caseId) {
     let hoverActive = false;
     let lastHoveredNode = null;
     let hoverBlurTimer = null;
+    let suppressBlur = false;
+    let preserveHoverOnClick = false;
 
     function stableSetData(data) {
       const viewPos = network.getViewPosition();
@@ -1111,6 +1119,7 @@ async function loadCase(caseId) {
     });
 
     network.on("blurNode", () => {
+      if (suppressBlur) return;
       if (hoverBlurTimer) clearTimeout(hoverBlurTimer);
       hoverBlurTimer = setTimeout(() => {
         clearHoverState();
@@ -1122,6 +1131,7 @@ async function loadCase(caseId) {
     });
 
     network.on("blurEdge", () => {
+      if (suppressBlur) return;
       if (hoverActive) {
         if (hoverBlurTimer) clearTimeout(hoverBlurTimer);
         hoverBlurTimer = setTimeout(() => {
@@ -1131,6 +1141,13 @@ async function loadCase(caseId) {
     });
 
     network.on("click", (params) => {
+      if (preserveHoverOnClick) { preserveHoverOnClick = false; return; }
+      if (params.edges && params.edges.length > 0 && (!params.nodes || params.nodes.length === 0)) {
+        try {
+          const dsEdge = network.body.data.edges.get(params.edges[0]);
+          if (dsEdge && dsEdge._isCloneEdge) return;
+        } catch (e) {}
+      }
       if (params.nodes && params.nodes.length > 0) {
         const clickedId = params.nodes[0];
         if (clickedId.startsWith("hoverclone:")) {
