@@ -1105,9 +1105,19 @@ async function loadCase(caseId) {
         };
       });
 
+      const cloneEdges = hoverClones.map(clone => ({
+        from: active,
+        to: clone.id,
+        color: { color: "rgba(251, 191, 36, 0.6)" },
+        width: 1.5,
+        dashes: [4, 4],
+        smooth: { type: "curvedCW", roundness: 0.2 },
+        _isCloneEdge: true
+      }));
+
       hoverActive = true;
       lastHoveredNode = active;
-      stableSetData({ nodes: [...dimmedNodes, ...hoverClones], edges: highlightedEdges });
+      stableSetData({ nodes: [...dimmedNodes, ...hoverClones], edges: [...highlightedEdges, ...cloneEdges] });
     }
 
     network.on("hoverNode", (params) => {
