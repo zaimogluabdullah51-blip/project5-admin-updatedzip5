@@ -1009,10 +1009,17 @@ async function loadCase(caseId) {
     function applyHover(active) {
       const activeBaseId = active.includes(":") && !active.startsWith("ghost:") ? active.split(":")[0] : active;
 
+      const activeNodeIds = new Set();
+      activeNodeIds.add(active);
+      nodesCache.forEach(n => {
+        const baseId = n.id.startsWith("ghost:") ? n.id : (n.id.includes(":") ? n.id.split(":")[0] : n.id);
+        if (baseId === activeBaseId) activeNodeIds.add(n.id);
+      });
+
       const connectedNodeIds = new Set();
       edgesCache.forEach(edge => {
-        if (edge.from === active) connectedNodeIds.add(edge.to);
-        if (edge.to === active) connectedNodeIds.add(edge.from);
+        if (activeNodeIds.has(edge.from)) connectedNodeIds.add(edge.to);
+        if (activeNodeIds.has(edge.to)) connectedNodeIds.add(edge.from);
       });
 
       const connectedBaseIds = new Set();
@@ -1087,11 +1094,6 @@ async function loadCase(caseId) {
         return { ...n, opacity: 0.15 };
       });
 
-      const activeNodeIds = new Set();
-      nodesCache.forEach(n => {
-        const base = n.id.startsWith("ghost:") ? n.id : (n.id.includes(":") ? n.id.split(":")[0] : n.id);
-        if (base === activeBaseId) activeNodeIds.add(n.id);
-      });
       const highlightedEdges = edgesCache.map(edge => {
         const isConnected = activeNodeIds.has(edge.from) || activeNodeIds.has(edge.to);
         return {
