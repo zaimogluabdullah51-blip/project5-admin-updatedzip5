@@ -14,6 +14,7 @@ const loginError = document.getElementById("login-error");
 const menuItems = document.querySelectorAll(".menu-item[data-tab]");
 const tabPanels = {
   cases: document.getElementById("tab-cases"),
+  timeline: document.getElementById("tab-timeline"),
   profiles: document.getElementById("tab-profiles"),
   eylemler: document.getElementById("tab-eylemler")
 };
@@ -46,6 +47,21 @@ const eylemBulkPaste = document.getElementById("eylem-bulk-paste");
 const eylemBulkParseBtn = document.getElementById("eylem-bulk-parse-btn");
 const eylemCaseSelect = document.getElementById("eylem-case-select");
 
+const timelineCaseSelect = document.getElementById("timeline-case-select");
+const timelineEnabled = document.getElementById("timeline-enabled");
+const timelineParserInput = document.getElementById("timeline-parser-input");
+const timelineParseBtn = document.getElementById("timeline-parse-btn");
+const timelineClearBtn = document.getElementById("timeline-clear-btn");
+const timelineEventList = document.getElementById("timeline-event-list");
+const timelineEditDate = document.getElementById("timeline-edit-date");
+const timelineEditIncident = document.getElementById("timeline-edit-incident");
+const timelineUpdateBtn = document.getElementById("timeline-update-btn");
+const timelineDeleteBtn = document.getElementById("timeline-delete-btn");
+const timelinePreview = document.getElementById("timeline-preview");
+const timelinePreviewBtn = document.getElementById("timeline-preview-btn");
+const timelineSaveBtn = document.getElementById("timeline-save-btn");
+const timelineSaveStatus = document.getElementById("timeline-save-status");
+
 const tckInput = document.getElementById("tck-input");
 const tckAddBtn = document.getElementById("tck-add-btn");
 const tckChips = document.getElementById("tck-chips");
@@ -60,6 +76,8 @@ let cachedServerCases = [];
 let cachedServerPeople = [];
 let cachedCasePeople = [];
 let cachedTckDefinitions = [];
+let timelineDraftEvents = [];
+let timelineSelectedIndex = -1;
 
 async function loadTckDefinitions() {
   try {
@@ -170,6 +188,22 @@ const roleLabelsMap = {
   secretWitness: "Gizli Tanık", victim: "Mağdur", fugitive: "Firari", detained: "Tutuklu"
 };
 
+const timelineUtils = window.TimelineUtils || {
+  DEFAULT_TRANSITION_YEAR: 2016,
+  FEATURED_TRANSITION_PAGE: 657,
+  toIsoDate: (d) => String(d || "").trim(),
+  formatDate: (d) => String(d || ""),
+  parseTimelineText: () => [],
+  formatTimelineText: () => "",
+  coerceTimelineConfig: (raw) => ({
+    enabled: !!(raw && raw.enabled),
+    transitionYear: 2016,
+    events: Array.isArray(raw && raw.events) ? raw.events : []
+  }),
+  toneForEvent: () => "cold",
+  isFeaturedTransitionEvent: () => false
+};
+
 function loadData() {
   const raw = localStorage.getItem(STORAGE_KEY);
   if (!raw) {
@@ -191,7 +225,8 @@ function saveData(data) {
 function setSection(tab) {
   menuItems.forEach((btn) => btn.classList.toggle("active", btn.dataset.tab === tab));
   Object.keys(tabPanels).forEach((key) => {
-    tabPanels[key].classList.toggle("active-tab", key === tab);
+    const panel = tabPanels[key];
+    if (panel) panel.classList.toggle("active-tab", key === tab);
   });
 }
 
@@ -267,6 +302,12 @@ function editCase(c) {
   const statusSelect = caseForm.querySelector('[name="status"]');
   if (statusSelect) statusSelect.value = c.status || "Kovuşturma (Devam Ediyor)";
 
+  if (timelineCaseSelect && c && c.id) {
+    timelineCaseSelect.value = c.id;
+    localStorage.setItem("dcc_admin_timeline_case", c.id);
+    loadTimelineEditor(c.id);
+  }
+
   caseForm.scrollIntoView({ behavior: "smooth", block: "start" });
 }
 
@@ -291,6 +332,9 @@ async function editProfile(p) {
   setInput(profileForm, "summary", p.charge || p.summary || "");
   setInput(profileForm, "sentenceDemand", p.sentence_demand || p.sentenceDemand || "");
   setInput(profileForm, "photo", p.photo_url || p.photo || "");
+  const hierarchy = p.hierarchy || {};
+  setInput(profileForm, "hierarchySuperiors", stringifyHierarchyList(hierarchy.superiors));
+  setInput(profileForm, "hierarchySubordinates", stringifyHierarchyList(hierarchy.subordinates));
 
   setRoleCheckboxes(p.role || "defendant");
 
@@ -483,6 +527,326 @@ async function sync() {
     const selectedEylemCase = eylemCaseSelect.value;
     if (selectedEylemCase) loadEylemSummaries(selectedEylemCase);
   }
+
+  if (timelineCaseSelect) {
+    const prevTimelineCase = timelineCaseSelect.value || localStorage.getItem("dcc_admin_timeline_case");
+    timelineCaseSelect.innerHTML = "";
+    casesToUse.forEach((c) => {
+      const opt = document.createElement("option");
+      opt.value = c.id;
+      opt.textContent = c.title;
+      timelineCaseSelect.appendChild(opt);
+    });
+    if (prevTimelineCase && casesToUse.some((c) => c.id === prevTimelineCase)) {
+      timelineCaseSelect.value = prevTimelineCase;
+    }
+    if (timelineCaseSelect.value) {
+      localStorage.setItem("dcc_admin_timeline_case", timelineCaseSelect.value);
+      await loadTimelineEditor(timelineCaseSelect.value);
+    } else {
+      clearTimelineEditor();
+    }
+  }
+}
+
+function escapeHtml(str) {
+  return String(str || "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
+function clearTimelineEditor() {
+  if (!timelineEnabled || !timelinePreview) return;
+  timelineEnabled.checked = false;
+  if (timelineParserInput) timelineParserInput.value = "";
+  if (timelineEditDate) timelineEditDate.value = "";
+  if (timelineEditIncident) timelineEditIncident.value = "";
+  timelineDraftEvents = [];
+  timelineSelectedIndex = -1;
+  renderTimelineEventList();
+  timelinePreview.innerHTML = `<p class="timeline-preview-empty">Önizleme için zaman çizelgesi satırları girin.</p>`;
+  if (timelineSaveStatus) timelineSaveStatus.textContent = "";
+}
+
+function buildTimelineDescription(event) {
+  const title = String(event.title || "").trim();
+  const note = String(event.note || "").trim();
+  return [title, note].filter(Boolean).join(" — ").trim();
+}
+
+function sortTimelineDraft() {
+  const sortKey = (value) => {
+    const raw = String(value || "").trim();
+    if (!raw) return Number.MAX_SAFE_INTEGER;
+    const m = raw.match(/^(\d{4})(?:-(\d{2})-(\d{2}))?$/);
+    if (!m) return Number.MAX_SAFE_INTEGER - 1;
+    const year = parseInt(m[1], 10);
+    const month = m[2] ? parseInt(m[2], 10) : 1;
+    const day = m[3] ? parseInt(m[3], 10) : 1;
+    if (!Number.isFinite(year) || !Number.isFinite(month) || !Number.isFinite(day)) {
+      return Number.MAX_SAFE_INTEGER - 2;
+    }
+    return year * 10000 + month * 100 + day;
+  };
+  timelineDraftEvents.sort((a, b) => {
+    const ka = sortKey(a.date);
+    const kb = sortKey(b.date);
+    if (ka !== kb) return ka - kb;
+    return String(a.date || "").localeCompare(String(b.date || ""));
+  });
+}
+
+function syncParserInputFromDraft() {
+  if (!timelineParserInput) return;
+  timelineParserInput.value = timelineDraftEvents
+    .map((event) => `${event.date} | ${buildTimelineDescription(event) || "-"}`)
+    .join("\n");
+}
+
+function renderTimelineEventList() {
+  if (!timelineEventList) return;
+  if (!timelineDraftEvents.length) {
+    timelineEventList.innerHTML = `<p class="timeline-preview-empty">Ayrıştırıldıktan sonra tarihler burada listelenir.</p>`;
+    return;
+  }
+
+  timelineEventList.innerHTML = "";
+  timelineDraftEvents.forEach((event, index) => {
+    const item = document.createElement("div");
+    item.className = "timeline-event-item";
+    if (index === timelineSelectedIndex) item.classList.add("active");
+    item.innerHTML = `
+      <div class="timeline-event-main">
+        <div class="timeline-event-date">${escapeHtml(timelineUtils.formatDate(event.date))}</div>
+        <div class="timeline-event-desc">${escapeHtml(buildTimelineDescription(event) || "—")}</div>
+      </div>
+      <button type="button" class="timeline-event-remove" aria-label="Olayı sil">−</button>
+    `;
+    item.addEventListener("click", () => {
+      timelineSelectedIndex = index;
+      if (timelineEditDate) timelineEditDate.value = event.date || "";
+      if (timelineEditIncident) timelineEditIncident.value = buildTimelineDescription(event);
+      renderTimelineEventList();
+    });
+    const removeBtn = item.querySelector(".timeline-event-remove");
+    if (removeBtn) {
+      removeBtn.addEventListener("click", (ev) => {
+        ev.stopPropagation();
+        timelineDraftEvents.splice(index, 1);
+        if (!timelineDraftEvents.length) {
+          timelineSelectedIndex = -1;
+        } else if (timelineSelectedIndex >= timelineDraftEvents.length) {
+          timelineSelectedIndex = timelineDraftEvents.length - 1;
+        }
+        syncParserInputFromDraft();
+        selectTimelineEvent(timelineSelectedIndex);
+        renderTimelinePreview(getTimelineConfigFromForm());
+        if (timelineSaveStatus) timelineSaveStatus.textContent = "Olay silindi.";
+      });
+    }
+    timelineEventList.appendChild(item);
+  });
+}
+
+function parseTimelineLines(rawText) {
+  const text = String(rawText || "")
+    .replace(/\r/g, "\n")
+    .replace(/\u00a0/g, " ")
+    .trim();
+  if (!text) return [];
+
+  // Supports both line-based input and single-paragraph chained records:
+  // YYYY-MM-DD | description ... YYYY-MM-DD | next description ...
+  const tokenRegex = /\b(\d{4}(?:-\d{2}-\d{2})?)\s*\|/g;
+  const tokens = Array.from(text.matchAll(tokenRegex));
+  if (!tokens.length) return [];
+
+  const parsed = [];
+  for (let i = 0; i < tokens.length; i++) {
+    const rawDate = tokens[i][1];
+    const tokenStart = tokens[i].index || 0;
+    const contentStart = tokenStart + tokens[i][0].length;
+    const contentEnd = i + 1 < tokens.length ? (tokens[i + 1].index || text.length) : text.length;
+
+    const date = timelineUtils.toIsoDate ? timelineUtils.toIsoDate(rawDate) : String(rawDate || "").trim();
+    const description = text
+      .slice(contentStart, contentEnd)
+      .replace(/[ \t]+\n/g, "\n")
+      .replace(/\n{3,}/g, "\n\n")
+      .replace(/\s([,.;:!?])/g, "$1")
+      .trim();
+
+    if (!date || !description) continue;
+    parsed.push({
+      date,
+      type: "incident",
+      title: description,
+      note: "",
+      page: null
+    });
+  }
+
+  return parsed;
+}
+
+function selectTimelineEvent(index) {
+  timelineSelectedIndex = index;
+  const event = timelineDraftEvents[index];
+  if (!event) {
+    if (timelineEditDate) timelineEditDate.value = "";
+    if (timelineEditIncident) timelineEditIncident.value = "";
+    renderTimelineEventList();
+    return;
+  }
+  if (timelineEditDate) timelineEditDate.value = event.date || "";
+  if (timelineEditIncident) timelineEditIncident.value = buildTimelineDescription(event);
+  renderTimelineEventList();
+}
+
+function parseTimelineFromTextArea() {
+  const parsed = parseTimelineLines(timelineParserInput ? timelineParserInput.value : "");
+  if (!parsed.length) {
+    if (timelineSaveStatus) timelineSaveStatus.textContent = "Geçerli satır bulunamadı.";
+    return;
+  }
+
+  const byKey = new Map();
+  timelineDraftEvents.forEach((event) => {
+    const key = `${String(event.date || "").trim()}||${String(event.title || "").trim()}`;
+    byKey.set(key, event);
+  });
+  parsed.forEach((event) => {
+    const key = `${String(event.date || "").trim()}||${String(event.title || "").trim()}`;
+    byKey.set(key, event);
+  });
+  timelineDraftEvents = [...byKey.values()];
+
+  sortTimelineDraft();
+  const lastParsed = parsed[parsed.length - 1];
+  const lastParsedKey = `${String(lastParsed.date || "").trim()}||${String(lastParsed.title || "").trim()}`;
+  timelineSelectedIndex = timelineDraftEvents.findIndex((event) => {
+    const key = `${String(event.date || "").trim()}||${String(event.title || "").trim()}`;
+    return key === lastParsedKey;
+  });
+  if (timelineSelectedIndex < 0) timelineSelectedIndex = timelineDraftEvents.length ? 0 : -1;
+  syncParserInputFromDraft();
+  selectTimelineEvent(timelineSelectedIndex);
+  renderTimelinePreview(getTimelineConfigFromForm());
+  if (timelineSaveStatus) {
+    timelineSaveStatus.textContent = `${parsed.length} yeni satır işlendi. Toplam: ${timelineDraftEvents.length}.`;
+  }
+}
+
+function renderTimelinePreview(config) {
+  if (!timelinePreview) return;
+  const normalized = timelineUtils.coerceTimelineConfig(config);
+  if (!normalized.events.length) {
+    timelinePreview.innerHTML = `<p class="timeline-preview-empty">Henüz olay girilmedi.</p>`;
+    return;
+  }
+
+  const cards = normalized.events.map((event) => {
+    const tone = timelineUtils.toneForEvent(event, normalized.transitionYear);
+    const featured = timelineUtils.isFeaturedTransitionEvent(event);
+    const marker = featured ? ` · Geçiş Sf.${timelineUtils.FEATURED_TRANSITION_PAGE || 657}` : "";
+    const title = escapeHtml(event.title);
+    const note = escapeHtml(event.note || "");
+    return `
+      <div class="timeline-preview-item ${tone}">
+        <div class="timeline-preview-date">${escapeHtml(timelineUtils.formatDate(event.date))}</div>
+        <div class="timeline-preview-title">${title}${marker}</div>
+        <div class="timeline-preview-note">${note || "—"}</div>
+      </div>
+    `;
+  }).join("");
+
+  timelinePreview.innerHTML = `<div class="timeline-preview-track">${cards}</div>`;
+}
+
+function getTimelineConfigFromForm() {
+  const base = {
+    enabled: !!(timelineEnabled && timelineEnabled.checked),
+    transitionYear: timelineUtils.DEFAULT_TRANSITION_YEAR || 2016,
+    events: timelineDraftEvents.map((event) => ({
+      date: event.date,
+      type: event.type || "incident",
+      title: buildTimelineDescription(event) || "Olay",
+      note: "",
+      page: event.page || null
+    }))
+  };
+  return timelineUtils.coerceTimelineConfig(base);
+}
+
+function upsertSelectedTimelineEvent() {
+  const rawDate = timelineEditDate ? timelineEditDate.value : "";
+  const description = (timelineEditIncident ? timelineEditIncident.value : "").trim();
+  const isoDate = timelineUtils.toIsoDate ? timelineUtils.toIsoDate(rawDate) : String(rawDate || "").trim();
+  if (!isoDate || !description) {
+    if (timelineSaveStatus) timelineSaveStatus.textContent = "Tarih/Sene ve olay açıklaması gerekli.";
+    return;
+  }
+
+  const event = { date: isoDate, type: "incident", title: description, note: "", page: null };
+  if (timelineSelectedIndex >= 0 && timelineSelectedIndex < timelineDraftEvents.length) {
+    timelineDraftEvents[timelineSelectedIndex] = event;
+  } else {
+    timelineDraftEvents.push(event);
+    timelineSelectedIndex = timelineDraftEvents.length - 1;
+  }
+
+  sortTimelineDraft();
+  syncParserInputFromDraft();
+  const newIndex = timelineDraftEvents.findIndex((item) => item.date === event.date && item.title === event.title);
+  selectTimelineEvent(newIndex >= 0 ? newIndex : 0);
+  renderTimelinePreview(getTimelineConfigFromForm());
+  if (timelineSaveStatus) timelineSaveStatus.textContent = "Olay güncellendi.";
+}
+
+function deleteSelectedTimelineEvent() {
+  if (timelineSelectedIndex < 0 || timelineSelectedIndex >= timelineDraftEvents.length) return;
+  timelineDraftEvents.splice(timelineSelectedIndex, 1);
+  if (!timelineDraftEvents.length) {
+    timelineSelectedIndex = -1;
+  } else if (timelineSelectedIndex >= timelineDraftEvents.length) {
+    timelineSelectedIndex = timelineDraftEvents.length - 1;
+  }
+  syncParserInputFromDraft();
+  selectTimelineEvent(timelineSelectedIndex);
+  renderTimelinePreview(getTimelineConfigFromForm());
+  if (timelineSaveStatus) timelineSaveStatus.textContent = "Olay silindi.";
+}
+
+async function loadTimelineEditor(caseId) {
+  if (!caseId) {
+    clearTimelineEditor();
+    return;
+  }
+  try {
+    const res = await fetch(`/api/cases/${caseId}`);
+    if (!res.ok) throw new Error("load-failed");
+    const caseData = await res.json();
+    const config = timelineUtils.coerceTimelineConfig(caseData.timeline_data || {});
+    timelineEnabled.checked = !!config.enabled;
+    timelineDraftEvents = (config.events || []).map((event) => ({
+      date: event.date,
+      type: "incident",
+      title: buildTimelineDescription(event) || event.title || "",
+      note: "",
+      page: event.page || null
+    }));
+    sortTimelineDraft();
+    syncParserInputFromDraft();
+    timelineSelectedIndex = timelineDraftEvents.length ? 0 : -1;
+    selectTimelineEvent(timelineSelectedIndex);
+    renderTimelinePreview(config);
+    if (timelineSaveStatus) timelineSaveStatus.textContent = "";
+  } catch (err) {
+    clearTimelineEditor();
+  }
 }
 
 activeCaseSelect.addEventListener("change", async () => {
@@ -500,6 +864,52 @@ activeCaseSelect.addEventListener("change", async () => {
 function setInput(form, name, value) {
   const el = form.querySelector(`[name="${name}"]`);
   if (el) el.value = value || "";
+}
+
+function parseCsvList(value) {
+  return String(value || "")
+    .split(",")
+    .map((item) => item.trim())
+    .filter(Boolean);
+}
+
+function normalizeActionNumsForSave(values) {
+  const src = Array.isArray(values) ? values : [values];
+  const out = new Set();
+  src.forEach((value) => {
+    String(value || "")
+      .split(/[,\n]/)
+      .map((v) => v.trim())
+      .filter(Boolean)
+      .forEach((token) => {
+        const m = token.match(/^(\d+)\s*[-–]\s*(\d+)$/);
+        if (m) {
+          const start = parseInt(m[1], 10);
+          const end = parseInt(m[2], 10);
+          if (!isNaN(start) && !isNaN(end)) {
+            const min = Math.min(start, end);
+            const max = Math.max(start, end);
+            for (let n = min; n <= max; n++) out.add(String(n));
+            return;
+          }
+        }
+        out.add(token);
+      });
+  });
+  return [...out];
+}
+
+function stringifyHierarchyList(list) {
+  if (!Array.isArray(list)) return "";
+  return list
+    .map((entry) => {
+      const raw = String(entry || "").trim();
+      if (!raw) return "";
+      const byId = cachedServerPeople.find((person) => person.id === raw);
+      return byId ? byId.name : raw;
+    })
+    .filter(Boolean)
+    .join(", ");
 }
 
 function getSelectedRoles() {
@@ -684,14 +1094,19 @@ function parseSanikKimligi(textBlock) {
     "Gizli Tanık": "secretWitness", "Mağdur": "victim", "Firari": "fugitive", "Tutuklu": "detained"
   };
 
-  const section = textBlock.match(/👤\s*SANIK\s*KİMLİĞİ\s*:\s*([\s\S]*?)(?=⚖️|🚨|🖼️?\s*FOTOĞRAF|$)/u);
+  const section = textBlock.match(/👤\s*SANIK(?:\s*KİMLİĞİ)?\s*:\s*([\s\S]*?)(?=⚖️|🚨|🖼️?\s*FOTOĞRAF|$)/iu);
   if (!section) return null;
   const body = section[1].trim();
 
-  const firstSentence = body.split(/[.,;]/)[0].trim();
+  const firstSentence = body.split(/[.;]/)[0].trim();
+  const leadLine = body.split("\n")[0].trim();
+  const commaHead = cleanName(leadLine.split(",")[0] || "");
+  const commaHeadWords = commaHead.split(/\s+/).filter(Boolean);
   const nameMatch = firstSentence.match(/^([A-ZÇĞİÖŞÜa-zçğıöşü\s]+?)(?:,|\s+(?:bünyesinde|tarafından|hakkında|eski|Eski))/i);
   let name = "";
-  if (nameMatch) {
+  if (commaHeadWords.length >= 2 && commaHeadWords.length <= 5) {
+    name = commaHead;
+  } else if (nameMatch) {
     name = nameMatch[1].trim();
   } else {
     const words = firstSentence.split(/\s+/);
@@ -736,6 +1151,38 @@ function parseSanikKimligi(textBlock) {
     const inlineOrgMatch = body.match(/,\s*([A-ZÇĞİÖŞÜİ][^\n,]*(?:bünyesinde|nezdinde|A\.Ş\.|Ltd\.|Holding|Müdürlüğü|Başkanlığı|Belediyesi|Şirketi))/i);
     if (inlineOrgMatch) {
       organization = inlineOrgMatch[1].replace(/\s*bünyesinde\s*/i, "").replace(/\s*nezdinde\s*/i, "").trim();
+    }
+  }
+
+  // Supports inline format:
+  // "👤 SANIK: Ad Soyad, Kurum A.Ş. yönetim kurulu üyesidir. Ayrıca ..."
+  if (!organization || !titleVal) {
+    const inlineSentence = body.split(".")[0].trim();
+    const afterComma = inlineSentence.includes(",") ? inlineSentence.split(",").slice(1).join(",").trim() : "";
+    if (afterComma) {
+      const orgInlineMatch = afterComma.match(/([A-ZÇĞİÖŞÜİ][A-Za-zÇĞİÖŞÜçğıöşü0-9\s.&'’-]*?(?:A\.Ş\.?|Ltd\.?|Holding|Üniversitesi|Vakfı|Vakıf|Derneği|Belediyesi|Müdürlüğü|Başkanlığı))/u);
+      if (orgInlineMatch && !organization) {
+        organization = orgInlineMatch[1].trim();
+      }
+      if (!titleVal) {
+        let titleInline = afterComma;
+        if (organization) titleInline = titleInline.replace(organization, "").trim();
+        titleInline = titleInline
+          .replace(/^\s*,?\s*/u, "")
+          .replace(/\s+üyesidir\.?$/iu, " üyesi")
+          .replace(/\s+olarak\s+görev.*$/iu, "")
+          .replace(/\s+görevlerini?\s+yürütmüştür.*$/iu, "")
+          .trim();
+        titleVal = titleInline;
+      }
+    }
+  }
+
+  const extraDuty = body.match(/Ayrıca\s+([^.\n]+?)(?:\s+görevlerini?\s+yürütmüştür|\s+olarak\s+görev.*|\.|$)/iu);
+  if (extraDuty && extraDuty[1]) {
+    const extraTitle = extraDuty[1].trim();
+    if (extraTitle && !titleVal.includes(extraTitle)) {
+      titleVal = titleVal ? `${titleVal} · ${extraTitle}` : extraTitle;
     }
   }
 
@@ -800,9 +1247,7 @@ function parseMentionedNames(block) {
   const mentionedNames = [];
   const mnSection = block.match(/👥\s*(?:GEÇEN\s*İSİMLER|(?:[A-ZÇĞİÖŞÜa-zçğıöşü\s]+\s+)?DAHLİ\s*OLANLAR)\s*:?\s*([\s\S]*?)(?=🚨|📂|👤|🚩|🖼|$)/u);
   if (!mnSection) {
-    const blockText = block.replace(/👥[\s\S]*$/u, "");
-    const autoNames = extractNamesFromText(blockText);
-    return autoNames.map(n => ({ name: n, roles: ["unknown"], context: "" }));
+    return [];
   }
 
   const mnBody = mnSection[1].trim();
@@ -957,7 +1402,9 @@ function parsePastedText(text) {
     const defenseMatch = block.match(/SAVUNMA\s*:\s*([\s\S]*?)(?=👥|$)/i);
 
     const blockActionNums = [];
-    const eylemSource = eylemMatch ? eylemMatch[1].trim() : block;
+    // Only parse action numbers from explicit EYLEM-tagged content.
+    // This prevents random years/case numbers in free text from being treated as action ids.
+    const eylemSource = eylemMatch ? eylemMatch[1].trim() : "";
     const blockRangeRefs = eylemSource.match(/(?:Eylem\s*)?(\d+)\s*[-–]\s*(\d+)/gi) || [];
     const blockRangeProcessed = new Set();
     blockRangeRefs.forEach(ref => {
@@ -1403,6 +1850,79 @@ clearBtn.addEventListener("click", () => {
   resetProfileForm();
 });
 
+if (timelineCaseSelect) {
+  timelineCaseSelect.addEventListener("change", async () => {
+    const caseId = timelineCaseSelect.value;
+    if (caseId) localStorage.setItem("dcc_admin_timeline_case", caseId);
+    await loadTimelineEditor(caseId);
+  });
+}
+
+if (timelinePreviewBtn) {
+  timelinePreviewBtn.addEventListener("click", () => {
+    renderTimelinePreview(getTimelineConfigFromForm());
+  });
+}
+
+if (timelineParseBtn) {
+  timelineParseBtn.addEventListener("click", parseTimelineFromTextArea);
+}
+
+if (timelineClearBtn) {
+  timelineClearBtn.addEventListener("click", () => {
+    timelineDraftEvents = [];
+    timelineSelectedIndex = -1;
+    if (timelineParserInput) timelineParserInput.value = "";
+    if (timelineEditDate) timelineEditDate.value = "";
+    if (timelineEditIncident) timelineEditIncident.value = "";
+    renderTimelineEventList();
+    renderTimelinePreview(getTimelineConfigFromForm());
+    if (timelineSaveStatus) timelineSaveStatus.textContent = "Zaman çizelgesi editörü temizlendi.";
+  });
+}
+
+if (timelineUpdateBtn) {
+  timelineUpdateBtn.addEventListener("click", upsertSelectedTimelineEvent);
+}
+
+if (timelineDeleteBtn) {
+  timelineDeleteBtn.addEventListener("click", deleteSelectedTimelineEvent);
+}
+
+if (timelineEditIncident) {
+  timelineEditIncident.addEventListener("keydown", (event) => {
+    if (event.key === "Enter") {
+      event.preventDefault();
+      upsertSelectedTimelineEvent();
+    }
+  });
+}
+
+if (timelineSaveBtn) {
+  timelineSaveBtn.addEventListener("click", async () => {
+    const caseId = timelineCaseSelect && timelineCaseSelect.value;
+    if (!caseId) {
+      if (timelineSaveStatus) timelineSaveStatus.textContent = "Önce bir dava seçin.";
+      return;
+    }
+    parseTimelineFromTextArea();
+    const config = getTimelineConfigFromForm();
+    try {
+      const res = await fetch(`/api/cases/${caseId}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ timeline_data: config })
+      });
+      if (!res.ok) throw new Error("save-failed");
+      renderTimelinePreview(config);
+      if (timelineSaveStatus) timelineSaveStatus.textContent = "Zaman çizelgesi kaydedildi.";
+      await sync();
+    } catch (err) {
+      if (timelineSaveStatus) timelineSaveStatus.textContent = "Zaman çizelgesi kaydedilirken bir hata oluştu.";
+    }
+  });
+}
+
 caseForm.addEventListener("submit", async (event) => {
   event.preventDefault();
   const formData = new FormData(caseForm);
@@ -1505,7 +2025,11 @@ profileForm.addEventListener("submit", async (event) => {
     tck_articles: currentTckCodes,
     sentence_demand: formData.get("sentenceDemand"),
     action_numbers: currentActionNums,
-    charge: formData.get("summary")
+    charge: formData.get("summary"),
+    hierarchy: {
+      superiors: parseCsvList(formData.get("hierarchySuperiors")),
+      subordinates: parseCsvList(formData.get("hierarchySubordinates"))
+    }
   };
 
   try {
@@ -1538,25 +2062,29 @@ profileForm.addEventListener("submit", async (event) => {
         }
         const allMentionedNames = new Map();
         for (const acc of lastParsed.accusations) {
-          await fetch("/api/actions", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              caseId,
-              personId: person.id,
-              actionNum: (acc.actionNums || []).join(", "),
-              title: acc.title || "",
-              claim: acc.claim || "",
-              evidence: acc.evidence || "",
-              defense: acc.defense || "",
-              tckCodes: acc.tckCodes || [],
-              sentenceDemand: lastParsed.sentenceDemand || "",
-              mentionedNames: (acc.mentionedNames || []).map(mn => {
-                if (typeof mn === "string") return cleanName(mn);
-                return { ...mn, name: cleanName(mn.name) };
+          const actionNumsForAcc = normalizeActionNumsForSave(acc.actionNums || []);
+          const perActionNums = actionNumsForAcc.length ? actionNumsForAcc : [""];
+          for (const actionNum of perActionNums) {
+            await fetch("/api/actions", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                caseId,
+                personId: person.id,
+                actionNum,
+                title: acc.title || "",
+                claim: acc.claim || "",
+                evidence: acc.evidence || "",
+                defense: acc.defense || "",
+                tckCodes: acc.tckCodes || [],
+                sentenceDemand: lastParsed.sentenceDemand || "",
+                mentionedNames: (acc.mentionedNames || []).map(mn => {
+                  if (typeof mn === "string") return cleanName(mn);
+                  return { ...mn, name: cleanName(mn.name) };
+                })
               })
-            })
-          });
+            });
+          }
           (acc.mentionedNames || []).forEach(mn => {
             const entry = typeof mn === "string" ? { name: mn, roles: ["unknown"] } : mn;
             entry.roles = normalizeRoles(entry);

@@ -40,6 +40,10 @@
           <option value="all">Tüm Eylemler</option>
         </select>
         <input id="name-search" type="search" placeholder="İsim ara" />
+        <button id="timeline-toggle" class="btn panel-toggle active" type="button">Zaman Çizelgesi</button>
+        <button id="network-toggle" class="btn panel-toggle active" type="button">Hiyerarşi / Bağlar</button>
+        <button id="eylem-toggle" class="btn panel-toggle active" type="button">Eylem</button>
+        <button id="case-detail-toggle" class="btn panel-toggle active" type="button">Dava Detayı</button>
         <a class="btn" href="/" style="background: rgba(139, 30, 30, 0.45); border-color: rgba(139, 30, 30, 0.5); color: #fff;">Ana Menü</a>
       </div>
     </header>
@@ -91,6 +95,19 @@
       <button id="case-panel-toggle" class="panel-reopen-btn">Dava Bilgileri</button>
 
       <div id="network" class="network full"></div>
+
+      <section id="map-inline-timeline" class="map-inline-timeline is-hidden">
+        <h2 class="map-inline-title">Zaman Çizelgesi</h2>
+        <div id="map-inline-track" class="map-inline-track"></div>
+      </section>
+
+      <aside id="detail-drawer" class="detail-drawer is-hidden">
+        <header class="detail-drawer-head">
+          <h3 id="detail-drawer-title">Detay</h3>
+          <button id="detail-drawer-close" class="panel-close-btn" type="button">&times;</button>
+        </header>
+        <div id="detail-drawer-body" class="detail-drawer-body"></div>
+      </aside>
     </div>
 
     <dialog id="case-modal" class="modal">
@@ -235,25 +252,8 @@
       </div>
     </dialog>
 
-    <div id="eylem-modal" class="eylem-floating-panel" style="display:none;">
-      <header>
-        <h3 id="eylem-modal-title">Eylem</h3>
-        <button id="eylem-close" class="close">✕</button>
-      </header>
-      <div id="eylem-modal-body" class="eylem-modal-body">
-        <p id="eylem-summary-text" class="eylem-summary-text"></p>
-      </div>
-    </div>
-
-    <div id="edge-panel" class="edge-floating-panel" style="display:none;">
-      <header>
-        <h3 id="edge-panel-title">Bağlantı</h3>
-        <button id="edge-panel-close" class="close">✕</button>
-      </header>
-      <div id="edge-panel-body" class="edge-panel-body"></div>
-    </div>
-
     <script src="https://unpkg.com/vis-network/standalone/umd/vis-network.min.js"></script>
+    <script src="/timeline.js"></script>
     <script src="/map.js"></script>
   </body>
 </html>

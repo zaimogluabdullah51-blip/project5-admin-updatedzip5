@@ -109,6 +109,7 @@ app.get("/api/cases", async (req, res) => {
     const mapped = rows.map((row) => ({
       ...row,
       tck_articles: parseJsonField(row.tck_articles, []),
+      timeline_data: parseJsonField(row.timeline_data, { enabled: false, transitionYear: 2016, events: [] }),
       hearing_count: row.hearing_count || 0
     }));
     res.json(mapped);
@@ -156,6 +157,7 @@ app.get("/api/cases/:id", async (req, res) => {
     res.json({
       ...caseRow,
       tck_articles: parseJsonField(caseRow.tck_articles, []),
+      timeline_data: parseJsonField(caseRow.timeline_data, { enabled: false, transitionYear: 2016, events: [] }),
       hearing_count: caseRow.hearing_count || 0,
       people: mappedPeople,
       actions: mappedActions
@@ -223,7 +225,8 @@ app.put("/api/cases/:id", requireAuthApi, async (req, res) => {
     if (!updated) return res.status(404).json({ error: "Case not found." });
     res.json({
       ...updated,
-      tck_articles: parseJsonField(updated.tck_articles, [])
+      tck_articles: parseJsonField(updated.tck_articles, []),
+      timeline_data: parseJsonField(updated.timeline_data, { enabled: false, transitionYear: 2016, events: [] })
     });
   } catch (err) {
     res.status(500).json({ error: "Dava güncellenemedi." });
@@ -740,8 +743,8 @@ const port = process.env.PORT || 5000;
 
 init()
   .then(() => {
-    app.listen(port, () => {
-      console.log(`Server running on http://localhost:${port}`);
+    app.listen(port, "0.0.0.0", () => {
+      console.log(`Server running on http://0.0.0.0:${port}`);
     });
   })
   .catch((err) => {

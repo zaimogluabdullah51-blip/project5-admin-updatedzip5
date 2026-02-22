@@ -1,6 +1,10 @@
 const caseSelect = document.getElementById("case-select");
 const eylemFilter = document.getElementById("eylem-filter");
 const nameSearch = document.getElementById("name-search");
+const timelineToggle = document.getElementById("timeline-toggle");
+const networkToggle = document.getElementById("network-toggle");
+const eylemToggle = document.getElementById("eylem-toggle");
+const caseDetailToggle = document.getElementById("case-detail-toggle");
 
 const caseTitle = document.getElementById("case-title");
 const caseNumber = document.getElementById("case-number");
@@ -17,6 +21,13 @@ const casePanelContainer = document.getElementById("case-panel-container");
 const casePanelClose = document.getElementById("case-panel-close");
 const casePanelToggle = document.getElementById("case-panel-toggle");
 const caseSummaryText = document.getElementById("case-summary-text");
+const mapInlineTimeline = document.getElementById("map-inline-timeline");
+const mapInlineTrack = document.getElementById("map-inline-track");
+const detailDrawer = document.getElementById("detail-drawer");
+const mapTopbar = document.querySelector(".map-topbar");
+const detailDrawerTitle = document.getElementById("detail-drawer-title");
+const detailDrawerBody = document.getElementById("detail-drawer-body");
+const detailDrawerClose = document.getElementById("detail-drawer-close");
 
 const caseModal = document.getElementById("case-modal");
 const caseClose = document.getElementById("case-close");
@@ -34,15 +45,6 @@ const caseDetailAcceptanceDate = document.getElementById("case-detail-acceptance
 const caseDetailVerdictDate = document.getElementById("case-detail-verdict-date");
 const caseDetailStatus = document.getElementById("case-detail-status");
 const caseDetailSummary = document.getElementById("case-detail-summary");
-
-const eylemModal = document.getElementById("eylem-modal");
-const eylemClose = document.getElementById("eylem-close");
-const eylemModalTitle = document.getElementById("eylem-modal-title");
-const eylemSummaryText = document.getElementById("eylem-summary-text");
-const edgePanel = document.getElementById("edge-panel");
-const edgePanelClose = document.getElementById("edge-panel-close");
-const edgePanelTitle = document.getElementById("edge-panel-title");
-const edgePanelBody = document.getElementById("edge-panel-body");
 
 const personModal = document.getElementById("person-modal");
 const personClose = document.getElementById("person-close");
@@ -70,8 +72,29 @@ let allActions = [];
 let eylemSummaries = {};
 let nodesCache = [];
 let edgesCache = [];
+let timelineVisible = true;
+let timelineHasData = false;
+let networkPanelVisible = true;
+let hierarchyLayerVisible = true;
+let actionLayerVisible = true;
+let detailPanelVisible = false;
+let currentLayoutMode = "none";
+let previousLayoutMode = "none";
 
 const fallbackImage = "/assets/default-avatar.svg";
+
+const timelineUtils = window.TimelineUtils || {
+  DEFAULT_TRANSITION_YEAR: 2016,
+  FEATURED_TRANSITION_PAGE: 657,
+  formatDate: (d) => String(d || ""),
+  coerceTimelineConfig: (raw) => ({
+    enabled: !!(raw && raw.enabled),
+    transitionYear: 2016,
+    events: Array.isArray(raw && raw.events) ? raw.events : []
+  }),
+  toneForEvent: () => "cold",
+  isFeaturedTransitionEvent: () => false
+};
 
 const roleLabels = {
   defendant: "Sanık",
@@ -183,18 +206,356 @@ function renderCaseInfo(caseData) {
   caseDetailSummary.textContent = caseData.summary || "—";
 }
 
-function buildGraph(caseData) {
+function escapeHtml(str) {
+  return String(str || "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
+function setToggleActive(button, isActive) {
+  if (!button) return;
+  button.classList.toggle("active", !!isActive);
+}
+
+function showInlineTimeline(visible) {
+  if (!mapInlineTimeline) return;
+  timelineVisible = !!visible;
+  mapInlineTimeline.classList.toggle("is-hidden", !timelineVisible);
+  setToggleActive(timelineToggle, timelineVisible);
+}
+
+function showNetworkPanel(visible) {
+  if (!casePanelContainer) return;
+  networkPanelVisible = !!visible;
+  casePanelContainer.classList.toggle("collapsed", !networkPanelVisible);
+  if (casePanelToggle) casePanelToggle.style.display = networkPanelVisible ? "none" : "block";
+  setToggleActive(caseDetailToggle, networkPanelVisible);
+}
+
+function syncFloatingPanelOffsets() {
+  const topbarHeight = mapTopbar ? Math.ceil(mapTopbar.getBoundingClientRect().height) : 96;
+  document.documentElement.style.setProperty("--map-topbar-offset", `${Math.max(topbarHeight, 72)}px`);
+}
+
+function showHierarchyLayer(visible) {
+  hierarchyLayerVisible = !!visible;
+  setToggleActive(networkToggle, hierarchyLayerVisible);
+  if (selectedCase) {
+    loadCase(selectedCase.id, true);
+  } else {
+    filterGraph();
+  }
+}
+
+function showActionLayer(visible) {
+  actionLayerVisible = !!visible;
+  setToggleActive(eylemToggle, actionLayerVisible);
+  if (selectedCase) {
+    loadCase(selectedCase.id, true);
+  } else {
+    filterGraph();
+  }
+}
+
+function showDetailPanel(visible) {
+  if (!detailDrawer) return;
+  detailPanelVisible = !!visible;
+  detailDrawer.classList.toggle("is-hidden", !detailPanelVisible);
+}
+
+function openDetailPanel(title, html) {
+  if (detailDrawerTitle) detailDrawerTitle.textContent = title || "Detay";
+  if (detailDrawerBody) detailDrawerBody.innerHTML = html || "";
+  showDetailPanel(true);
+}
+
+function renderInlineTimeline(config) {
+  if (!mapInlineTrack) return;
+  if (!config.enabled || !config.events.length) {
+    timelineHasData = false;
+    mapInlineTrack.innerHTML = "";
+    showInlineTimeline(false);
+    return;
+  }
+  timelineHasData = true;
+
+  const items = config.events.map((event, index) => {
+    const tone = timelineUtils.toneForEvent(event, config.transitionYear);
+    const incident = escapeHtml(event.title || "Olay");
+    const arrow = index < config.events.length - 1 ? `<span class="map-inline-arrow">→</span>` : "";
+    return `
+      <div class="map-inline-item ${tone}">
+        <div class="map-inline-date">${escapeHtml(timelineUtils.formatDate(event.date))}</div>
+        <div class="map-inline-incident">${incident}</div>
+      </div>
+      ${arrow}
+    `;
+  }).join("");
+
+  mapInlineTrack.innerHTML = items;
+  showInlineTimeline(timelineVisible);
+}
+
+function renderTimeline(caseData) {
+  const config = timelineUtils.coerceTimelineConfig(caseData.timeline_data || {});
+  renderInlineTimeline(config);
+}
+
+function normalizeHierarchyRefs(value) {
+  if (Array.isArray(value)) return value.map((v) => String(v || "").trim()).filter(Boolean);
+  if (typeof value === "string") {
+    return value
+      .split(",")
+      .map((v) => v.trim())
+      .filter(Boolean);
+  }
+  return [];
+}
+
+function splitActionNums(rawValue) {
+  const raw = String(rawValue || "").trim();
+  if (!raw) return [];
+  const out = [];
+  raw
+    .split(/[,\n]/)
+    .map((t) => t.trim())
+    .filter(Boolean)
+    .forEach((token) => {
+      const m = token.match(/^(\d+)\s*[-–]\s*(\d+)$/);
+      if (m) {
+        const start = parseInt(m[1], 10);
+        const end = parseInt(m[2], 10);
+        if (!isNaN(start) && !isNaN(end)) {
+          const min = Math.min(start, end);
+          const max = Math.max(start, end);
+          for (let n = min; n <= max; n++) out.push(String(n));
+          return;
+        }
+      }
+      out.push(token);
+    });
+  return [...new Set(out)];
+}
+
+function normalizeActionRows(rows) {
+  const list = Array.isArray(rows) ? rows : [];
+  const out = [];
+  list.forEach((row) => {
+    const nums = splitActionNums(row.action_num);
+    if (!nums.length) {
+      out.push(row);
+      return;
+    }
+    nums.forEach((num) => {
+      out.push({ ...row, action_num: num });
+    });
+  });
+  return out;
+}
+
+function resolvePersonIdByRef(ref, peopleList, nameToId) {
+  const raw = String(ref || "").trim();
+  if (!raw) return null;
+  const byId = peopleList.find((person) => person.id === raw);
+  if (byId) return byId.id;
+  return nameToId.get(raw.toLowerCase()) || null;
+}
+
+function hasActionFocusedData(peopleList) {
+  const hasActionRows = (allActions || []).some((action) => String(action.action_num || "").trim());
+  const hasSummaryRows = Object.keys(eylemSummaries || {}).length > 0;
+  return hasActionRows || hasSummaryRows;
+}
+
+function hasHierarchyData(peopleList) {
+  return peopleList.some((person) => {
+    const hierarchy = person.hierarchy || {};
+    const sup = normalizeHierarchyRefs(hierarchy.superiors);
+    const sub = normalizeHierarchyRefs(hierarchy.subordinates);
+    return sup.length > 0 || sub.length > 0 || (person.related_profiles || []).length > 0;
+  });
+}
+
+function buildPersonActionNumsMap(peopleList) {
+  const map = new Map();
+  peopleList.forEach((person) => map.set(person.id, new Set()));
+  (allActions || []).forEach((action) => {
+    const personId = action.person_id;
+    if (!personId || !map.has(personId)) return;
+    splitActionNums(action.action_num || "").forEach((num) => {
+      const trimmed = String(num || "").trim();
+      if (trimmed) map.get(personId).add(trimmed);
+    });
+  });
+  return map;
+}
+
+function buildHierarchyGraph(caseData) {
   const peopleList = caseData.people || [];
+  const nodes = [];
+  const edges = [];
+  const hierarchyEdgeSet = new Set();
+
+  const nameToId = new Map();
+  for (const person of peopleList) {
+    const key = String(person.name || "").toLowerCase().trim();
+    if (key && !nameToId.has(key)) nameToId.set(key, person.id);
+  }
+
+  const childrenById = new Map();
+  const parentsById = new Map();
+  const addHierarchyEdge = (fromId, toId) => {
+    if (!fromId || !toId || fromId === toId) return;
+    const key = `${fromId}->${toId}`;
+    if (hierarchyEdgeSet.has(key)) return;
+    hierarchyEdgeSet.add(key);
+    if (!childrenById.has(fromId)) childrenById.set(fromId, new Set());
+    if (!parentsById.has(toId)) parentsById.set(toId, new Set());
+    childrenById.get(fromId).add(toId);
+    parentsById.get(toId).add(fromId);
+  };
+
+  for (const person of peopleList) {
+    const hierarchy = person.hierarchy || {};
+    const superiors = normalizeHierarchyRefs(hierarchy.superiors);
+    const subordinates = normalizeHierarchyRefs(hierarchy.subordinates);
+
+    superiors.forEach((ref) => {
+      const supId = resolvePersonIdByRef(ref, peopleList, nameToId);
+      if (supId) addHierarchyEdge(supId, person.id);
+    });
+
+    subordinates.forEach((ref) => {
+      const subId = resolvePersonIdByRef(ref, peopleList, nameToId);
+      if (subId) addHierarchyEdge(person.id, subId);
+    });
+  }
+
+  const levels = new Map();
+  const indegree = new Map();
+  peopleList.forEach((person) => indegree.set(person.id, (parentsById.get(person.id) || new Set()).size));
+
+  let roots = peopleList.filter((person) => (indegree.get(person.id) || 0) === 0).map((person) => person.id);
+  if (!roots.length) roots = peopleList.map((person) => person.id);
+
+  const queue = [...roots];
+  roots.forEach((id) => levels.set(id, 0));
+
+  while (queue.length) {
+    const id = queue.shift();
+    const baseLevel = levels.get(id) || 0;
+    const children = childrenById.get(id) || new Set();
+    children.forEach((childId) => {
+      const nextLevel = baseLevel + 1;
+      const current = levels.get(childId);
+      if (current === undefined || nextLevel > current) levels.set(childId, nextLevel);
+      indegree.set(childId, Math.max(0, (indegree.get(childId) || 0) - 1));
+      if ((indegree.get(childId) || 0) === 0) queue.push(childId);
+    });
+  }
+
+  peopleList.forEach((person) => {
+    if (!levels.has(person.id)) levels.set(person.id, 0);
+  });
+
+  const grouped = new Map();
+  peopleList.forEach((person) => {
+    const level = levels.get(person.id) || 0;
+    if (!grouped.has(level)) grouped.set(level, []);
+    grouped.get(level).push(person);
+  });
+
+  const sortedLevels = [...grouped.keys()].sort((a, b) => a - b);
+  const xGap = 280;
+  const yGap = 210;
+  const centerX = 520;
+  const startY = 120;
+
+  sortedLevels.forEach((level) => {
+    const peopleAtLevel = grouped.get(level).sort((a, b) => String(a.name || "").localeCompare(String(b.name || "")));
+    const count = peopleAtLevel.length;
+    const rowStartX = centerX - ((count - 1) * xGap) / 2;
+    peopleAtLevel.forEach((person, index) => {
+      const y = startY + level * yGap;
+      const x = rowStartX + index * xGap;
+      const roleText = (person.role || "").split(",").map((r) => roleLabels[r.trim()] || r.trim()).filter(Boolean).join(" | ");
+      const orgTitle = [person.organization, person.title].filter(Boolean).join(" · ");
+      const lines = [person.name, roleText, orgTitle].filter(Boolean).join("\n");
+      nodes.push({
+        id: person.id,
+        label: lines,
+        shape: "box",
+        x,
+        y,
+        fixed: { x: true, y: true },
+        widthConstraint: { minimum: 190, maximum: 240 },
+        margin: { top: 12, right: 12, bottom: 12, left: 12 },
+        font: { color: "#e5e7eb", size: 12, multi: "md", face: "Space Grotesk" },
+        borderWidth: 2,
+        color: {
+          border: "rgba(122, 149, 176, 0.65)",
+          background: "rgba(17, 24, 39, 0.85)"
+        },
+        _eylemNum: "all",
+        _layer: "hierarchy"
+      });
+    });
+  });
+
+  hierarchyEdgeSet.forEach((key) => {
+    const [fromId, toId] = key.split("->");
+    const fromPerson = peopleList.find((person) => person.id === fromId);
+    const toPerson = peopleList.find((person) => person.id === toId);
+    edges.push({
+      from: fromId,
+      to: toId,
+      arrows: "to",
+      color: { color: "rgba(96, 165, 250, 0.55)" },
+      smooth: { type: "cubicBezier", roundness: 0.25 },
+      width: 2,
+      _fromName: fromPerson ? fromPerson.name : fromId,
+      _toName: toPerson ? toPerson.name : toId,
+      _type: "hierarchy",
+      _layer: "hierarchy",
+      _details: []
+    });
+  });
+
+  // Intentionally omit generic profile-to-profile links in hierarchy mode
+  // to keep the graph legible; hierarchy edges are the primary relation layer.
+
+  nodesCache = nodes;
+  edgesCache = edges;
+  return { nodes, edges, eylemNums: [], layoutMode: "hiyerarsi" };
+}
+
+function addActionOverlayToHierarchyGraph(graph, caseData) {
+  const peopleList = caseData.people || [];
+  const peopleById = new Map(peopleList.map((p) => [p.id, p]));
+  const personActionNumsMap = buildPersonActionNumsMap(peopleList);
+  const nameToIds = new Map();
+  peopleList.forEach((p) => {
+    const key = String(p.name || "").toLowerCase().trim();
+    if (!key) return;
+    if (!nameToIds.has(key)) nameToIds.set(key, []);
+    nameToIds.get(key).push(p.id);
+  });
+
+  const edgeSet = new Set(
+    graph.edges.map((edge) => `${edge._type || "edge"}:${edge.from}->${edge.to}`)
+  );
 
   const eylemNumsSet = new Set();
-  for (const p of peopleList) {
-    const raw = p.action_numbers || [];
-    for (const n of raw) {
-      String(n).split(/[,\s]+/).filter(Boolean).forEach((v) => {
-        const trimmed = v.trim();
-        if (trimmed) eylemNumsSet.add(trimmed);
-      });
-    }
+  for (const action of allActions || []) {
+    const raw = String(action.action_num || "").trim();
+    if (!raw) continue;
+    raw.split(/[,\s]+/).filter(Boolean).forEach((v) => {
+      const trimmed = v.trim();
+      if (trimmed) eylemNumsSet.add(trimmed);
+    });
   }
 
   const eylemNums = [...eylemNumsSet].sort((a, b) => {
@@ -204,8 +565,154 @@ function buildGraph(caseData) {
     return a.localeCompare(b);
   });
 
-  const unassignedPeople = peopleList.filter((p) => !(p.action_numbers || []).length);
-  const hasNoEylem = unassignedPeople.length > 0;
+  if (eylemNums.length) {
+    const nodeXs = graph.nodes.map((n) => Number(n.x)).filter((v) => Number.isFinite(v));
+    const nodeYs = graph.nodes.map((n) => Number(n.y)).filter((v) => Number.isFinite(v));
+    const minX = nodeXs.length ? Math.min(...nodeXs) : 0;
+    const minY = nodeYs.length ? Math.min(...nodeYs) : 120;
+    const startX = minX - 360;
+    const startY = minY + 10;
+    const yStep = 78;
+
+    eylemNums.forEach((num, idx) => {
+      const bandId = `band:${num}`;
+      if (!graph.nodes.some((n) => n.id === bandId)) {
+        graph.nodes.push({
+          id: bandId,
+          label: `Eylem ${num}`,
+          shape: "box",
+          x: startX,
+          y: startY + idx * yStep,
+          fixed: { x: true, y: true },
+          widthConstraint: { minimum: 150, maximum: 180 },
+          heightConstraint: { minimum: 32, maximum: 36 },
+          color: {
+            background: "rgba(139, 30, 30, 0.58)",
+            border: "rgba(200, 60, 60, 0.46)"
+          },
+          font: { color: "#fecaca", size: 11, face: "Space Grotesk" },
+          borderWidth: 1,
+          _eylemNum: num,
+          _layer: "action"
+        });
+      }
+
+      for (const person of peopleList) {
+        const nums = personActionNumsMap.get(person.id) || new Set();
+        if (!nums.has(num)) continue;
+        const relKey = `action-membership:${bandId}->${person.id}`;
+        if (edgeSet.has(relKey)) continue;
+        edgeSet.add(relKey);
+        graph.edges.push({
+          from: bandId,
+          to: person.id,
+          arrows: "to",
+          dashes: [4, 4],
+          width: 1.4,
+          color: { color: "rgba(248, 113, 113, 0.5)" },
+          smooth: { type: "continuous" },
+          _fromName: `Eylem ${num}`,
+          _toName: person.name || person.id,
+          _type: "action-membership",
+          _layer: "action",
+          _details: []
+        });
+      }
+    });
+  }
+
+  const mentionedRoleEdgeColors = {
+    unknown: "rgba(251, 191, 36, 0.52)",
+    defendant: "rgba(209, 213, 219, 0.52)",
+    informant: "rgba(234, 179, 8, 0.52)",
+    witness: "rgba(59, 130, 246, 0.52)",
+    secretWitness: "rgba(229, 231, 235, 0.52)",
+    victim: "rgba(168, 85, 247, 0.52)",
+    fugitive: "rgba(239, 68, 68, 0.52)",
+    detained: "rgba(156, 163, 175, 0.52)"
+  };
+
+  const showMentionLinksInOverlay = false;
+  if (showMentionLinksInOverlay) for (const action of allActions) {
+    const fromId = action.person_id;
+    if (!fromId || !peopleById.has(fromId)) continue;
+    const mentioned = action.mentioned_names || [];
+    for (const mn of mentioned) {
+      const entry = typeof mn === "string" ? { name: mn, role: "unknown" } : mn;
+      const mentionedName = String(entry.name || "").toLowerCase().trim();
+      if (!mentionedName) continue;
+      const matchedIds = nameToIds.get(mentionedName) || [];
+      for (const toId of matchedIds) {
+        if (!toId || toId === fromId || !peopleById.has(toId)) continue;
+        const key = `mention:${fromId}->${toId}`;
+        if (edgeSet.has(key)) continue;
+        edgeSet.add(key);
+        const role = getPrimaryRole(entry);
+        graph.edges.push({
+          from: fromId,
+          to: toId,
+          dashes: true,
+          color: { color: mentionedRoleEdgeColors[role] || mentionedRoleEdgeColors.unknown },
+          smooth: { type: "continuous" },
+          width: 1.5,
+          _fromName: peopleById.get(fromId)?.name || fromId,
+          _toName: peopleById.get(toId)?.name || toId,
+          _type: "mention",
+          _layer: "action",
+          _details: [{ eylem: action.action_num || "", role: getRolesLabel(entry), context: entry.context || "" }]
+        });
+      }
+    }
+  }
+
+  return graph;
+}
+
+function buildGraph(caseData) {
+  const peopleList = caseData.people || [];
+  const actionAvailable = hasActionFocusedData(peopleList);
+  const hierarchyAvailable = hasHierarchyData(peopleList);
+  const personActionNumsMap = buildPersonActionNumsMap(peopleList);
+
+  if (!actionLayerVisible && !hierarchyLayerVisible) {
+    nodesCache = [];
+    edgesCache = [];
+    return { nodes: [], edges: [], eylemNums: [], layoutMode: "none" };
+  }
+
+  if (hierarchyLayerVisible && hierarchyAvailable) {
+    let hierarchyGraph = buildHierarchyGraph(caseData);
+    if (actionLayerVisible && actionAvailable) {
+      hierarchyGraph = addActionOverlayToHierarchyGraph(hierarchyGraph, caseData);
+      nodesCache = hierarchyGraph.nodes;
+      edgesCache = hierarchyGraph.edges;
+    }
+    return hierarchyGraph;
+  }
+
+  if (!actionLayerVisible) {
+    nodesCache = [];
+    edgesCache = [];
+    return { nodes: [], edges: [], eylemNums: [], layoutMode: "none" };
+  }
+
+  const eylemNumsSet = new Set();
+  (allActions || []).forEach((action) => {
+    splitActionNums(action.action_num || "").forEach((num) => {
+      const trimmed = String(num || "").trim();
+      if (trimmed) eylemNumsSet.add(trimmed);
+    });
+  });
+
+  const eylemNums = [...eylemNumsSet].sort((a, b) => {
+    const na = parseInt(a, 10);
+    const nb = parseInt(b, 10);
+    if (!isNaN(na) && !isNaN(nb)) return na - nb;
+    return a.localeCompare(b);
+  });
+
+  const unassignedPeople = peopleList.filter((p) => (personActionNumsMap.get(p.id)?.size || 0) === 0);
+  const hasNoEylem = hierarchyLayerVisible && unassignedPeople.length > 0 && eylemNums.length > 0;
 
   const perRow = 6;
   const rowHeight = 160;
@@ -225,6 +732,40 @@ function buildGraph(caseData) {
 
   const nodes = [];
   const personNodeMap = new Map();
+
+  if (eylemNums.length === 0) {
+    const perRow = 7;
+    const xCenter = 560;
+    const yStart = 180;
+    const xGap = 170;
+    const yGap = 165;
+    peopleList.forEach((person, idx) => {
+      const row = Math.floor(idx / perRow);
+      const col = idx % perRow;
+      const rowCount = Math.min(perRow, peopleList.length - row * perRow);
+      const rowStartX = xCenter - ((rowCount - 1) * xGap) / 2;
+      const nodeId = `${person.id}:all`;
+      const personRole = getPrimaryRole(person);
+      const colorSet = roleColors[personRole] || roleColors.defendant;
+      const node = {
+        id: nodeId,
+        label: person.name,
+        shape: "circularImage",
+        image: person.photo_url || fallbackImage,
+        size: person.is_external ? 26 : 30,
+        x: rowStartX + col * xGap,
+        y: yStart + row * yGap,
+        font: { color: "#e5e7eb", size: 12 },
+        color: colorSet,
+        borderWidth: 3,
+        _eylemNum: "all",
+        _layer: "action"
+      };
+      nodes.push(node);
+      if (!personNodeMap.has(person.id)) personNodeMap.set(person.id, []);
+      personNodeMap.get(person.id).push(nodeId);
+    });
+  }
 
   const nameToIds = new Map();
   for (const p of peopleList) {
@@ -251,9 +792,8 @@ function buildGraph(caseData) {
 
   const laneHeights = eylemNums.map((num) => {
     const peopleInEylem = peopleList.filter((p) => {
-      const raw = p.action_numbers || [];
-      const split = raw.flatMap((n) => String(n).split(/[,\s]+/).map((v) => v.trim()).filter(Boolean));
-      return split.includes(num);
+      const nums = personActionNumsMap.get(p.id) || new Set();
+      return nums.has(num);
     });
     const rows = Math.max(1, Math.ceil(peopleInEylem.length / perRow));
     const anyGhosts = peopleInEylem.some(p => hasGhostNodes(p, num));
@@ -284,7 +824,8 @@ function buildGraph(caseData) {
       },
       font: { color: "#fca5a5", size: 12, face: "Space Grotesk" },
       borderWidth: 0,
-      _eylemNum: num
+      _eylemNum: num,
+      _layer: "action"
     };
   });
 
@@ -318,7 +859,8 @@ function buildGraph(caseData) {
         border: "rgba(180, 150, 60, 0.4)"
       },
       font: { color: "#fbbf24", size: 11, face: "Space Grotesk" },
-      _eylemNum: "other"
+      _eylemNum: "other",
+      _layer: "action"
     };
     bandNodes.push(sideLabelNode);
 
@@ -339,7 +881,8 @@ function buildGraph(caseData) {
         font: { color: "#e5e7eb", size: 10 },
         color: colorSet,
         borderWidth: 2,
-        _eylemNum: "other"
+        _eylemNum: "other",
+        _layer: "action"
       };
       nodes.push(node);
       if (!personNodeMap.has(person.id)) personNodeMap.set(person.id, []);
@@ -349,9 +892,8 @@ function buildGraph(caseData) {
 
   eylemNums.forEach((num, index) => {
     const peopleInEylem = peopleList.filter((p) => {
-      const raw = p.action_numbers || [];
-      const split = raw.flatMap((n) => String(n).split(/[,\s]+/).map((v) => v.trim()).filter(Boolean));
-      return split.includes(num);
+      const nums = personActionNumsMap.get(p.id) || new Set();
+      return nums.has(num);
     });
 
     const totalInRow = Math.min(peopleInEylem.length, perRow);
@@ -377,7 +919,8 @@ function buildGraph(caseData) {
         font: { color: "#e5e7eb", size: 12 },
         color: colorSet,
         borderWidth: 3,
-        _eylemNum: num
+        _eylemNum: num,
+        _layer: "action"
       };
       nodes.push(node);
       if (!personNodeMap.has(person.id)) personNodeMap.set(person.id, []);
@@ -387,28 +930,99 @@ function buildGraph(caseData) {
 
   const edges = [];
   const edgeSet = new Set();
+  const showProfileLinksInAction = false;
 
-  for (const person of peopleList) {
-    const related = person.related_profiles || [];
-    for (const targetId of related) {
-      const fromNodes = personNodeMap.get(person.id) || [];
-      const toNodes = personNodeMap.get(targetId) || [];
-      if (!fromNodes.length || !toNodes.length) continue;
-      const key = [person.id, targetId].sort().join("|");
-      if (edgeSet.has(key)) continue;
-      edgeSet.add(key);
-      const targetPerson = peopleList.find(p => p.id === targetId);
-      edges.push({
-        from: fromNodes[0],
-        to: toNodes[0],
-        color: { color: "rgba(148, 163, 184, 0.35)" },
-        smooth: { type: "continuous" },
-        _fromName: person.name,
-        _toName: targetPerson ? targetPerson.name : targetId,
-        _type: "related",
-        _details: []
-      });
+  const pickNodeForAction = (personId, actionNum) => {
+    const ids = personNodeMap.get(personId) || [];
+    if (!ids.length) return null;
+    const num = String(actionNum || "").trim();
+    if (num) {
+      const exact = ids.find((id) => id.endsWith(`:${num}`));
+      if (exact) return exact;
     }
+    const other = ids.find((id) => id.endsWith(":other"));
+    return other || ids[0];
+  };
+
+  if (showProfileLinksInAction) {
+    for (const person of peopleList) {
+      const related = person.related_profiles || [];
+      for (const targetId of related) {
+        const fromNodes = personNodeMap.get(person.id) || [];
+        const toNodes = personNodeMap.get(targetId) || [];
+        if (!fromNodes.length || !toNodes.length) continue;
+        const key = [person.id, targetId].sort().join("|");
+        if (edgeSet.has(key)) continue;
+        edgeSet.add(key);
+        const targetPerson = peopleList.find(p => p.id === targetId);
+        edges.push({
+          from: fromNodes[0],
+          to: toNodes[0],
+          color: { color: "rgba(148, 163, 184, 0.35)" },
+          smooth: { type: "continuous" },
+          _fromName: person.name,
+          _toName: targetPerson ? targetPerson.name : targetId,
+          _type: "related",
+          _layer: "action",
+          _details: []
+        });
+      }
+    }
+  }
+
+  const hierarchyEdgeSet = new Set();
+  const personNameToId = new Map();
+  peopleList.forEach((person) => {
+    const key = String(person.name || "").toLowerCase().trim();
+    if (key && !personNameToId.has(key)) personNameToId.set(key, person.id);
+  });
+
+  const resolveHierarchyRefToId = (ref) => {
+    const raw = String(ref || "").trim();
+    if (!raw) return null;
+    const byId = peopleList.find((person) => person.id === raw);
+    if (byId) return byId.id;
+    return personNameToId.get(raw.toLowerCase()) || null;
+  };
+
+  const addHierarchyActionEdge = (fromPersonId, toPersonId) => {
+    const fromNodes = personNodeMap.get(fromPersonId) || [];
+    const toNodes = personNodeMap.get(toPersonId) || [];
+    if (!fromNodes.length || !toNodes.length || fromPersonId === toPersonId) return;
+    const key = `${fromPersonId}->${toPersonId}`;
+    if (hierarchyEdgeSet.has(key)) return;
+    hierarchyEdgeSet.add(key);
+    const fromPerson = peopleList.find((person) => person.id === fromPersonId);
+    const toPerson = peopleList.find((person) => person.id === toPersonId);
+    edges.push({
+      from: fromNodes[0],
+      to: toNodes[0],
+      arrows: "to",
+      color: { color: "rgba(96, 165, 250, 0.52)" },
+      smooth: { type: "cubicBezier", roundness: 0.28 },
+      width: 2,
+      _fromName: fromPerson ? fromPerson.name : fromPersonId,
+      _toName: toPerson ? toPerson.name : toPersonId,
+      _type: "hierarchy",
+      _layer: "hierarchy",
+      _details: []
+    });
+  };
+
+  if (hierarchyLayerVisible && showProfileLinksInAction) {
+    peopleList.forEach((person) => {
+      const hierarchy = person.hierarchy || {};
+      const superiors = normalizeHierarchyRefs(hierarchy.superiors);
+      const subordinates = normalizeHierarchyRefs(hierarchy.subordinates);
+      superiors.forEach((ref) => {
+        const supId = resolveHierarchyRefToId(ref);
+        if (supId) addHierarchyActionEdge(supId, person.id);
+      });
+      subordinates.forEach((ref) => {
+        const subId = resolveHierarchyRefToId(ref);
+        if (subId) addHierarchyActionEdge(person.id, subId);
+      });
+    });
   }
 
   const mentionedRoleEdgeColors = {
@@ -428,14 +1042,16 @@ function buildGraph(caseData) {
   const personMentionAngles = new Map();
   const mentionRadius = 180;
 
-  for (const action of allActions) {
+  const showMentionLinksInAction = true;
+  if (showMentionLinksInAction) for (const action of allActions) {
     const mentionedNames = action.mentioned_names || [];
     if (!mentionedNames.length || !action.person_id) continue;
 
-    const fromNodes = personNodeMap.get(action.person_id) || [];
-    if (!fromNodes.length) continue;
+    const actionNum = String(action.action_num || "").split(/[,\s]+/)[0].trim();
+    const fromNodeId = pickNodeForAction(action.person_id, actionNum);
+    if (!fromNodeId) continue;
 
-    const parentNodeId = fromNodes[0];
+    const parentNodeId = fromNodeId;
     const parentNode = nodes.find(n => n.id === parentNodeId);
     if (!parentNode) continue;
 
@@ -465,28 +1081,30 @@ function buildGraph(caseData) {
       if (matchedIds.length) {
         for (const matchedId of matchedIds) {
           if (matchedId === action.person_id) continue;
-          const toNodes = personNodeMap.get(matchedId) || [];
-          if (!toNodes.length) continue;
+          const toNodeId = pickNodeForAction(matchedId, actionNum);
+          if (!toNodeId) continue;
 
-          const key = [action.person_id, matchedId].sort().join("|");
+          const key = `mention:${fromNodeId}->${toNodeId}`;
           if (edgeSet.has(key)) continue;
           edgeSet.add(key);
           const parentPerson = peopleList.find(p => p.id === action.person_id);
           const matchedPerson = peopleList.find(p => p.id === matchedId);
           edges.push({
-            from: fromNodes[0],
-            to: toNodes[0],
+            from: fromNodeId,
+            to: toNodeId,
             color: { color: mentionedRoleEdgeColors[mentionedRole] || mentionedRoleEdgeColors.unknown },
             smooth: { type: "continuous" },
             dashes: true,
             _fromName: parentPerson ? parentPerson.name : "",
             _toName: matchedPerson ? matchedPerson.name : entry.name,
             _type: "mention",
-            _details: [{ eylem: action.action_num || "", role: getRolesLabel(entry), context: entry.context || "" }]
+            _layer: "action",
+            _hoverOnly: true,
+            _details: [{ eylem: actionNum || action.action_num || "", role: getRolesLabel(entry), context: entry.context || "" }]
           });
         }
       } else {
-        const ghostKey = lowerMentioned;
+        const ghostKey = `${actionNum || "other"}::${lowerMentioned}`;
         if (!ghostNodes.has(ghostKey)) {
           ghostCounter++;
           const ghostId = `ghost:${ghostCounter}`;
@@ -518,7 +1136,8 @@ function buildGraph(caseData) {
             _ghostName: entry.name,
             _ghostRole: mentionedRole,
             _ghostRoles: mentionedRolesAll,
-            _eylemNum: action.action_num ? String(action.action_num).split(/[,\s]+/)[0] : "other"
+            _eylemNum: actionNum || "other",
+            _layer: "action"
           };
 
           ghostNodes.set(ghostKey, { id: ghostId, parentId: action.person_id });
@@ -530,12 +1149,12 @@ function buildGraph(caseData) {
 
         const ghostInfo = ghostNodes.get(ghostKey);
         const ghostNodeId = ghostInfo.id;
-        const key = [action.person_id, ghostNodeId].sort().join("|");
+        const key = `mention:${fromNodeId}->${ghostNodeId}`;
         if (!edgeSet.has(key)) {
           edgeSet.add(key);
           const parentPerson = peopleList.find(p => p.id === action.person_id);
           edges.push({
-            from: fromNodes[0],
+            from: fromNodeId,
             to: ghostNodeId,
             color: { color: mentionedRoleEdgeColors[mentionedRole] || mentionedRoleEdgeColors.unknown },
             smooth: { type: "continuous" },
@@ -543,7 +1162,9 @@ function buildGraph(caseData) {
             _fromName: parentPerson ? parentPerson.name : "",
             _toName: entry.name,
             _type: "mention",
-            _details: [{ eylem: action.action_num || "", role: getRolesLabel(entry), context: entry.context || "" }]
+            _layer: "action",
+            _hoverOnly: true,
+            _details: [{ eylem: actionNum || action.action_num || "", role: getRolesLabel(entry), context: entry.context || "" }]
           });
         }
       }
@@ -553,246 +1174,141 @@ function buildGraph(caseData) {
   nodesCache = [...bandNodes, ...nodes];
   edgesCache = edges;
 
-  return { nodes: nodesCache, edges, eylemNums };
+  return { nodes: nodesCache, edges, eylemNums, layoutMode: "eylem" };
 }
 
-function filterGraph() {
+function filterGraph(preserveViewport = true) {
+  if (!network) return;
   const query = nameSearch.value.toLowerCase().trim();
   const eylem = eylemFilter.value;
+  const viewPos = preserveViewport ? network.getViewPosition() : null;
+  const scale = preserveViewport ? network.getScale() : null;
 
   const nodes = nodesCache.filter((node) => {
     const isBand = node.id.startsWith("band:");
+    const nodeLayer = node._layer || (isBand ? "action" : "base");
     const matchesName = !query || node.label.toLowerCase().includes(query);
-    const matchesEylem = eylem === "all" || node._eylemNum === eylem;
+    const matchesEylem = !actionLayerVisible || eylem === "all" || node._eylemNum === eylem;
 
+    if (!actionLayerVisible && nodeLayer === "action") return false;
     if (isBand) return matchesEylem;
     return matchesName && matchesEylem;
   });
 
   const nodeIds = new Set(nodes.map((n) => n.id));
-  const edges = edgesCache.filter((edge) => nodeIds.has(edge.from) && nodeIds.has(edge.to));
+  const edges = edgesCache.filter((edge) => {
+    if (!nodeIds.has(edge.from) || !nodeIds.has(edge.to)) return false;
+    if (!hierarchyLayerVisible && edge._layer === "hierarchy") return false;
+    if (!actionLayerVisible && edge._layer === "action") return false;
+    if (edge._hoverOnly) return false;
+    return true;
+  });
 
-  if (network) {
-    network.setData({ nodes, edges });
-    network.fit({ animation: { duration: 300, easingFunction: "easeInOutQuad" } });
+  network.setData({ nodes, edges });
+  if (preserveViewport && viewPos && Number.isFinite(scale)) {
+    network.moveTo({ position: viewPos, scale, animation: false });
   }
 }
 
-function openPersonModal(person) {
+function openPersonModal(person, preferredActionNum = "") {
   currentPerson = person;
-  personViewMode.style.display = "block";
-  personEditMode.style.display = "none";
-  personEditBtn.textContent = "Düzenle";
+  const roles = (person.role || "")
+    .split(",")
+    .map((r) => r.trim())
+    .filter(Boolean)
+    .map((r) => roleLabels[r] || r)
+    .join(", ");
 
-  personName.textContent = person.name || "";
-  personOrg.textContent = person.organization || "";
-  personTitle.textContent = person.title || "";
-  const roles = (person.role || "").split(",").map(r => r.trim()).filter(Boolean);
-  personRole.textContent = roles.map(r => roleLabels[r] || r).join(", ") || "";
-  personSentence.textContent = person.sentence_demand ? `Talep: ${person.sentence_demand}` : "";
-  personPhoto.src = person.photo_url || fallbackImage;
+  const tckTags = (person.tck_articles || [])
+    .map((code) => `<span class="tag small">${escapeHtml(String(code).startsWith("TCK") ? code : `TCK ${code}`)}</span>`)
+    .join("");
+  const eylemTags = (person.action_numbers || [])
+    .map((num) => `<span class="tag small eylem-tag">Eylem ${escapeHtml(num)}</span>`)
+    .join("");
 
-  const tckTagsEl = document.getElementById("person-tck-tags");
-  const eylemTagsEl = document.getElementById("person-eylem-tags");
-  tckTagsEl.innerHTML = "";
-  eylemTagsEl.innerHTML = "";
-
-  const tckArticles = person.tck_articles || [];
-  if (tckArticles.length) {
-    tckArticles.forEach(code => {
-      const tag = document.createElement("span");
-      tag.className = "tag small";
-      tag.textContent = String(code).startsWith("TCK") ? code : `TCK ${code}`;
-      tckTagsEl.appendChild(tag);
+  const summary = escapeHtml(person.charge || person.summary || "");
+  const prefNum = String(preferredActionNum || "").trim();
+  const personActions = allActions
+    .filter((a) => a.person_id === person.id)
+    .sort((a, b) => {
+      const aNum = String(a.action_num || "").trim();
+      const bNum = String(b.action_num || "").trim();
+      const aPref = prefNum && aNum === prefNum ? 1 : 0;
+      const bPref = prefNum && bNum === prefNum ? 1 : 0;
+      if (aPref !== bPref) return bPref - aPref;
+      const na = parseInt(aNum, 10);
+      const nb = parseInt(bNum, 10);
+      if (!isNaN(na) && !isNaN(nb) && na !== nb) return na - nb;
+      return aNum.localeCompare(bNum);
     });
-  }
+  const actionsHtml = personActions.length
+    ? personActions.map((action) => {
+        const actionNum = String(action.action_num || "—").trim();
+        const isPreferred = prefNum && actionNum === prefNum;
+        const title = `Eylem ${escapeHtml(actionNum || "—")}${action.title ? " — " + escapeHtml(action.title) : ""}`;
+        const tck = (action.tck_codes || []).length
+          ? `<span class="tag">${escapeHtml(action.tck_codes.join(", "))}</span>`
+          : "";
+        const sentence = action.sentence_demand
+          ? `<div class="action-section"><span class="action-label">Talep Edilen Ceza</span><p>${escapeHtml(action.sentence_demand)}</p></div>`
+          : "";
+        const claim = action.claim ? `<div class="action-section"><span class="action-label">İddia</span><p>${escapeHtml(action.claim)}</p></div>` : "";
+        const evidence = action.evidence ? `<div class="action-section"><span class="action-label">Deliller</span><p>${escapeHtml(action.evidence)}</p></div>` : "";
+        const defense = action.defense ? `<div class="action-section"><span class="action-label">Savunma</span><p>${escapeHtml(action.defense)}</p></div>` : "";
+        const mentioned = Array.isArray(action.mentioned_names) ? action.mentioned_names : [];
+        const mentionedHtml = mentioned.length
+          ? `<div class="action-section"><span class="action-label">Geçen İsimler</span>${mentioned.map((mn) => {
+              const entry = typeof mn === "string" ? { name: mn, role: "unknown" } : mn;
+              const roleLabel = getRolesLabel(entry);
+              const row = roleLabel ? `${entry.name} (${roleLabel})` : entry.name;
+              const withContext = entry.context ? `${row} — ${entry.context}` : row;
+              return `<p>${escapeHtml(withContext)}</p>`;
+            }).join("")}</div>`
+          : "";
+        return `
+          <details class="profile-collapse action-collapse" ${isPreferred ? "open" : ""}>
+            <summary class="profile-collapse-summary">
+              <span>${title}</span>
+              ${tck}
+            </summary>
+            <article class="action-card">
+              ${sentence}
+              ${claim}
+              ${evidence}
+              ${defense}
+              ${mentionedHtml}
+            </article>
+          </details>
+        `;
+      }).join("")
+    : `<p class="muted">Bu kişi için eylem kaydı bulunmuyor.</p>`;
 
-  const actionNums = person.action_numbers || [];
-  if (actionNums.length) {
-    actionNums.forEach(num => {
-      const tag = document.createElement("span");
-      tag.className = "tag small eylem-tag";
-      tag.textContent = `Eylem ${num}`;
-      eylemTagsEl.appendChild(tag);
-    });
-  }
+  const bodyHtml = `
+    <section class="person-drawer-card">
+      <div class="person-modal-head">
+        <img class="avatar lg" src="${escapeHtml(person.photo_url || fallbackImage)}" alt="profile" />
+        <div>
+          <p class="person-drawer-meta">${escapeHtml(person.organization || "")}</p>
+          <p class="person-drawer-meta">${escapeHtml(person.title || "")}</p>
+          <p class="person-drawer-meta">${escapeHtml(roles || "")}</p>
+          ${person.sentence_demand ? `<p class="tag">Talep: ${escapeHtml(person.sentence_demand)}</p>` : ""}
+          ${(tckTags || eylemTags) ? `<div class="person-tags">${tckTags}${eylemTags}</div>` : ""}
+        </div>
+      </div>
+      <details class="profile-collapse" open>
+        <summary class="profile-collapse-summary"><span>Savcılık Suçlamaları</span></summary>
+        <div class="person-summary">
+          ${summary ? `<p>${summary}</p>` : `<p class="muted">Savcılık suçlama özeti girilmemiş.</p>`}
+        </div>
+      </details>
+      <details class="profile-collapse" open>
+        <summary class="profile-collapse-summary"><span>Eylemler (${personActions.length})</span></summary>
+        <div class="person-actions-list">${actionsHtml}</div>
+      </details>
+    </section>
+  `;
 
-  const summary = person.charge || person.summary || "";
-  if (summary) {
-    personSummarySection.style.display = "block";
-    personSummaryText.textContent = summary;
-  } else {
-    personSummarySection.style.display = "none";
-  }
-
-  personActionsList.innerHTML = "";
-
-  const personActions = allActions.filter((a) => a.person_id === person.id);
-
-  if (!personActions.length) {
-    const empty = document.createElement("p");
-    empty.className = "muted";
-    empty.textContent = "Bu kişi için eylem kaydı bulunmuyor.";
-    personActionsList.appendChild(empty);
-  } else {
-    for (const action of personActions) {
-      const card = document.createElement("div");
-      card.className = "action-card";
-
-      const header = document.createElement("div");
-      header.className = "action-card-header";
-
-      const title = document.createElement("h5");
-      title.textContent = `Eylem ${action.action_num}${action.title ? " — " + action.title : ""}`;
-      header.appendChild(title);
-
-      const tckCodes = action.tck_codes || [];
-      if (tckCodes.length) {
-        const tckTag = document.createElement("span");
-        tckTag.className = "tag";
-        tckTag.textContent = tckCodes.join(", ");
-        header.appendChild(tckTag);
-      }
-
-      card.appendChild(header);
-
-      if (action.sentence_demand) {
-        const sd = document.createElement("p");
-        sd.className = "action-sentence";
-        sd.textContent = `Talep edilen ceza: ${action.sentence_demand}`;
-        card.appendChild(sd);
-      }
-
-      if (action.claim) {
-        const section = document.createElement("div");
-        section.className = "action-section";
-        const label = document.createElement("span");
-        label.className = "action-label";
-        label.textContent = "İddia";
-        section.appendChild(label);
-        const text = document.createElement("p");
-        text.textContent = action.claim;
-        section.appendChild(text);
-        card.appendChild(section);
-      }
-
-      if (action.evidence) {
-        const section = document.createElement("div");
-        section.className = "action-section";
-        const label = document.createElement("span");
-        label.className = "action-label";
-        label.textContent = "Deliller";
-        section.appendChild(label);
-        const text = document.createElement("p");
-        text.textContent = action.evidence;
-        section.appendChild(text);
-        card.appendChild(section);
-      }
-
-      if (action.defense) {
-        const section = document.createElement("div");
-        section.className = "action-section";
-        const label = document.createElement("span");
-        label.className = "action-label";
-        label.textContent = "Savunma";
-        section.appendChild(label);
-        const text = document.createElement("p");
-        text.textContent = action.defense;
-        section.appendChild(text);
-        card.appendChild(section);
-      }
-
-      const mentioned = action.mentioned_names || [];
-      if (mentioned.length) {
-        const section = document.createElement("div");
-        section.className = "action-section";
-        const label = document.createElement("span");
-        label.className = "action-label";
-        label.textContent = "Geçen İsimler";
-        section.appendChild(label);
-        for (const mn of mentioned) {
-          const entry = typeof mn === "string" ? { name: mn, role: "unknown" } : mn;
-          const rl = getRolesLabel(entry);
-          const nameSpan = document.createElement("p");
-          let text = rl ? `${entry.name} (${rl})` : entry.name;
-          if (entry.context) text += ` — ${entry.context}`;
-          nameSpan.textContent = text;
-          nameSpan.style.fontSize = "0.85rem";
-          section.appendChild(nameSpan);
-        }
-        card.appendChild(section);
-      }
-
-      personActionsList.appendChild(card);
-    }
-  }
-
-  const lowerPersonName = (person.name || "").toLowerCase().trim();
-  const mentionedInActions = [];
-  for (const action of allActions) {
-    if (action.person_id === person.id) continue;
-    const mentionedNames = action.mentioned_names || [];
-    for (const mn of mentionedNames) {
-      const entry = typeof mn === "string" ? { name: mn, role: "unknown" } : mn;
-      if (entry.name.toLowerCase().trim() === lowerPersonName) {
-        const parentPerson = people.find(p => p.id === action.person_id);
-        mentionedInActions.push({
-          personName: parentPerson ? parentPerson.name : "—",
-          actionNum: action.action_num || "—",
-          actionTitle: action.title || "",
-          context: entry.context || "",
-          role: entry.role || "unknown"
-        });
-      }
-    }
-  }
-
-  if (mentionedInActions.length) {
-    const sectionHeader = document.createElement("h4");
-    sectionHeader.className = "actions-section-title";
-    sectionHeader.textContent = `Bahsedildiği Eylemler (${mentionedInActions.length})`;
-    personActionsList.appendChild(sectionHeader);
-
-    for (const m of mentionedInActions) {
-      const card = document.createElement("div");
-      card.className = "action-card mentioned-in-card";
-
-      const header = document.createElement("div");
-      header.className = "action-card-header";
-      const title = document.createElement("h5");
-      title.textContent = `Eylem ${m.actionNum}${m.actionTitle ? " — " + m.actionTitle : ""}`;
-      header.appendChild(title);
-      card.appendChild(header);
-
-      const personLine = document.createElement("div");
-      personLine.className = "action-section";
-      const personLabel = document.createElement("span");
-      personLabel.className = "action-label";
-      personLabel.textContent = "Bahseden Profil";
-      personLine.appendChild(personLabel);
-      const personText = document.createElement("p");
-      personText.textContent = m.personName;
-      personLine.appendChild(personText);
-      card.appendChild(personLine);
-
-      if (m.context) {
-        const contextSection = document.createElement("div");
-        contextSection.className = "action-section";
-        const contextLabel = document.createElement("span");
-        contextLabel.className = "action-label";
-        contextLabel.textContent = "Dahili";
-        contextSection.appendChild(contextLabel);
-        const contextText = document.createElement("p");
-        contextText.textContent = m.context;
-        contextSection.appendChild(contextText);
-        card.appendChild(contextSection);
-      }
-
-      personActionsList.appendChild(card);
-    }
-  }
-
-  personModal.showModal();
+  openDetailPanel(person.name || "Profil", bodyHtml);
 }
 
 function openGhostModal(ghostNode) {
@@ -875,22 +1391,16 @@ function openGhostModal(ghostNode) {
 }
 
 function openEylemModal(eylemNum) {
-  eylemModalTitle.innerHTML = `<span class="eylem-num-badge">Eylem ${eylemNum}</span> Eylem Özeti`;
   const summary = eylemSummaries[eylemNum];
-  if (summary) {
-    eylemSummaryText.textContent = summary;
-    eylemSummaryText.className = "eylem-summary-text";
-  } else {
-    eylemSummaryText.textContent = "Bu eylem için henüz özet girilmemiş.";
-    eylemSummaryText.className = "eylem-summary-text eylem-no-summary";
-  }
-  eylemModal.style.display = "block";
+  const text = summary || "Bu eylem için henüz özet girilmemiş.";
+  const bodyHtml = `<p class="eylem-summary-text${summary ? "" : " eylem-no-summary"}">${escapeHtml(text)}</p>`;
+  openDetailPanel(`Eylem ${eylemNum} Özeti`, bodyHtml);
 }
 
 function openEdgePanel(edge) {
   const fromName = edge._fromName || "?";
   const toName = edge._toName || "?";
-  edgePanelTitle.innerHTML = `<span class="edge-from-name">${fromName}</span> <span class="edge-arrow">→</span> <span class="edge-to-name">${toName}</span>`;
+  const drawerTitle = `${fromName} → ${toName}`;
   let html = "";
   if (edge._type === "mention" && edge._details && edge._details.length) {
     html += `<div class="edge-relation-type">Bahsedilen İsim Bağlantısı</div>`;
@@ -901,19 +1411,25 @@ function openEdgePanel(edge) {
       if (d.context) html += `<div class="edge-detail-row"><span class="edge-label">Dahili:</span> <span class="edge-value">${d.context}</span></div>`;
       html += `</div>`;
     }
+  } else if (edge._type === "hierarchy") {
+    html += `<div class="edge-relation-type">Hiyerarşi Bağlantısı</div>`;
+    html += `<p class="edge-relation-desc">Bu bağlantı, profil kartları arasındaki üst-alt ilişkiyi gösterir.</p>`;
   } else {
     html += `<div class="edge-relation-type">Ortak Dava İlişkisi</div>`;
     html += `<p class="edge-relation-desc">Her iki kişi de aynı davada yer almaktadır ve profilleri birbirine bağlanmıştır.</p>`;
   }
-  edgePanelBody.innerHTML = html;
-  edgePanel.style.display = "block";
+  openDetailPanel(drawerTitle, html);
 }
 
-async function loadCase(caseId) {
+function isHoverInteractionsEnabled() {
+  return currentLayoutMode === "eylem" && actionLayerVisible;
+}
+
+async function loadCase(caseId, preserveViewport = false) {
   const caseData = await fetchJSON(`/api/cases/${caseId}`);
   selectedCase = caseData;
   people = caseData.people || [];
-  allActions = caseData.actions || [];
+  allActions = normalizeActionRows(caseData.actions || []);
 
   try {
     const summaries = await fetchJSON(`/api/eylem-summaries?caseId=${caseId}`);
@@ -924,9 +1440,25 @@ async function loadCase(caseId) {
   } catch (e) { eylemSummaries = {}; }
 
   renderCaseInfo(caseData);
+  renderTimeline(caseData);
 
   const graph = buildGraph(caseData);
-  setEylemOptions(graph.eylemNums.filter((n) => n !== "other"));
+  previousLayoutMode = currentLayoutMode;
+  currentLayoutMode = graph.layoutMode || "none";
+  const layoutChanged = previousLayoutMode !== currentLayoutMode;
+  const shouldPreserveViewport = preserveViewport && !layoutChanged;
+  if (graph.layoutMode === "hiyerarsi") {
+    eylemFilter.innerHTML = `<option value="all">Hiyerarşi Görünümü</option>`;
+    eylemFilter.value = "all";
+    eylemFilter.disabled = true;
+  } else if (graph.layoutMode === "none") {
+    eylemFilter.innerHTML = `<option value="all">Görünüm kapalı</option>`;
+    eylemFilter.value = "all";
+    eylemFilter.disabled = true;
+  } else {
+    eylemFilter.disabled = false;
+    setEylemOptions(graph.eylemNums.filter((n) => n !== "other"));
+  }
 
   const options = {
     interaction: { dragView: true, zoomView: true, hover: true, selectConnectedEdges: false },
@@ -963,8 +1495,9 @@ async function loadCase(caseId) {
         return;
       }
       const baseId = nodeId.split(":")[0];
+      const preferredActionNum = nodeId.includes(":") ? String(nodeId.split(":")[1] || "").trim() : "";
       const person = people.find((p) => p.id === baseId);
-      if (person) openPersonModal(person);
+      if (person) openPersonModal(person, preferredActionNum);
     });
     network.on("selectEdge", (params) => {
       if (params.nodes && params.nodes.length > 0) return;
@@ -1010,7 +1543,7 @@ async function loadCase(caseId) {
         hoverClones = [];
         hoverActive = false;
         lastHoveredNode = null;
-        stableSetData({ nodes: nodesCache, edges: edgesCache });
+        filterGraph(true);
       }
     }
 
@@ -1022,6 +1555,7 @@ async function loadCase(caseId) {
     }
 
     function applyHover(active) {
+      if (!isHoverInteractionsEnabled()) return;
       const activeBaseId = active.includes(":") && !active.startsWith("ghost:") ? active.split(":")[0] : active;
 
       const hoveredPersonNodes = new Set();
@@ -1146,6 +1680,7 @@ async function loadCase(caseId) {
     }
 
     network.on("hoverNode", (params) => {
+      if (!isHoverInteractionsEnabled()) return;
       const active = params.node;
       if (active.startsWith("band:")) return;
       if (active.startsWith("hoverclone:") || active === lastHoveredNode) {
@@ -1157,6 +1692,7 @@ async function loadCase(caseId) {
     });
 
     network.on("blurNode", () => {
+      if (!isHoverInteractionsEnabled()) return;
       if (suppressBlur) return;
       if (hoverBlurTimer) clearTimeout(hoverBlurTimer);
       hoverBlurTimer = setTimeout(() => {
@@ -1165,10 +1701,12 @@ async function loadCase(caseId) {
     });
 
     network.on("hoverEdge", () => {
+      if (!isHoverInteractionsEnabled()) return;
       if (hoverBlurTimer) { clearTimeout(hoverBlurTimer); hoverBlurTimer = null; }
     });
 
     network.on("blurEdge", () => {
+      if (!isHoverInteractionsEnabled()) return;
       if (suppressBlur) return;
       if (hoverActive) {
         if (hoverBlurTimer) clearTimeout(hoverBlurTimer);
@@ -1208,11 +1746,21 @@ async function loadCase(caseId) {
       }
     });
   } else {
+    let viewPos = null;
+    let scale = null;
+    if (shouldPreserveViewport) {
+      viewPos = network.getViewPosition();
+      scale = network.getScale();
+    }
     network.setData({ nodes: graph.nodes, edges: graph.edges });
-    network.fit({ animation: { duration: 500, easingFunction: "easeInOutQuad" } });
+    if (shouldPreserveViewport && viewPos && Number.isFinite(scale)) {
+      network.moveTo({ position: viewPos, scale, animation: false });
+    } else {
+      network.fit({ animation: { duration: 500, easingFunction: "easeInOutQuad" } });
+    }
   }
 
-  filterGraph();
+  filterGraph(shouldPreserveViewport);
 }
 
 async function loadData() {
@@ -1230,28 +1778,54 @@ async function loadData() {
 caseSelect.addEventListener("change", (event) => loadCase(event.target.value));
 nameSearch.addEventListener("input", filterGraph);
 eylemFilter.addEventListener("change", filterGraph);
-casePanelClose.addEventListener("click", () => {
-  casePanelContainer.classList.add("collapsed");
-  casePanelToggle.style.display = "block";
-});
-casePanelToggle.addEventListener("click", () => {
-  casePanelContainer.classList.remove("collapsed");
-  casePanelToggle.style.display = "none";
-});
+if (timelineToggle) {
+  timelineToggle.addEventListener("click", () => {
+    if (!timelineHasData) return;
+    showInlineTimeline(!timelineVisible);
+  });
+}
+if (networkToggle) {
+  networkToggle.addEventListener("click", () => {
+    showHierarchyLayer(!hierarchyLayerVisible);
+  });
+}
+if (eylemToggle) {
+  eylemToggle.addEventListener("click", () => {
+    showActionLayer(!actionLayerVisible);
+  });
+}
+if (caseDetailToggle) {
+  caseDetailToggle.addEventListener("click", () => {
+    showNetworkPanel(!networkPanelVisible);
+  });
+}
+casePanelClose.addEventListener("click", () => showNetworkPanel(false));
+casePanelToggle.addEventListener("click", () => showNetworkPanel(true));
 caseClose.addEventListener("click", () => caseModal.close());
 personClose.addEventListener("click", () => personModal.close());
-eylemClose.addEventListener("click", () => eylemModal.style.display = "none");
-edgePanelClose.addEventListener("click", () => edgePanel.style.display = "none");
+if (detailDrawerClose) detailDrawerClose.addEventListener("click", () => showDetailPanel(false));
 
 window.addEventListener("keydown", (event) => {
   if (event.key === "Escape") {
-    if (edgePanel.style.display !== "none") { edgePanel.style.display = "none"; return; }
-    if (eylemModal.style.display !== "none") { eylemModal.style.display = "none"; return; }
+    if (timelineVisible) { showInlineTimeline(false); return; }
+    if (detailPanelVisible) { showDetailPanel(false); return; }
     if (personModal.open) return personModal.close();
     if (caseModal.open) return caseModal.close();
     window.location.href = "/";
   }
 });
+window.addEventListener("resize", syncFloatingPanelOffsets);
+if (mapTopbar && typeof ResizeObserver !== "undefined") {
+  const topbarObserver = new ResizeObserver(syncFloatingPanelOffsets);
+  topbarObserver.observe(mapTopbar);
+}
+
+showNetworkPanel(true);
+showDetailPanel(false);
+setToggleActive(timelineToggle, true);
+setToggleActive(networkToggle, true);
+setToggleActive(eylemToggle, true);
+syncFloatingPanelOffsets();
 
 function enterEditMode() {
   if (!currentPerson) return;
@@ -1337,3 +1911,4 @@ personEditForm.addEventListener("submit", async (e) => {
 });
 
 loadData();
+window.addEventListener("load", syncFloatingPanelOffsets);

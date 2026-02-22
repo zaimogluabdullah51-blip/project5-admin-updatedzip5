@@ -41,6 +41,7 @@
         </div>
         <nav class="menu">
           <button data-tab="cases" class="menu-item active">Davalar</button>
+          <button data-tab="timeline" class="menu-item">Zaman Çizelgesi</button>
           <button data-tab="profiles" class="menu-item">Profiller</button>
           <button data-tab="eylemler" class="menu-item">Eylemler</button>
           <a href="/" class="menu-item home-link">Ana Sayfaya Dön</a>
@@ -162,6 +163,14 @@
                 <div id="action-chips" class="chips-container"></div>
               </label>
               <label>Fotoğraf URL<input name="photo" placeholder="https://..." /></label>
+              <div class="form-grid">
+                <label>Üst Profiller (virgülle ayır)
+                  <input name="hierarchySuperiors" placeholder="Örn: Ahmet Yılmaz, Ayşe Demir" />
+                </label>
+                <label>Alt Profiller (virgülle ayır)
+                  <input name="hierarchySubordinates" placeholder="Örn: Mehmet Kaya, Selin Acar" />
+                </label>
+              </div>
             </div>
             <h3 class="accusations-heading">Suçlamalar</h3>
             <div id="actions-container"></div>
@@ -196,9 +205,57 @@
           </div>
         </section>
 
+        <section class="panel tab-panel" id="tab-timeline">
+          <h2>Zaman Çizelgesi Yönetimi</h2>
+          <p class="muted timeline-helper">
+            Parser formatı: <code>2017-09-15 | Açıklama (3-4 cümle)</code>. Her satır bir tarih/olay.
+          </p>
+          <label>Dava seç
+            <select id="timeline-case-select"></select>
+          </label>
+          <label class="timeline-toggle-row">
+            <input id="timeline-enabled" type="checkbox" />
+            Haritada zaman çizelgesi gösterimini etkinleştir
+          </label>
+
+          <label>Ham Zaman Çizelgesi Verisi
+            <textarea id="timeline-parser-input" rows="8" placeholder="2017-09-15 | Açıklama metni...&#10;2018 | Başka bir olay açıklaması..."></textarea>
+          </label>
+          <div class="timeline-actions">
+            <button id="timeline-parse-btn" class="btn ghost" type="button">Ayrıştır</button>
+            <button id="timeline-clear-btn" class="btn ghost" type="button">Temizle</button>
+          </div>
+
+          <div id="timeline-event-list" class="timeline-event-list"></div>
+
+          <div class="timeline-entry-builder">
+            <h3>Seçili Olay Düzenle</h3>
+            <div class="form-grid">
+              <label>Tarih / Sene
+                <input id="timeline-edit-date" placeholder="2017 veya 2017-09-15" />
+              </label>
+            </div>
+            <label>Olay Açıklaması
+              <textarea id="timeline-edit-incident" rows="4" placeholder="Bu tarihe ait açıklama"></textarea>
+            </label>
+            <div class="timeline-actions">
+              <button id="timeline-update-btn" class="btn ghost" type="button">Güncelle / Ekle</button>
+              <button id="timeline-delete-btn" class="btn ghost" type="button">Sil</button>
+            </div>
+          </div>
+
+          <div class="timeline-actions">
+            <button id="timeline-preview-btn" class="btn ghost" type="button">Önizleme</button>
+            <button id="timeline-save-btn" class="btn primary" type="button">Zaman Çizelgesini Kaydet</button>
+          </div>
+          <p id="timeline-save-status" class="muted"></p>
+          <div id="timeline-preview" class="timeline-preview"></div>
+        </section>
+
       </main>
     </div>
 
+    <script src="/timeline.js"></script>
     <script src="/admin/admin.js"></script>
   </body>
 </html>

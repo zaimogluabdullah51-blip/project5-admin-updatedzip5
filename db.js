@@ -38,6 +38,66 @@ function all(sql, params = []) {
   });
 }
 
+function splitActionNums(rawValue) {
+  if (Array.isArray(rawValue)) {
+    return [...new Set(rawValue.flatMap((v) => splitActionNums(v)))];
+  }
+  const raw = String(rawValue || "").trim();
+  if (!raw) return [];
+  const tokens = raw
+    .split(/[,\n]/)
+    .map((t) => t.trim())
+    .filter(Boolean);
+  const out = [];
+  tokens.forEach((token) => {
+    const match = token.match(/^(\d+)\s*[-–]\s*(\d+)$/);
+    if (match) {
+      const start = parseInt(match[1], 10);
+      const end = parseInt(match[2], 10);
+      if (!isNaN(start) && !isNaN(end)) {
+        const min = Math.min(start, end);
+        const max = Math.max(start, end);
+        for (let n = min; n <= max; n++) out.push(String(n));
+        return;
+      }
+    }
+    token
+      .split(/\s+/)
+      .map((t) => t.trim())
+      .filter(Boolean)
+      .forEach((t) => out.push(t));
+  });
+  return [...new Set(out)];
+}
+
+async function normalizeLegacyActionRows() {
+  const rows = await all("SELECT * FROM actions");
+  for (const row of rows) {
+    const parts = splitActionNums(row.action_num);
+    if (parts.length <= 1) continue;
+    for (const part of parts) {
+      await run(
+        `INSERT INTO actions (id, case_id, person_id, action_num, title, claim, evidence, defense, tck_codes, sentence_demand, mentioned_names)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [
+          nanoid(),
+          row.case_id || "",
+          row.person_id || "",
+          part,
+          row.title || "",
+          row.claim || "",
+          row.evidence || "",
+          row.defense || "",
+          row.tck_codes || "[]",
+          row.sentence_demand || "",
+          row.mentioned_names || "[]"
+        ]
+      );
+    }
+    await run("DELETE FROM actions WHERE id = ?", [row.id]);
+  }
+}
+
 async function init() {
   await run(`
     CREATE TABLE IF NOT EXISTS cases (
@@ -65,7 +125,8 @@ async function init() {
       panel_members TEXT,
       indictment_date TEXT,
       acceptance_date TEXT,
-      verdict_date TEXT
+      verdict_date TEXT,
+      timeline_data TEXT
     )
   `);
 
@@ -192,6 +253,7 @@ async function init() {
   await ensureColumn("cases", "indictment_date", "TEXT");
   await ensureColumn("cases", "acceptance_date", "TEXT");
   await ensureColumn("cases", "verdict_date", "TEXT");
+  await ensureColumn("cases", "timeline_data", "TEXT");
   await ensureColumn("cases", "sorusturma_no", "TEXT");
   await ensureColumn("cases", "iddianame_no", "TEXT");
   await ensureColumn("people", "photo_url", "TEXT");
@@ -208,6 +270,7 @@ async function init() {
   await ensureColumn("people", "action_numbers", "TEXT");
   await ensureColumn("actions", "sentence_demand", "TEXT");
   await ensureColumn("actions", "mentioned_names", "TEXT");
+  await normalizeLegacyActionRows();
   await seedTckDefinitions();
 
   const row = await get("SELECT COUNT(*) as count FROM cases");
@@ -474,14 +537,15 @@ async function createCase(payload) {
     indictment_date: payload.indictment_date || payload.indictmentDate || "",
     acceptance_date: payload.acceptance_date || payload.acceptanceDate || "",
     verdict_date: payload.verdict_date || payload.verdictDate || "",
+    timeline_data: payload.timeline_data || payload.timelineData || { enabled: false, transitionYear: 2016, events: [] },
     sorusturma_no: payload.sorusturma_no || payload.sorusturmaNo || "",
     iddianame_no: payload.iddianame_no || payload.iddianameNo || ""
   };
 
   await run(
     `INSERT INTO cases
-      (id, title, summary, incident, dossier, date, status, case_number, court_name, judge, court_panel, prosecutor, hearing_count, start_date, last_hearing_date, tck_articles, indictment_prosecutor, trial_prosecutor, judge_type, judge_name, panel_president, panel_members, indictment_date, acceptance_date, verdict_date, sorusturma_no, iddianame_no)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      (id, title, summary, incident, dossier, date, status, case_number, court_name, judge, court_panel, prosecutor, hearing_count, start_date, last_hearing_date, tck_articles, indictment_prosecutor, trial_prosecutor, judge_type, judge_name, panel_president, panel_members, indictment_date, acceptance_date, verdict_date, timeline_data, sorusturma_no, iddianame_no)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     [
       record.id,
       record.title,
@@ -508,6 +572,7 @@ async function createCase(payload) {
       record.indictment_date,
       record.acceptance_date,
       record.verdict_date,
+      JSON.stringify(record.timeline_data || { enabled: false, transitionYear: 2016, events: [] }),
       record.sorusturma_no,
       record.iddianame_no
     ]
@@ -528,7 +593,7 @@ async function updateCase(id, payload) {
       hearing_count = ?, start_date = ?, last_hearing_date = ?, tck_articles = ?,
       indictment_prosecutor = ?, trial_prosecutor = ?, judge_type = ?, judge_name = ?,
       panel_president = ?, panel_members = ?, indictment_date = ?, acceptance_date = ?, verdict_date = ?,
-      sorusturma_no = ?, iddianame_no = ?
+      timeline_data = ?, sorusturma_no = ?, iddianame_no = ?
      WHERE id = ?`,
     [
       b.title ?? existing.title,
@@ -555,6 +620,7 @@ async function updateCase(id, payload) {
       b.indictment_date ?? existing.indictment_date,
       b.acceptance_date ?? existing.acceptance_date,
       b.verdict_date ?? existing.verdict_date,
+      b.timeline_data ? JSON.stringify(b.timeline_data) : existing.timeline_data,
       b.sorusturma_no ?? existing.sorusturma_no,
       b.iddianame_no ?? existing.iddianame_no,
       id
@@ -624,40 +690,49 @@ async function linkPerson(caseId, personId, relationship = "") {
 }
 
 async function createAction(payload) {
-  const id = nanoid();
-  const record = {
-    id,
-    case_id: payload.case_id || payload.caseId || "",
-    person_id: payload.person_id || payload.personId || "",
-    action_num: payload.action_num || payload.actionNum || "",
-    title: payload.title || "",
-    claim: payload.claim || "",
-    evidence: payload.evidence || "",
-    defense: payload.defense || "",
-    tck_codes: payload.tck_codes || payload.tckCodes || [],
-    sentence_demand: payload.sentence_demand || payload.sentenceDemand || "",
-    mentioned_names: payload.mentioned_names || payload.mentionedNames || []
-  };
+  const baseActionNum = payload.action_num || payload.actionNum || "";
+  const actionNums = splitActionNums(baseActionNum);
+  const finalActionNums = actionNums.length ? actionNums : [String(baseActionNum || "").trim()];
+  let firstRecord = null;
 
-  await run(
-    `INSERT INTO actions (id, case_id, person_id, action_num, title, claim, evidence, defense, tck_codes, sentence_demand, mentioned_names)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-    [
-      record.id,
-      record.case_id,
-      record.person_id,
-      record.action_num,
-      record.title,
-      record.claim,
-      record.evidence,
-      record.defense,
-      JSON.stringify(record.tck_codes),
-      record.sentence_demand,
-      JSON.stringify(record.mentioned_names)
-    ]
-  );
+  for (const actionNum of finalActionNums) {
+    const id = nanoid();
+    const record = {
+      id,
+      case_id: payload.case_id || payload.caseId || "",
+      person_id: payload.person_id || payload.personId || "",
+      action_num: actionNum || "",
+      title: payload.title || "",
+      claim: payload.claim || "",
+      evidence: payload.evidence || "",
+      defense: payload.defense || "",
+      tck_codes: payload.tck_codes || payload.tckCodes || [],
+      sentence_demand: payload.sentence_demand || payload.sentenceDemand || "",
+      mentioned_names: payload.mentioned_names || payload.mentionedNames || []
+    };
 
-  return record;
+    await run(
+      `INSERT INTO actions (id, case_id, person_id, action_num, title, claim, evidence, defense, tck_codes, sentence_demand, mentioned_names)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [
+        record.id,
+        record.case_id,
+        record.person_id,
+        record.action_num,
+        record.title,
+        record.claim,
+        record.evidence,
+        record.defense,
+        JSON.stringify(record.tck_codes),
+        record.sentence_demand,
+        JSON.stringify(record.mentioned_names)
+      ]
+    );
+
+    if (!firstRecord) firstRecord = record;
+  }
+
+  return firstRecord;
 }
 
 async function createOfficial(payload) {
