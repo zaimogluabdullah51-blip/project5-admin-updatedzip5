@@ -53,7 +53,7 @@
 
 .canvas-wrap {
   position: relative;
-  height: calc(100vh - 96px);
+  height: calc(100vh - var(--map-topbar-offset));
   overflow: hidden;
 }
 
@@ -1040,15 +1040,50 @@
 }
 
 @media (max-width: 900px) {
+  .map-topbar {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 12px;
+    padding: 12px;
+  }
+
+  .map-topbar h1 {
+    font-size: 1.25rem;
+  }
+
+  .map-controls {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+    width: 100%;
+  }
+
+  .map-controls > * {
+    min-width: 0;
+    width: 100%;
+  }
+
+  .map-controls .btn,
+  .map-controls select,
+  .map-controls input {
+    min-height: 40px;
+  }
+
+  .map-controls a.btn {
+    grid-column: 1 / -1;
+    text-align: center;
+  }
+
   .case-panel {
     position: static;
     width: 100%;
-    margin: 12px 0;
+    margin: 10px;
+    max-height: 34vh;
   }
 
   .canvas-wrap {
-    height: auto;
-    min-height: 70vh;
+    height: calc(100vh - var(--map-topbar-offset));
+    min-height: 60vh;
   }
 
   .map-timeline {
@@ -1061,17 +1096,18 @@
     position: static;
     left: auto;
     right: auto;
-    margin: 8px 10px 0;
+    margin: 8px 10px;
   }
 
   .detail-drawer {
     position: fixed;
-    top: auto;
-    bottom: 12px;
+    top: calc(var(--map-topbar-offset) + 8px);
+    bottom: 8px;
     left: 10px;
     right: 10px;
     width: auto;
-    max-height: 42vh;
+    max-height: none;
+    z-index: 22;
   }
 
   .map-timeline-flow {
@@ -1085,5 +1121,11 @@
 
   .map-timeline-step-arrow {
     display: none;
+  }
+}
+
+@media (max-width: 560px) {
+  .map-controls {
+    grid-template-columns: 1fr;
   }
 }

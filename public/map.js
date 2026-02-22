@@ -1425,6 +1425,11 @@ function isHoverInteractionsEnabled() {
   return currentLayoutMode === "eylem" && actionLayerVisible;
 }
 
+function isTouchInteractionMode() {
+  if (typeof window === "undefined" || typeof window.matchMedia !== "function") return false;
+  return window.matchMedia("(hover: none), (pointer: coarse)").matches;
+}
+
 async function loadCase(caseId, preserveViewport = false) {
   const caseData = await fetchJSON(`/api/cases/${caseId}`);
   selectedCase = caseData;
@@ -1494,9 +1499,22 @@ async function loadCase(caseId, preserveViewport = false) {
         if (ghostNode) openGhostModal(ghostNode);
         return;
       }
+      if (isTouchInteractionMode() && isHoverInteractionsEnabled() && !nodeId.startsWith("hoverclone:")) {
+        const now = Date.now();
+        const isRepeatTap = lastTouchPreviewNode === nodeId && now - lastTouchPreviewAt < 1400;
+        if (!isRepeatTap) {
+          applyHover(nodeId);
+          lastTouchPreviewNode = nodeId;
+          lastTouchPreviewAt = now;
+          network.unselectAll();
+          return;
+        }
+      }
       const baseId = nodeId.split(":")[0];
       const preferredActionNum = nodeId.includes(":") ? String(nodeId.split(":")[1] || "").trim() : "";
       const person = people.find((p) => p.id === baseId);
+      lastTouchPreviewNode = null;
+      lastTouchPreviewAt = 0;
       if (person) openPersonModal(person, preferredActionNum);
     });
     network.on("selectEdge", (params) => {
@@ -1529,6 +1547,8 @@ async function loadCase(caseId, preserveViewport = false) {
     let hoverBlurTimer = null;
     let suppressBlur = false;
     let preserveHoverOnClick = false;
+    let lastTouchPreviewNode = null;
+    let lastTouchPreviewAt = 0;
 
     function stableSetData(data) {
       const viewPos = network.getViewPosition();
@@ -1545,6 +1565,8 @@ async function loadCase(caseId, preserveViewport = false) {
         lastHoveredNode = null;
         filterGraph(true);
       }
+      lastTouchPreviewNode = null;
+      lastTouchPreviewAt = 0;
     }
 
     function shortenName(label) {
@@ -1681,6 +1703,7 @@ async function loadCase(caseId, preserveViewport = false) {
 
     network.on("hoverNode", (params) => {
       if (!isHoverInteractionsEnabled()) return;
+      if (isTouchInteractionMode()) return;
       const active = params.node;
       if (active.startsWith("band:")) return;
       if (active.startsWith("hoverclone:") || active === lastHoveredNode) {
@@ -1693,6 +1716,7 @@ async function loadCase(caseId, preserveViewport = false) {
 
     network.on("blurNode", () => {
       if (!isHoverInteractionsEnabled()) return;
+      if (isTouchInteractionMode()) return;
       if (suppressBlur) return;
       if (hoverBlurTimer) clearTimeout(hoverBlurTimer);
       hoverBlurTimer = setTimeout(() => {
@@ -1702,11 +1726,13 @@ async function loadCase(caseId, preserveViewport = false) {
 
     network.on("hoverEdge", () => {
       if (!isHoverInteractionsEnabled()) return;
+      if (isTouchInteractionMode()) return;
       if (hoverBlurTimer) { clearTimeout(hoverBlurTimer); hoverBlurTimer = null; }
     });
 
     network.on("blurEdge", () => {
       if (!isHoverInteractionsEnabled()) return;
+      if (isTouchInteractionMode()) return;
       if (suppressBlur) return;
       if (hoverActive) {
         if (hoverBlurTimer) clearTimeout(hoverBlurTimer);
@@ -1723,6 +1749,10 @@ async function loadCase(caseId, preserveViewport = false) {
           const dsEdge = network.body.data.edges.get(params.edges[0]);
           if (dsEdge && dsEdge._isCloneEdge) return;
         } catch (e) {}
+      }
+      if (isTouchInteractionMode() && params.nodes && params.nodes.length > 0) {
+        const tappedNodeId = params.nodes[0];
+        if (!tappedNodeId.startsWith("hoverclone:")) return;
       }
       if (params.nodes && params.nodes.length > 0) {
         const clickedId = params.nodes[0];
