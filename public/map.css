@@ -1075,10 +1075,14 @@
   }
 
   .case-panel {
-    position: static;
-    width: 100%;
-    margin: 10px;
-    max-height: 34vh;
+    position: absolute;
+    top: 10px;
+    left: 10px;
+    right: 10px;
+    width: auto;
+    margin: 0;
+    max-height: min(40vh, 360px);
+    z-index: 7;
   }
 
   .canvas-wrap {
@@ -1093,10 +1097,57 @@
   }
 
   .map-inline-timeline {
-    position: static;
-    left: auto;
-    right: auto;
-    margin: 8px 10px;
+    position: absolute;
+    top: auto;
+    bottom: 10px;
+    left: 10px;
+    right: 10px;
+    margin: 0;
+    padding: 8px 10px;
+    border-radius: 12px;
+    z-index: 7;
+  }
+
+  .map-inline-title {
+    display: none;
+  }
+
+  .map-inline-track {
+    gap: 6px;
+    padding-bottom: 0;
+  }
+
+  .map-inline-item {
+    min-width: auto;
+    max-width: 82vw;
+    padding: 5px 8px;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    border-radius: 999px;
+  }
+
+  .map-inline-date {
+    font-size: 0.62rem;
+    margin-bottom: 0;
+    padding: 2px 6px;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.08);
+    line-height: 1.1;
+    flex-shrink: 0;
+  }
+
+  .map-inline-incident {
+    font-size: 0.68rem;
+    line-height: 1.2;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .map-inline-arrow {
+    font-size: 0.72rem;
+    opacity: 0.85;
   }
 
   .detail-drawer {
@@ -1127,5 +1178,9 @@
 @media (max-width: 560px) {
   .map-controls {
     grid-template-columns: 1fr;
+  }
+
+  .map-inline-item {
+    max-width: 88vw;
   }
 }
