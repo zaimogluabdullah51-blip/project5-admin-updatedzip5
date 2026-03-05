@@ -69,6 +69,32 @@ function parseJsonField(value, fallback) {
   }
 }
 
+function normalizeTckCode(value) {
+  return String(value || "")
+    .trim()
+    .replace(/^TCK\s*/i, "")
+    .replace(/\s+/g, "")
+    .toUpperCase();
+}
+
+async function getDefinedTckCodeSet() {
+  const rows = await all("SELECT code FROM tck_definitions");
+  return new Set(rows.map((row) => normalizeTckCode(row.code)).filter(Boolean));
+}
+
+function filterKnownTckCodes(values, definedSet) {
+  if (!Array.isArray(values) || !definedSet || definedSet.size === 0) return [];
+  const seen = new Set();
+  const out = [];
+  for (const raw of values) {
+    const code = normalizeTckCode(raw);
+    if (!code || !definedSet.has(code) || seen.has(code)) continue;
+    seen.add(code);
+    out.push(code);
+  }
+  return out;
+}
+
 app.get("/api/health", (req, res) => {
   res.json({ ok: true });
 });
@@ -97,6 +123,7 @@ app.get("/api/me", (req, res) => {
 
 app.get("/api/cases", async (req, res) => {
   try {
+    const definedTckCodes = await getDefinedTckCodeSet();
     const rows = await all(
       `SELECT c.*,
               SUM(CASE WHEN p.is_external IS NULL OR p.is_external = 0 THEN 1 ELSE 0 END) as defendantCount
@@ -108,7 +135,7 @@ app.get("/api/cases", async (req, res) => {
     );
     const mapped = rows.map((row) => ({
       ...row,
-      tck_articles: parseJsonField(row.tck_articles, []),
+      tck_articles: filterKnownTckCodes(parseJsonField(row.tck_articles, []), definedTckCodes),
       timeline_data: parseJsonField(row.timeline_data, { enabled: false, transitionYear: 2016, events: [] }),
       hearing_count: row.hearing_count || 0
     }));
@@ -120,6 +147,7 @@ app.get("/api/cases", async (req, res) => {
 
 app.get("/api/cases/:id", async (req, res) => {
   try {
+    const definedTckCodes = await getDefinedTckCodeSet();
     const caseRow = await get("SELECT * FROM cases WHERE id = ?", [req.params.id]);
     if (!caseRow) return res.status(404).json({ error: "Case not found." });
 
@@ -134,8 +162,11 @@ app.get("/api/cases/:id", async (req, res) => {
 
     const mappedPeople = people.map((person) => ({
       ...person,
-      tck_articles: parseJsonField(person.tck_articles, []),
-      accusations: parseJsonField(person.accusations, []),
+      tck_articles: filterKnownTckCodes(parseJsonField(person.tck_articles, []), definedTckCodes),
+      accusations: parseJsonField(person.accusations, []).map((acc) => ({
+        ...acc,
+        tckCodes: filterKnownTckCodes(acc?.tckCodes, definedTckCodes)
+      })),
       evidence_items: parseJsonField(person.evidence_items, []),
       defense: parseJsonField(person.defense, []),
       related_profiles: parseJsonField(person.related_profiles, []),
@@ -150,13 +181,13 @@ app.get("/api/cases/:id", async (req, res) => {
     );
     const mappedActions = actions.map((a) => ({
       ...a,
-      tck_codes: parseJsonField(a.tck_codes, []),
+      tck_codes: filterKnownTckCodes(parseJsonField(a.tck_codes, []), definedTckCodes),
       mentioned_names: parseJsonField(a.mentioned_names, [])
     }));
 
     res.json({
       ...caseRow,
-      tck_articles: parseJsonField(caseRow.tck_articles, []),
+      tck_articles: filterKnownTckCodes(parseJsonField(caseRow.tck_articles, []), definedTckCodes),
       timeline_data: parseJsonField(caseRow.timeline_data, { enabled: false, transitionYear: 2016, events: [] }),
       hearing_count: caseRow.hearing_count || 0,
       people: mappedPeople,
@@ -169,11 +200,15 @@ app.get("/api/cases/:id", async (req, res) => {
 
 app.get("/api/people", async (req, res) => {
   try {
+    const definedTckCodes = await getDefinedTckCodeSet();
     const rows = await all("SELECT * FROM people ORDER BY name ASC");
     const mapped = rows.map((person) => ({
       ...person,
-      tck_articles: parseJsonField(person.tck_articles, []),
-      accusations: parseJsonField(person.accusations, []),
+      tck_articles: filterKnownTckCodes(parseJsonField(person.tck_articles, []), definedTckCodes),
+      accusations: parseJsonField(person.accusations, []).map((acc) => ({
+        ...acc,
+        tckCodes: filterKnownTckCodes(acc?.tckCodes, definedTckCodes)
+      })),
       evidence_items: parseJsonField(person.evidence_items, []),
       defense: parseJsonField(person.defense, []),
       related_profiles: parseJsonField(person.related_profiles, []),
@@ -189,6 +224,7 @@ app.get("/api/people", async (req, res) => {
 
 app.post("/api/people/find-or-create", requireAuthApi, async (req, res) => {
   try {
+    const definedTckCodes = await getDefinedTckCodeSet();
     const { name, role, caseId } = req.body;
     if (!name) return res.status(400).json({ error: "İsim gerekli." });
     const existing = await get("SELECT * FROM people WHERE LOWER(name) = LOWER(?)", [name.trim()]);
@@ -196,7 +232,12 @@ app.post("/api/people/find-or-create", requireAuthApi, async (req, res) => {
       if (caseId) {
         await run("INSERT OR REPLACE INTO case_people (case_id, person_id, relationship) VALUES (?, ?, '')", [caseId, existing.id]);
       }
-      res.json({ ...existing, tck_articles: parseJsonField(existing.tck_articles, []), action_numbers: parseJsonField(existing.action_numbers, []), created: false });
+      res.json({
+        ...existing,
+        tck_articles: filterKnownTckCodes(parseJsonField(existing.tck_articles, []), definedTckCodes),
+        action_numbers: parseJsonField(existing.action_numbers, []),
+        created: false
+      });
     } else {
       const person = await createPerson({ name: name.trim(), role: role || "unknown" });
       if (caseId) {
@@ -236,7 +277,12 @@ app.put("/api/cases/:id", requireAuthApi, async (req, res) => {
 app.post("/api/people", requireAuthApi, async (req, res) => {
   try {
     if (!req.body.name) return res.status(400).json({ error: "Name is required." });
-    const record = await createPerson(req.body);
+    const definedTckCodes = await getDefinedTckCodeSet();
+    const payload = {
+      ...req.body,
+      tck_articles: filterKnownTckCodes(req.body.tck_articles, definedTckCodes)
+    };
+    const record = await createPerson(payload);
     res.status(201).json(record);
   } catch (err) {
     res.status(500).json({ error: "Failed to create person." });
@@ -249,6 +295,17 @@ app.put("/api/people/:id", requireAuthApi, async (req, res) => {
     if (!existing) return res.status(404).json({ error: "Person not found." });
 
     const b = req.body;
+    const definedTckCodes = await getDefinedTckCodeSet();
+    const sanitizedTckArticles = b.tck_articles !== undefined
+      ? filterKnownTckCodes(b.tck_articles, definedTckCodes)
+      : parseJsonField(existing.tck_articles, []);
+    const sanitizedAccusations = b.accusations !== undefined
+      ? (Array.isArray(b.accusations) ? b.accusations : []).map((acc) => ({
+          ...acc,
+          tckCodes: filterKnownTckCodes(acc?.tckCodes, definedTckCodes)
+        }))
+      : parseJsonField(existing.accusations, []);
+
     await run(
       `UPDATE people SET
         name = ?, role = ?, charge = ?, claim = ?, evidence = ?, photo_url = ?,
@@ -263,8 +320,8 @@ app.put("/api/people/:id", requireAuthApi, async (req, res) => {
         b.claim ?? existing.claim,
         b.evidence ?? existing.evidence,
         b.photo_url ?? existing.photo_url,
-        JSON.stringify(b.tck_articles ?? parseJsonField(existing.tck_articles, [])),
-        JSON.stringify(b.accusations ?? parseJsonField(existing.accusations, [])),
+        JSON.stringify(sanitizedTckArticles),
+        JSON.stringify(sanitizedAccusations),
         JSON.stringify(b.evidence_items ?? parseJsonField(existing.evidence_items, [])),
         JSON.stringify(b.defense ?? parseJsonField(existing.defense, [])),
         JSON.stringify(b.related_profiles ?? parseJsonField(existing.related_profiles, [])),
@@ -281,9 +338,12 @@ app.put("/api/people/:id", requireAuthApi, async (req, res) => {
     const updated = await get("SELECT * FROM people WHERE id = ?", [req.params.id]);
     res.json({
       ...updated,
-      tck_articles: parseJsonField(updated.tck_articles, []),
+      tck_articles: filterKnownTckCodes(parseJsonField(updated.tck_articles, []), definedTckCodes),
       action_numbers: parseJsonField(updated.action_numbers, []),
-      accusations: parseJsonField(updated.accusations, []),
+      accusations: parseJsonField(updated.accusations, []).map((acc) => ({
+        ...acc,
+        tckCodes: filterKnownTckCodes(acc?.tckCodes, definedTckCodes)
+      })),
       evidence_items: parseJsonField(updated.evidence_items, []),
       defense: parseJsonField(updated.defense, []),
       related_profiles: parseJsonField(updated.related_profiles, []),
@@ -309,7 +369,12 @@ app.post("/api/case-people", requireAuthApi, async (req, res) => {
 
 app.post("/api/actions", requireAuthApi, async (req, res) => {
   try {
-    const record = await createAction(req.body);
+    const definedTckCodes = await getDefinedTckCodeSet();
+    const payload = {
+      ...req.body,
+      tckCodes: filterKnownTckCodes(req.body.tckCodes, definedTckCodes)
+    };
+    const record = await createAction(payload);
     res.status(201).json(record);
   } catch (err) {
     res.status(500).json({ error: "Eylem kaydedilemedi." });
@@ -332,8 +397,22 @@ app.delete("/api/actions", requireAuthApi, async (req, res) => {
   }
 });
 
+app.delete("/api/actions/by-eylem", requireAuthApi, async (req, res) => {
+  try {
+    const { caseId, actionNum } = req.query;
+    if (!caseId || !actionNum) {
+      return res.status(400).json({ error: "caseId ve actionNum gerekli." });
+    }
+    await run("DELETE FROM actions WHERE case_id = ? AND action_num = ?", [caseId, actionNum]);
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(500).json({ error: "Eylem kayıtları silinemedi." });
+  }
+});
+
 app.get("/api/actions", async (req, res) => {
   try {
+    const definedTckCodes = await getDefinedTckCodeSet();
     let rows;
     if (req.query.caseId && req.query.personId) {
       rows = await all(
@@ -355,7 +434,7 @@ app.get("/api/actions", async (req, res) => {
     }
     const mapped = rows.map((r) => ({
       ...r,
-      tck_codes: parseJsonField(r.tck_codes, []),
+      tck_codes: filterKnownTckCodes(parseJsonField(r.tck_codes, []), definedTckCodes),
       mentioned_names: parseJsonField(r.mentioned_names, [])
     }));
     res.json(mapped);
@@ -398,6 +477,18 @@ app.post("/api/eylem-summaries/bulk", requireAuthApi, async (req, res) => {
     res.status(201).json(results);
   } catch (err) {
     res.status(500).json({ error: "Eylem özetleri kaydedilemedi." });
+  }
+});
+
+app.delete("/api/eylem/:caseId/:eylemNum", requireAuthApi, async (req, res) => {
+  try {
+    const { caseId, eylemNum } = req.params;
+    if (!caseId || !eylemNum) return res.status(400).json({ error: "caseId ve eylemNum gerekli." });
+    await run("DELETE FROM eylem_summaries WHERE case_id = ? AND eylem_num = ?", [caseId, eylemNum]);
+    await run("DELETE FROM actions WHERE case_id = ? AND action_num = ?", [caseId, eylemNum]);
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(500).json({ error: "Eylem silinemedi." });
   }
 });
 
@@ -492,6 +583,7 @@ app.get("/api/graph", async (req, res) => {
 
 app.get("/api/tck-summary", async (req, res) => {
   try {
+    const definitions = await all("SELECT code FROM tck_definitions ORDER BY code ASC");
     const actions = await all("SELECT * FROM actions ORDER BY action_num ASC");
     const people = await all("SELECT * FROM people ORDER BY name ASC");
     const casePeople = await all("SELECT * FROM case_people");
@@ -507,15 +599,17 @@ app.get("/api/tck-summary", async (req, res) => {
     }
 
     const tckData = new Map();
+    for (const row of definitions) {
+      const code = normalizeTckCode(row.code);
+      if (!code) continue;
+      tckData.set(code, { article: code, profiles: [] });
+    }
 
     for (const action of actions) {
       const codes = parseJsonField(action.tck_codes, []);
       for (const code of codes) {
-        if (!code) continue;
-        const normalized = String(code).trim();
-        if (!tckData.has(normalized)) {
-          tckData.set(normalized, { article: normalized, profiles: [] });
-        }
+        const normalized = normalizeTckCode(code);
+        if (!normalized || !tckData.has(normalized)) continue;
         const person = personMap.get(action.person_id);
         if (!person) continue;
 
@@ -543,11 +637,8 @@ app.get("/api/tck-summary", async (req, res) => {
     for (const person of people) {
       const articles = parseJsonField(person.tck_articles, []);
       for (const code of articles) {
-        if (!code) continue;
-        const normalized = String(code).trim();
-        if (!tckData.has(normalized)) {
-          tckData.set(normalized, { article: normalized, profiles: [] });
-        }
+        const normalized = normalizeTckCode(code);
+        if (!normalized || !tckData.has(normalized)) continue;
         const existing = tckData.get(normalized).profiles;
         if (existing.some(p => p.personId === person.id)) continue;
 
@@ -587,7 +678,7 @@ app.get("/api/tck-summary", async (req, res) => {
 
 app.get("/api/tck-definitions", async (req, res) => {
   try {
-    const rows = await all("SELECT code, short_desc, full_text FROM tck_definitions ORDER BY code ASC");
+    const rows = await all("SELECT code, short_desc, full_text, source_url FROM tck_definitions ORDER BY code ASC");
     res.json(rows);
   } catch (err) {
     console.error("TCK definitions error:", err);
@@ -598,17 +689,22 @@ app.get("/api/tck-definitions", async (req, res) => {
 app.put("/api/tck-definitions/:code", requireAuthApi, async (req, res) => {
   try {
     const { code } = req.params;
-    const { short_desc, full_text } = req.body || {};
-    const existing = await get("SELECT code FROM tck_definitions WHERE code = ?", [code]);
+    const { short_desc, full_text, source_url } = req.body || {};
+    const existing = await get("SELECT code, short_desc, full_text, source_url FROM tck_definitions WHERE code = ?", [code]);
     if (existing) {
       await run(
-        "UPDATE tck_definitions SET short_desc = ?, full_text = ? WHERE code = ?",
-        [short_desc || "", full_text || "", code]
+        "UPDATE tck_definitions SET short_desc = ?, full_text = ?, source_url = ? WHERE code = ?",
+        [
+          short_desc !== undefined ? short_desc : (existing.short_desc || ""),
+          full_text !== undefined ? full_text : (existing.full_text || ""),
+          source_url !== undefined ? source_url : (existing.source_url || ""),
+          code
+        ]
       );
     } else {
       await run(
-        "INSERT INTO tck_definitions (code, short_desc, full_text) VALUES (?, ?, ?)",
-        [code, short_desc || "", full_text || ""]
+        "INSERT INTO tck_definitions (code, short_desc, full_text, source_url) VALUES (?, ?, ?, ?)",
+        [code, short_desc || "", full_text || "", source_url || ""]
       );
     }
     res.json({ ok: true });
@@ -620,15 +716,15 @@ app.put("/api/tck-definitions/:code", requireAuthApi, async (req, res) => {
 
 app.post("/api/tck-definitions", requireAuthApi, async (req, res) => {
   try {
-    const { code, short_desc, full_text } = req.body || {};
+    const { code, short_desc, full_text, source_url } = req.body || {};
     if (!code) return res.status(400).json({ error: "Madde kodu gerekli." });
     const existing = await get("SELECT code FROM tck_definitions WHERE code = ?", [code]);
     if (existing) {
       return res.status(409).json({ error: "Bu madde zaten mevcut." });
     }
     await run(
-      "INSERT INTO tck_definitions (code, short_desc, full_text) VALUES (?, ?, ?)",
-      [code, short_desc || "", full_text || ""]
+      "INSERT INTO tck_definitions (code, short_desc, full_text, source_url) VALUES (?, ?, ?, ?)",
+      [code, short_desc || "", full_text || "", source_url || ""]
     );
     res.json({ ok: true, code });
   } catch (err) {
@@ -708,7 +804,11 @@ app.get("/admin", (req, res) => {
   res.redirect("/admin/index.html");
 });
 
-app.use("/admin", requireAuthPage, express.static(path.join(__dirname, "public", "admin")));
+app.use("/admin", requireAuthPage, express.static(path.join(__dirname, "public", "admin"), {
+  setHeaders: (res) => {
+    res.setHeader("Cache-Control", "no-cache, no-store, must-revalidate");
+  }
+}));
 
 app.delete("/api/cases/:id", requireAuthApi, async (req, res) => {
   try {

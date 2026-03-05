@@ -44,6 +44,7 @@
           <button data-tab="timeline" class="menu-item">Zaman Çizelgesi</button>
           <button data-tab="profiles" class="menu-item">Profiller</button>
           <button data-tab="eylemler" class="menu-item">Eylemler</button>
+          <button data-tab="tckmaddeleri" class="menu-item">TCK Maddeleri</button>
           <a href="/" class="menu-item home-link">Ana Sayfaya Dön</a>
         </nav>
       </aside>
@@ -155,7 +156,7 @@
                 </div>
                 <div id="tck-chips" class="chips-container"></div>
               </label>
-              <label>Suçlanan Eylemler
+              <label id="profile-action-numbers-field" style="display:none;">Suçlanan Eylemler
                 <div class="tck-input-row">
                   <input id="action-input" placeholder="Örn: Eylem 3" />
                   <button type="button" id="action-add-btn" class="btn ghost">Ekle</button>
@@ -180,7 +181,7 @@
         </section>
 
         <section class="panel tab-panel" id="tab-eylemler">
-          <h2>Eylem Özetleri</h2>
+          <h2>Eylemler</h2>
           <label>Dava seç
             <select id="eylem-case-select"></select>
           </label>
@@ -188,20 +189,118 @@
 
           <div id="eylem-summaries-section" style="margin-top: 16px;">
             <p style="font-size: 0.85rem; color: #9ca3af; margin-bottom: 12px;">
-              Her eylem için haritada gösterilecek özeti girin. Aşağıya toplu metin yapıştırarak da ekleyebilirsiniz.
+              Toplu giriş için aşağıdaki parser alanını kullanın (yeni yapılandırılmış format).
             </p>
-            <details id="eylem-bulk-details" style="margin-bottom: 12px;">
+            <details id="eylem-structured-details" style="margin-bottom: 12px;" open>
+              <summary style="cursor: pointer; font-size: 0.85rem; color: #60a5fa; user-select: none;">Yapılandırılmış Şablon (Önerilen)</summary>
+              <div style="margin-top: 8px;">
+                <textarea id="eylem-structured-paste" rows="14" style="width:100%;" placeholder="EYLEM 1
+ÖZET: ...
+DAHİL OLANLAR:
+- Ahmet Yılmaz | Rol: Sanık | Suçlama: Örgüt üyeliği; Anayasal düzeni ihlal
+- Mehmet Kaya | Rol: Tanık | Suçlama: -
+İLİŞKİLER:
+- Ahmet Yılmaz -> Mehmet Kaya | İlişki: Talimat verdi
+- Mehmet Kaya -> Ahmet Yılmaz | İlişki: İfade verdi
+
+EYLEM 2
+ÖZET: ...
+DAHİL OLANLAR:
+- ...
+İLİŞKİLER:
+- ..."></textarea>
+                <div style="display:flex; gap:8px; margin-top:6px;">
+                  <button id="eylem-structured-parse-btn" class="btn ghost" type="button">Ayrıştır</button>
+                  <button id="eylem-structured-import-btn" class="btn primary" type="button">Ayrıştırılanı İçe Aktar</button>
+                </div>
+                <div id="eylem-structured-preview" class="list" style="margin-top:8px;"></div>
+              </div>
+            </details>
+            <details id="eylem-bulk-details" style="margin-bottom: 12px; display:none;">
               <summary style="cursor: pointer; font-size: 0.85rem; color: #60a5fa; user-select: none;">Toplu Yapıştır</summary>
               <div style="margin-top: 8px;">
                 <textarea id="eylem-bulk-paste" rows="6" placeholder="EYLEM 1: Özet metni buraya...&#10;EYLEM 2: Özet metni buraya...&#10;&#10;Ya da:&#10;&#10;EYLEM 1&#10;Özet metni buraya...&#10;&#10;EYLEM 2&#10;Özet metni buraya..." style="width:100%;"></textarea>
                 <button id="eylem-bulk-parse-btn" class="btn primary" type="button" style="margin-top: 6px;">Ayrıştır ve Ekle</button>
               </div>
             </details>
-            <div id="eylem-summaries-list"></div>
-            <div style="display: flex; gap: 8px; margin-top: 10px;">
+            <div id="eylem-summaries-list" style="display:none;"></div>
+            <div style="display:none; gap: 8px; margin-top: 10px;">
               <button id="eylem-add-btn" class="btn ghost" type="button">+ Eylem Ekle</button>
               <button id="eylem-save-btn" class="btn primary" type="button">Özetleri Kaydet</button>
             </div>
+          </div>
+
+          <div id="eylem-editor" style="margin-top: 12px; padding-top: 8px;">
+            <h3 style="margin-top:0;">Eylem Detay Düzenleyici</h3>
+            <p class="muted" style="font-size:.85rem; margin-bottom:10px;">Aşağıdaki eylem kategorilerinden birine tıklayın, detaylar açılır.</p>
+            <div id="eylem-editor-list" class="list" style="display:flex; flex-wrap:wrap; gap:8px; margin-bottom:10px;"></div>
+            <div style="display:flex; gap:8px; margin-bottom:10px;">
+              <button id="eylem-editor-new-btn" class="btn ghost" type="button">+ Yeni Eylem</button>
+            </div>
+            <div id="eylem-editor-empty" class="muted" style="margin-bottom:8px;">Detay görmek için bir eylem kategorisi seçin.</div>
+
+            <label>Eylem No
+              <input id="eylem-editor-num" placeholder="Örn: 3" />
+            </label>
+            <label>Eylem Özeti
+              <textarea id="eylem-editor-summary" rows="3" placeholder="Bu eylem için özet"></textarea>
+            </label>
+            <label>Dahil Olanlar (satır başı bir kişi)
+              <textarea id="eylem-editor-people" rows="6" placeholder="- Ahmet Yılmaz | Rol: Sanık | Suçlama: ..."></textarea>
+            </label>
+            <label>İlişkiler (satır başı bir ilişki)
+              <textarea id="eylem-editor-relations" rows="6" placeholder="- Ahmet Yılmaz -> Mehmet Kaya | İlişki: Talimat verdi"></textarea>
+            </label>
+            <div style="display:flex; gap:8px; margin-top:8px;">
+              <button id="eylem-editor-save-btn" class="btn primary" type="button">Eylemi Kaydet</button>
+              <button id="eylem-editor-delete-btn" class="btn ghost" type="button">Eylemi Sil</button>
+            </div>
+          </div>
+
+        </section>
+
+        <section class="panel tab-panel" id="tab-tckmaddeleri">
+          <h2>TCK Maddeleri</h2>
+          <p class="muted" style="font-size:.85rem; margin-bottom:10px;">Eylem parserına benzer şekilde toplu metinle TCK özet ve link girişi yapabilirsiniz.</p>
+
+          <details id="tck-admin-bulk-details" style="margin-bottom: 12px;" open>
+            <summary style="cursor: pointer; font-size: 0.85rem; color: #60a5fa; user-select: none;">Toplu Parser (Önerilen)</summary>
+            <div style="margin-top:8px;">
+              <textarea id="tck-admin-bulk-paste" rows="10" style="width:100%;" placeholder="Ceza Kanununun amacı
+Madde 1- (1) Ceza Kanununun amacı...
+
+Suçta ve cezada kanunîlik ilkesi
+Madde 2- (1) Kanunun açıkça suç saymadığı...
+(2) İdarenin düzenleyici işlemleriyle...
+
+Tanımlar
+Madde 6- (1) Ceza kanunlarının uygulanmasında;
+a) Vatandaş deyiminden...
+b) Çocuk deyiminden..."></textarea>
+              <div style="display:flex; gap:8px; margin-top:6px;">
+                <button id="tck-admin-bulk-parse-btn" class="btn ghost" type="button">Ayrıştır</button>
+                <button id="tck-admin-bulk-import-btn" class="btn primary" type="button">Ayrıştırılanı Kaydet</button>
+              </div>
+              <div id="tck-admin-bulk-preview" class="list" style="margin-top:8px;"></div>
+            </div>
+          </details>
+
+          <div id="tck-admin-editor" style="margin-top: 20px; border-top: 1px solid rgba(148,163,184,.25); padding-top: 14px;">
+            <h3 style="margin-top:0;">Tekil TCK Madde Girişi</h3>
+            <label>Madde Kodu
+              <input id="tck-admin-code" placeholder="Örn: 314/2" />
+            </label>
+            <label>Özet (kartta gözükecek kısa metin)
+              <input id="tck-admin-short" placeholder="Örn: Eğitim ve öğretim hakkının engellenmesi" />
+            </label>
+            <label>Tam Açıklama
+              <textarea id="tck-admin-full" rows="5" placeholder="Maddeye ilişkin detaylı açıklama..."></textarea>
+            </label>
+            <div style="display:flex; gap:8px; margin-top:8px;">
+              <button id="tck-admin-save-btn" class="btn primary" type="button">Maddeyi Kaydet</button>
+              <button id="tck-admin-reset-btn" class="btn ghost" type="button">Yeni Giriş</button>
+            </div>
+            <div id="tck-admin-list" class="list" style="margin-top:12px;"></div>
           </div>
         </section>
 
@@ -256,6 +355,6 @@
     </div>
 
     <script src="/timeline.js"></script>
-    <script src="/admin/admin.js"></script>
+    <script src="/admin/admin.js?v=20260303"></script>
   </body>
 </html>

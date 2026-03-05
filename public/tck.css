@@ -61,6 +61,47 @@
   box-shadow: var(--shadow);
 }
 
+.tck-article-card.sub-level {
+  border-radius: 14px;
+  box-shadow: none;
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.profile-collapse {
+  margin: 0;
+}
+
+.profile-collapse-summary {
+  list-style: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  padding: 14px 18px;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.03), rgba(255, 255, 255, 0.01));
+  transition: background 0.18s ease;
+}
+
+.profile-collapse-summary:hover {
+  background: linear-gradient(180deg, rgba(139, 30, 30, 0.08), rgba(139, 30, 30, 0.03));
+}
+
+.profile-collapse-summary::-webkit-details-marker {
+  display: none;
+}
+
+.profile-collapse-summary::after {
+  content: "▸";
+  margin-left: auto;
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+
+.profile-collapse[open] > .profile-collapse-summary::after {
+  content: "▾";
+}
+
 .tck-article-header {
   display: flex;
   justify-content: space-between;
@@ -102,6 +143,24 @@
   min-width: 0;
 }
 
+.tck-article-subcodes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  flex-basis: 100%;
+  margin-top: 2px;
+}
+
+.tck-subcode-chip {
+  font-size: 0.72rem;
+  line-height: 1.2;
+  padding: 3px 8px;
+  border-radius: 999px;
+  color: #fca5a5;
+  background: rgba(139, 30, 30, 0.12);
+  border: 1px solid rgba(139, 30, 30, 0.26);
+}
+
 .tck-article-count {
   background: var(--panel-light);
   color: var(--muted);
@@ -118,22 +177,27 @@
   transition: transform 0.3s ease;
 }
 
-.tck-article-card.open .tck-article-chevron {
+.tck-article-card.open .tck-article-chevron,
+.tck-article-card > details[open] .tck-article-chevron {
   transform: rotate(180deg);
 }
 
 .tck-article-body {
   display: none;
   border-top: 1px solid var(--border);
-  padding: 0;
+  padding: 10px 12px 12px;
 }
 
-.tck-article-card.open .tck-article-body {
+.tck-article-card.open .tck-article-body,
+.tck-article-card > details[open] .tck-article-body {
   display: block;
 }
 
 .tck-legal-section {
-  border-bottom: 1px solid var(--border);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  overflow: hidden;
+  margin-bottom: 10px;
 }
 
 .tck-legal-header {
@@ -169,18 +233,20 @@
 }
 
 .tck-legal-text {
-  display: none;
-  padding: 16px 24px 20px;
+  display: block;
+  padding: 14px 16px;
   color: var(--text);
-  font-size: 0.88rem;
-  line-height: 1.75;
+  font-size: 0.87rem;
+  line-height: 1.68;
   background: rgba(139, 30, 30, 0.03);
-  border-top: 1px solid rgba(139, 30, 30, 0.1);
-  font-style: italic;
+  border-top: 0;
+  font-style: normal;
 }
 
-.tck-legal-section.expanded .tck-legal-text {
-  display: block;
+.tck-sub-articles {
+  display: grid;
+  gap: 10px;
+  margin-top: 8px;
 }
 
 .tck-profiles {

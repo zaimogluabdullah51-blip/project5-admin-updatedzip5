@@ -177,7 +177,8 @@ async function init() {
     CREATE TABLE IF NOT EXISTS tck_definitions (
       code TEXT PRIMARY KEY,
       short_desc TEXT NOT NULL,
-      full_text TEXT
+      full_text TEXT,
+      source_url TEXT
     )
   `);
 
@@ -270,6 +271,7 @@ async function init() {
   await ensureColumn("people", "action_numbers", "TEXT");
   await ensureColumn("actions", "sentence_demand", "TEXT");
   await ensureColumn("actions", "mentioned_names", "TEXT");
+  await ensureColumn("tck_definitions", "source_url", "TEXT");
   await normalizeLegacyActionRows();
   await seedTckDefinitions();
 

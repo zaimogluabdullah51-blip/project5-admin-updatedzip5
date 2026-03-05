@@ -1,7 +1,6 @@
 const PROFILES_INITIAL_SHOW = 5;
 
 let tckDefinitions = {};
-let isAdmin = false;
 let allData = [];
 
 function esc(str) {
@@ -11,33 +10,14 @@ function esc(str) {
   return d.innerHTML;
 }
 
-async function checkAdmin() {
-  try {
-    const res = await fetch("/api/me");
-    const data = await res.json();
-    isAdmin = data.authed === true;
-  } catch { isAdmin = false; }
-  updateAdminUI();
-}
-
 function updateAdminUI() {
   const adminArea = document.getElementById("admin-area");
   if (!adminArea) return;
-  if (isAdmin) {
-    adminArea.innerHTML = `
-      <span class="admin-status">Admin ✓</span>
-      <button class="btn ghost small" onclick="doLogout()">Çıkış</button>
-    `;
-  } else {
-    adminArea.innerHTML = `
-      <a href="/admin/login.html" class="btn ghost small">Admin Girişi</a>
-    `;
-  }
+  adminArea.innerHTML = `<a href="/admin/login.html" class="btn ghost small">Admin Paneli</a>`;
 }
 
 async function doLogout() {
   await fetch("/api/logout", { method: "POST" });
-  isAdmin = false;
   updateAdminUI();
   renderList(allData);
 }
@@ -49,7 +29,7 @@ async function loadDefinitions() {
     const rows = await res.json();
     tckDefinitions = {};
     for (const r of rows) {
-      tckDefinitions[r.code] = { short: r.short_desc || "", full: r.full_text || "" };
+      tckDefinitions[r.code] = { short: r.short_desc || "", full: r.full_text || "", link: r.source_url || "" };
     }
   } catch {
     tckDefinitions = {};
@@ -58,13 +38,20 @@ async function loadDefinitions() {
 
 async function loadTCK() {
   const listEl = document.getElementById("tck-list");
+  updateAdminUI();
   try {
-    await Promise.all([loadDefinitions(), checkAdmin()]);
+    await loadDefinitions();
+    allData = [];
     const res = await fetch("/api/tck-summary");
-    if (!res.ok) throw new Error("API error");
-    allData = await res.json();
+    if (res.ok) {
+      allData = await res.json();
+    }
     renderList(allData);
   } catch (err) {
+    if (Object.keys(tckDefinitions).length > 0) {
+      renderList([]);
+      return;
+    }
     listEl.innerHTML = '<div class="tck-empty">Veri yüklenemedi.</div>';
   }
 }
@@ -72,62 +59,161 @@ async function loadTCK() {
 function renderList(data) {
   const listEl = document.getElementById("tck-list");
 
-  if (!data.length) {
+  if (!data.length && Object.keys(tckDefinitions).length === 0) {
     listEl.innerHTML = '<div class="tck-empty">Henüz TCK maddesi bulunamadı.</div>';
     return;
   }
+  const normalizeCode = (code) => String(code || "").replace(/^TCK\s*/i, "").replace(/\s+/g, "").trim().toLowerCase();
+  const codeLabel = (code) => {
+    const raw = String(code || "").replace(/^tck\s*/i, "").trim();
+    return raw.toUpperCase();
+  };
+  const rootCode = (code) => {
+    const c = normalizeCode(code);
+    const m = c.match(/^(\d+)/);
+    return m ? m[1] : "";
+  };
+  const parseParts = (code) => {
+    const c = normalizeCode(code);
+    const m = c.match(/^(\d+)(?:\/([^/-]+))?(?:-([^-]+))?$/i);
+    if (!m) return { article: Number.MAX_SAFE_INTEGER, clause: Number.MAX_SAFE_INTEGER, letter: c };
+    const clauseNum = m[2] && /^\d+$/.test(m[2]) ? parseInt(m[2], 10) : Number.MAX_SAFE_INTEGER - 1;
+    return {
+      article: parseInt(m[1], 10),
+      clause: m[2] ? clauseNum : 0,
+      letter: String(m[3] || m[2] || "").toLowerCase()
+    };
+  };
+  const parentCode = (code) => {
+    const c = normalizeCode(code);
+    if (c.includes("-")) {
+      const parts = c.split("-");
+      parts.pop();
+      return parts.join("-");
+    }
+    if (c.includes("/")) return rootCode(c);
+    return "";
+  };
+  const sortCodes = (a, b) => {
+    const pa = parseParts(a);
+    const pb = parseParts(b);
+    if (!pa || !pb) return String(a).localeCompare(String(b));
+    if (pa.article !== pb.article) return pa.article - pb.article;
+    if (pa.clause !== pb.clause) return pa.clause - pb.clause;
+    return pa.letter.localeCompare(pb.letter);
+  };
 
-  listEl.innerHTML = data.map((item, idx) => {
-    const descObj = getDescription(item.article);
-    const profileCount = item.profiles.length;
+  const profilesByCode = new Map();
+  (Array.isArray(data) ? data : []).forEach((item) => {
+    const c = normalizeCode(item.article);
+    profilesByCode.set(c, item.profiles || []);
+  });
 
-    const editBtn = isAdmin ? `<button class="tck-edit-btn" onclick="openEditDefinition('${esc(item.article)}', event)" title="Düzenle">✎</button>` : "";
+  const definitionsByCode = new Map();
+  Object.entries(tckDefinitions).forEach(([code, def]) => {
+    const normalized = normalizeCode(code);
+    if (!normalized) return;
+    definitionsByCode.set(normalized, def || {});
+  });
+
+  const allCodes = new Set(definitionsByCode.keys());
+  Array.from(allCodes).forEach((code) => {
+    const root = rootCode(code);
+    if (root) allCodes.add(root);
+  });
+  const nodes = new Map();
+  allCodes.forEach((code) => {
+    const def = definitionsByCode.get(code) || { short: "", full: "" };
+    nodes.set(code, {
+      code,
+      short: def.short || "",
+      full: def.full || "",
+      profiles: profilesByCode.get(code) || [],
+      children: []
+    });
+  });
+
+  const roots = [];
+  nodes.forEach((node, code) => {
+    const parent = parentCode(code);
+    if (parent && nodes.has(parent)) {
+      nodes.get(parent).children.push(node);
+    } else if (/^\d+$/.test(code)) {
+      roots.push(node);
+    }
+  });
+
+  const renderNode = (node, depth = 0) => {
+    node.children.sort((a, b) => sortCodes(a.code, b.code));
+    const profileCount = node.profiles.length;
+    const collectSubtreeTexts = (n, acc = []) => {
+      const t = String(n.full || "").trim();
+      if (t) acc.push(t);
+      (n.children || []).forEach((child) => collectSubtreeTexts(child, acc));
+      return acc;
+    };
+    const buildFullText = (n) => {
+      const blocks = collectSubtreeTexts(n, []);
+      const seen = new Set();
+      const merged = [];
+      blocks.forEach((block) => {
+        String(block)
+          .split(/\n+/)
+          .map((line) => line.trim())
+          .filter(Boolean)
+          .forEach((line) => {
+            const key = line.toLowerCase();
+            if (seen.has(key)) return;
+            seen.add(key);
+            merged.push(line);
+          });
+      });
+      return merged.join("\n");
+    };
+    const displayFullText = buildFullText(node);
+    const childCodes = node.children.map((child) =>
+      `<span class="tck-subcode-chip">TCK ${esc(codeLabel(child.code))}</span>`
+    ).join("");
+    const childrenHtml = node.children.length
+      ? `<div class="tck-sub-articles">${node.children.map((child) => renderNode(child, depth + 1)).join("")}</div>`
+      : "";
 
     return `
-      <div class="tck-article-card" data-index="${idx}">
-        <div class="tck-article-header" onclick="toggleCard(${idx})">
-          <div class="tck-article-title">
-            <span class="tck-article-num">${item.article.startsWith("TCK") ? item.article : "TCK " + item.article}</span>
-            <span class="tck-article-desc">${esc(descObj.short) || "—"}</span>
-            ${editBtn}
+      <div class="tck-article-card ${depth > 0 ? "sub-level" : ""}" style="${depth > 0 ? "margin:8px 0 0 14px;" : ""}">
+        <details class="profile-collapse" ${depth === 0 ? "" : ""}>
+          <summary class="profile-collapse-summary">
+            <span class="tck-article-num">TCK ${esc(codeLabel(node.code))}</span>
+            ${node.short ? `<span class="tck-article-desc">${esc(node.short)}</span>` : ""}
+            <span class="tck-article-count">${profileCount} profil</span>
+            ${childCodes ? `<span class="tck-article-subcodes">${childCodes}</span>` : ""}
+          </summary>
+          <div class="tck-article-body">
+            ${displayFullText ? `
+              <div class="tck-legal-section">
+                <div class="tck-legal-text">${esc(displayFullText)}</div>
+              </div>` : `<div class="tck-legal-section tck-legal-empty"><span class="tck-legal-title" style="opacity:0.5;">Yasal karşılığı henüz eklenmemiş</span></div>`
+            }
+            ${profileCount ? `<div class="tck-profiles">${renderProfiles(node.profiles, normalizeCode(node.code))}</div>` : ""}
+            ${childrenHtml}
           </div>
-          <span class="tck-article-count">${profileCount} profil</span>
-          <span class="tck-article-chevron">▼</span>
-        </div>
-        <div class="tck-article-body">
-          ${descObj.full ? `
-            <div class="tck-legal-section">
-              <div class="tck-legal-header" onclick="toggleLegal(event, ${idx})">
-                <span class="tck-legal-title">Yasal Karşılığı</span>
-                <span class="tck-legal-toggle">Oku ▼</span>
-              </div>
-              <div class="tck-legal-text">${esc(descObj.full)}</div>
-            </div>
-          ` : (isAdmin ? `
-            <div class="tck-legal-section tck-legal-empty">
-              <div class="tck-legal-header" onclick="openEditDefinition('${esc(item.article)}', event)">
-                <span class="tck-legal-title" style="opacity:0.5;">Yasal karşılığı henüz eklenmemiş</span>
-                <span class="tck-legal-toggle" style="color:#e57373;">+ Ekle</span>
-              </div>
-            </div>
-          ` : "")}
-          <div class="tck-profiles">
-            ${renderProfiles(item.profiles, idx)}
-          </div>
-        </div>
+        </details>
       </div>
     `;
-  }).join("");
+  };
+
+  roots.sort((a, b) => sortCodes(a.code, b.code));
+  listEl.innerHTML = roots.map((node) => renderNode(node, 0)).join("");
 }
 
 function getDescription(article) {
   if (tckDefinitions[article]) return tckDefinitions[article];
   const base = article.split("/")[0];
   if (tckDefinitions[base]) return tckDefinitions[base];
-  return { short: "", full: "" };
+  return { short: "", full: "", link: "" };
 }
 
 function renderProfiles(profiles, cardIdx) {
+  const safeId = String(cardIdx || "").replace(/[^a-z0-9_-]/gi, "_");
   if (profiles.length <= PROFILES_INITIAL_SHOW) {
     return profiles.map(p => renderProfile(p)).join("");
   }
@@ -137,11 +223,11 @@ function renderProfiles(profiles, cardIdx) {
 
   return `
     ${visible.map(p => renderProfile(p)).join("")}
-    <div class="tck-more-profiles" id="more-${cardIdx}" style="display:none;">
+    <div class="tck-more-profiles" id="more-${safeId}" style="display:none;">
       ${hidden.map(p => renderProfile(p)).join("")}
     </div>
     <div class="tck-show-more-wrap">
-      <button class="tck-show-more-btn" onclick="toggleMoreProfiles(${cardIdx}, this)">
+      <button class="tck-show-more-btn" onclick="toggleMoreProfiles('${safeId}', this)">
         +${hidden.length} profil daha göster
       </button>
     </div>
@@ -236,66 +322,6 @@ function toggleMoreProfiles(cardIdx, btn) {
   } else {
     const count = moreEl.querySelectorAll(".tck-profile-card").length;
     btn.textContent = `+${count} profil daha göster`;
-  }
-}
-
-function openEditDefinition(code, event) {
-  if (event) event.stopPropagation();
-  if (!isAdmin) return;
-
-  const existing = tckDefinitions[code] || { short: "", full: "" };
-
-  const overlay = document.createElement("div");
-  overlay.className = "tck-modal-overlay";
-  overlay.onclick = (e) => { if (e.target === overlay) overlay.remove(); };
-
-  overlay.innerHTML = `
-    <div class="tck-modal">
-      <div class="tck-modal-header">
-        <h3>TCK ${esc(code)} — Tanım Düzenle</h3>
-        <button class="tck-modal-close" onclick="this.closest('.tck-modal-overlay').remove()">✕</button>
-      </div>
-      <div class="tck-modal-body">
-        <label class="tck-modal-label">Kısa Açıklama</label>
-        <input type="text" id="edit-short-desc" class="tck-modal-input" value="${esc(existing.short)}" placeholder="Örn: Silahlı Örgüt Üyeliği" />
-        <label class="tck-modal-label">Yasal Karşılığı (Detaylı Metin)</label>
-        <textarea id="edit-full-text" class="tck-modal-textarea" rows="8" placeholder="TCK maddesinin tam yasal açıklaması...">${esc(existing.full)}</textarea>
-      </div>
-      <div class="tck-modal-footer">
-        <button class="btn ghost small" onclick="this.closest('.tck-modal-overlay').remove()">İptal</button>
-        <button class="tck-modal-save" onclick="saveDefinition('${esc(code)}')">Kaydet</button>
-      </div>
-    </div>
-  `;
-
-  document.body.appendChild(overlay);
-}
-
-async function saveDefinition(code) {
-  const shortDesc = document.getElementById("edit-short-desc").value.trim();
-  const fullText = document.getElementById("edit-full-text").value.trim();
-
-  const saveBtn = document.querySelector(".tck-modal-save");
-  if (saveBtn) { saveBtn.disabled = true; saveBtn.textContent = "Kaydediliyor..."; }
-
-  try {
-    const res = await fetch(`/api/tck-definitions/${encodeURIComponent(code)}`, {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ short_desc: shortDesc, full_text: fullText })
-    });
-
-    if (!res.ok) throw new Error("Save failed");
-
-    tckDefinitions[code] = { short: shortDesc, full: fullText };
-
-    const overlay = document.querySelector(".tck-modal-overlay");
-    if (overlay) overlay.remove();
-
-    renderList(allData);
-  } catch (err) {
-    if (saveBtn) { saveBtn.disabled = false; saveBtn.textContent = "Kaydet"; }
-    alert("Kaydetme başarısız oldu. Lütfen tekrar deneyin.");
   }
 }
 

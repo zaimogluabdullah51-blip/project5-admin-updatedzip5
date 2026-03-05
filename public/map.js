@@ -80,6 +80,7 @@ let actionLayerVisible = true;
 let detailPanelVisible = false;
 let currentLayoutMode = "none";
 let previousLayoutMode = "none";
+let tckDefinitionsCache = null;
 
 const fallbackImage = "/assets/default-avatar.svg";
 
@@ -270,6 +271,78 @@ function openDetailPanel(title, html) {
   if (detailDrawerTitle) detailDrawerTitle.textContent = title || "Detay";
   if (detailDrawerBody) detailDrawerBody.innerHTML = html || "";
   showDetailPanel(true);
+}
+
+function normalizeTckCode(rawCode) {
+  const raw = String(rawCode || "").trim();
+  return raw.replace(/^TCK\s*/i, "").trim();
+}
+
+async function getTckDefinitionsCache() {
+  if (tckDefinitionsCache) return tckDefinitionsCache;
+  try {
+    const res = await fetch("/api/tck-definitions");
+    if (!res.ok) throw new Error("TCK API error");
+    const rows = await res.json();
+    tckDefinitionsCache = new Map();
+    rows.forEach((row) => {
+      const key = normalizeTckCode(row.code);
+      tckDefinitionsCache.set(key, {
+        short: row.short_desc || "",
+        full: row.full_text || ""
+      });
+    });
+  } catch (e) {
+    tckDefinitionsCache = new Map();
+  }
+  return tckDefinitionsCache;
+}
+
+async function openTckPopup(rawCode) {
+  const code = normalizeTckCode(rawCode);
+  const defs = await getTckDefinitionsCache();
+  const exact = defs.get(code) || defs.get(code.split("/")[0]) || { short: "", full: "" };
+  const summary = exact.short || exact.full || "Bu TCK maddesi için özet henüz girilmemiş.";
+
+  const old = document.getElementById("tck-quick-popup");
+  if (old) old.remove();
+
+  const popup = document.createElement("div");
+  popup.id = "tck-quick-popup";
+  popup.style.cssText = [
+    "position:fixed",
+    "right:24px",
+    "bottom:24px",
+    "z-index:2200",
+    "max-width:380px",
+    "background:#111827",
+    "color:#e5e7eb",
+    "border:1px solid rgba(148,163,184,.35)",
+    "border-radius:10px",
+    "padding:12px 14px",
+    "box-shadow:0 8px 30px rgba(0,0,0,.35)"
+  ].join(";");
+  popup.innerHTML = `
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;">
+      <strong>TCK ${escapeHtml(code)}</strong>
+      <button type="button" id="tck-quick-popup-close" style="background:none;border:none;color:#cbd5e1;cursor:pointer;font-size:18px;line-height:1;">×</button>
+    </div>
+    <p style="margin:8px 0 10px 0; font-size:.9rem; line-height:1.4;">${escapeHtml(summary)}</p>
+    <a href="/tck.html" style="color:#93c5fd; text-decoration:underline; font-size:.9rem;">Daha fazla bilgi için tıklayınız</a>
+  `;
+  document.body.appendChild(popup);
+
+  const closeBtn = popup.querySelector("#tck-quick-popup-close");
+  if (closeBtn) closeBtn.addEventListener("click", () => popup.remove());
+}
+
+function scrollToPersonEylemSection(eylemNum) {
+  if (!detailDrawerBody) return;
+  const target = [...detailDrawerBody.querySelectorAll("[data-eylem-section]")]
+    .find((el) => String(el.getAttribute("data-eylem-section") || "") === String(eylemNum || ""));
+  if (!target) return;
+  target.setAttribute("open", "open");
+  target.scrollIntoView({ behavior: "smooth", block: "start" });
 }
 
 function renderInlineTimeline(config) {
@@ -1220,13 +1293,16 @@ function openPersonModal(person, preferredActionNum = "") {
     .join(", ");
 
   const tckTags = (person.tck_articles || [])
-    .map((code) => `<span class="tag small">${escapeHtml(String(code).startsWith("TCK") ? code : `TCK ${code}`)}</span>`)
+    .map((code) => {
+      const normalized = normalizeTckCode(code);
+      const label = String(code).startsWith("TCK") ? code : `TCK ${code}`;
+      return `<button type="button" class="tag small js-tck-tag" data-tck-code="${escapeHtml(normalized)}">${escapeHtml(label)}</button>`;
+    })
     .join("");
   const eylemTags = (person.action_numbers || [])
-    .map((num) => `<span class="tag small eylem-tag">Eylem ${escapeHtml(num)}</span>`)
+    .map((num) => `<button type="button" class="tag small eylem-tag js-eylem-tag" data-eylem-num="${escapeHtml(String(num))}">Eylem ${escapeHtml(num)}</button>`)
     .join("");
 
-  const summary = escapeHtml(person.charge || person.summary || "");
   const prefNum = String(preferredActionNum || "").trim();
   const personActions = allActions
     .filter((a) => a.person_id === person.id)
@@ -1241,46 +1317,97 @@ function openPersonModal(person, preferredActionNum = "") {
       if (!isNaN(na) && !isNaN(nb) && na !== nb) return na - nb;
       return aNum.localeCompare(bNum);
     });
-  const actionsHtml = personActions.length
-    ? personActions.map((action) => {
-        const actionNum = String(action.action_num || "—").trim();
-        const isPreferred = prefNum && actionNum === prefNum;
-        const title = `Eylem ${escapeHtml(actionNum || "—")}${action.title ? " — " + escapeHtml(action.title) : ""}`;
-        const tck = (action.tck_codes || []).length
-          ? `<span class="tag">${escapeHtml(action.tck_codes.join(", "))}</span>`
-          : "";
-        const sentence = action.sentence_demand
-          ? `<div class="action-section"><span class="action-label">Talep Edilen Ceza</span><p>${escapeHtml(action.sentence_demand)}</p></div>`
-          : "";
-        const claim = action.claim ? `<div class="action-section"><span class="action-label">İddia</span><p>${escapeHtml(action.claim)}</p></div>` : "";
-        const evidence = action.evidence ? `<div class="action-section"><span class="action-label">Deliller</span><p>${escapeHtml(action.evidence)}</p></div>` : "";
-        const defense = action.defense ? `<div class="action-section"><span class="action-label">Savunma</span><p>${escapeHtml(action.defense)}</p></div>` : "";
-        const mentioned = Array.isArray(action.mentioned_names) ? action.mentioned_names : [];
-        const mentionedHtml = mentioned.length
-          ? `<div class="action-section"><span class="action-label">Geçen İsimler</span>${mentioned.map((mn) => {
-              const entry = typeof mn === "string" ? { name: mn, role: "unknown" } : mn;
-              const roleLabel = getRolesLabel(entry);
-              const row = roleLabel ? `${entry.name} (${roleLabel})` : entry.name;
-              const withContext = entry.context ? `${row} — ${entry.context}` : row;
-              return `<p>${escapeHtml(withContext)}</p>`;
-            }).join("")}</div>`
-          : "";
-        return `
-          <details class="profile-collapse action-collapse" ${isPreferred ? "open" : ""}>
-            <summary class="profile-collapse-summary">
-              <span>${title}</span>
-              ${tck}
-            </summary>
-            <article class="action-card">
-              ${sentence}
-              ${claim}
-              ${evidence}
-              ${defense}
-              ${mentionedHtml}
-            </article>
-          </details>
-        `;
-      }).join("")
+  const rawAccusations = Array.isArray(person.accusations) ? person.accusations : [];
+  let profileAccusations = rawAccusations
+    .map((acc, idx) => {
+      if (acc && typeof acc === "object") {
+        return {
+          no: acc.order || idx + 1,
+          title: acc.title || "",
+          claim: acc.claim || "",
+          evidence: acc.evidence || "",
+          defense: acc.defense || ""
+        };
+      }
+      const text = String(acc || "").trim();
+      if (!text) return null;
+      return { no: idx + 1, title: "", claim: text, evidence: "", defense: "" };
+    })
+    .filter(Boolean);
+
+  // Backward compatibility: many existing profiles keep accusation detail in actions rows.
+  if (!profileAccusations.length) {
+    const seen = new Set();
+    const fromActions = [];
+    personActions.forEach((row) => {
+      const payload = {
+        title: String(row.title || "").trim(),
+        claim: String(row.claim || "").trim(),
+        evidence: String(row.evidence || "").trim(),
+        defense: String(row.defense || "").trim()
+      };
+      if (!payload.title && !payload.claim && !payload.evidence && !payload.defense) return;
+      const key = JSON.stringify(payload);
+      if (seen.has(key)) return;
+      seen.add(key);
+      fromActions.push(payload);
+    });
+    profileAccusations = fromActions.map((acc, idx) => ({ no: idx + 1, ...acc }));
+  }
+
+  const accusationsHtml = profileAccusations.length
+    ? profileAccusations.map((acc) => `
+      <details class="profile-collapse action-collapse">
+        <summary class="profile-collapse-summary">
+          <span>${escapeHtml(String(acc.no))}. Suçlama${acc.title ? ` — ${escapeHtml(acc.title)}` : ""}</span>
+        </summary>
+        <article class="action-card">
+          <div class="action-section"><span class="action-label">İddia</span><p>${escapeHtml(acc.claim || "—")}</p></div>
+          <div class="action-section"><span class="action-label">Delil</span><p>${escapeHtml(acc.evidence || "—")}</p></div>
+          <div class="action-section"><span class="action-label">Savunma</span><p>${escapeHtml(acc.defense || "—")}</p></div>
+        </article>
+      </details>
+    `).join("")
+    : `<p class="muted">Profil bölümünde suçlama detayı bulunmuyor.</p>`;
+
+  const eylemGroups = new Map();
+  personActions.forEach((row) => {
+    const num = String(row.action_num || "").trim();
+    if (!num) return;
+    if (!eylemGroups.has(num)) eylemGroups.set(num, []);
+    eylemGroups.get(num).push(row);
+  });
+  const orderedEylemNums = [...eylemGroups.keys()].sort((a, b) => {
+    const aPreferred = prefNum && String(a) === prefNum ? 1 : 0;
+    const bPreferred = prefNum && String(b) === prefNum ? 1 : 0;
+    if (aPreferred !== bPreferred) return bPreferred - aPreferred;
+    const na = parseInt(a, 10);
+    const nb = parseInt(b, 10);
+    if (!isNaN(na) && !isNaN(nb)) return na - nb;
+    return a.localeCompare(b);
+  });
+
+  const eylemlerHtml = orderedEylemNums.length
+    ? orderedEylemNums.map((num) => {
+      const rows = eylemGroups.get(num) || [];
+      const summaryText = String(eylemSummaries[num] || "").trim();
+      const claims = rows
+        .map((r) => String(r.claim || "").trim())
+        .filter(Boolean);
+      const uniqueClaims = [...new Set(claims)];
+      const isPreferred = prefNum && String(num) === prefNum;
+      return `
+        <details class="profile-collapse action-collapse" data-eylem-section="${escapeHtml(String(num))}" ${isPreferred ? "open" : ""}>
+          <summary class="profile-collapse-summary">
+            <span>Eylem ${escapeHtml(num)}</span>
+          </summary>
+          <article class="action-card">
+            <div class="action-section"><span class="action-label">Eylem Özeti</span><p>${escapeHtml(summaryText || "Bu eylem için özet girilmemiş.")}</p></div>
+            <div class="action-section"><span class="action-label">Kişinin Dahli / İddia</span><p>${escapeHtml(uniqueClaims.join("\n\n") || "Bu kişi için dahli iddiası girilmemiş.")}</p></div>
+          </article>
+        </details>
+      `;
+    }).join("")
     : `<p class="muted">Bu kişi için eylem kaydı bulunmuyor.</p>`;
 
   const bodyHtml = `
@@ -1296,19 +1423,31 @@ function openPersonModal(person, preferredActionNum = "") {
         </div>
       </div>
       <details class="profile-collapse" open>
-        <summary class="profile-collapse-summary"><span>Savcılık Suçlamaları</span></summary>
-        <div class="person-summary">
-          ${summary ? `<p>${summary}</p>` : `<p class="muted">Savcılık suçlama özeti girilmemiş.</p>`}
-        </div>
+        <summary class="profile-collapse-summary"><span>Savcılık Suçlamaları (${profileAccusations.length})</span></summary>
+        <div class="person-actions-list">${accusationsHtml}</div>
       </details>
       <details class="profile-collapse" open>
-        <summary class="profile-collapse-summary"><span>Eylemler (${personActions.length})</span></summary>
-        <div class="person-actions-list">${actionsHtml}</div>
+        <summary class="profile-collapse-summary"><span>Eylemler (${orderedEylemNums.length})</span></summary>
+        <div class="person-actions-list">${eylemlerHtml}</div>
       </details>
     </section>
   `;
 
   openDetailPanel(person.name || "Profil", bodyHtml);
+  if (detailDrawerBody) {
+    detailDrawerBody.querySelectorAll(".js-eylem-tag").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        const num = btn.getAttribute("data-eylem-num") || "";
+        scrollToPersonEylemSection(num);
+      });
+    });
+    detailDrawerBody.querySelectorAll(".js-tck-tag").forEach((btn) => {
+      btn.addEventListener("click", async () => {
+        const code = btn.getAttribute("data-tck-code") || "";
+        await openTckPopup(code);
+      });
+    });
+  }
 }
 
 function openGhostModal(ghostNode) {
@@ -1402,14 +1541,46 @@ function openEdgePanel(edge) {
   const toName = edge._toName || "?";
   const drawerTitle = `${fromName} → ${toName}`;
   let html = "";
+
+  const renderEdgeDetailCard = (d) => {
+    let out = `<div class="edge-detail-card">`;
+    if (d.eylem) out += `<div class="edge-detail-row"><span class="edge-label">Eylem:</span> <span class="edge-value">${escapeHtml(d.eylem)}</span></div>`;
+    if (d.role) out += `<div class="edge-detail-row"><span class="edge-label">Rol:</span> <span class="edge-value">${escapeHtml(d.role)}</span></div>`;
+    if (d.context) out += `<div class="edge-detail-row"><span class="edge-label">Dahili:</span> <span class="edge-value">${escapeHtml(d.context)}</span></div>`;
+    out += `</div>`;
+    return out;
+  };
+
   if (edge._type === "mention" && edge._details && edge._details.length) {
     html += `<div class="edge-relation-type">Bahsedilen İsim Bağlantısı</div>`;
-    for (const d of edge._details) {
-      html += `<div class="edge-detail-card">`;
-      if (d.eylem) html += `<div class="edge-detail-row"><span class="edge-label">Eylem:</span> <span class="edge-value">${d.eylem}</span></div>`;
-      if (d.role) html += `<div class="edge-detail-row"><span class="edge-label">Rol:</span> <span class="edge-value">${d.role}</span></div>`;
-      if (d.context) html += `<div class="edge-detail-row"><span class="edge-label">Dahili:</span> <span class="edge-value">${d.context}</span></div>`;
-      html += `</div>`;
+
+    const selectedEylem = String((eylemFilter && eylemFilter.value) || "").trim();
+    const details = edge._details.map((d) => ({ ...d }));
+    const primary = [];
+    const others = [];
+
+    for (const d of details) {
+      const detailEylem = String(d.eylem || "").trim();
+      if (selectedEylem && selectedEylem !== "all" && detailEylem === selectedEylem) primary.push(d);
+      else others.push(d);
+    }
+    if (!primary.length && details.length) primary.push(details[0]);
+
+    if (primary.length) {
+      html += `<div class="edge-group-title">İlgili Eylem Bağı</div>`;
+      primary.forEach((d) => {
+        html += renderEdgeDetailCard(d);
+      });
+    }
+
+    if (others.length) {
+      html += `<details class="profile-collapse action-collapse">`;
+      html += `<summary class="profile-collapse-summary"><span>Diğer Bağlar (${others.length})</span></summary>`;
+      html += `<div class="person-actions-list">`;
+      others.forEach((d) => {
+        html += renderEdgeDetailCard(d);
+      });
+      html += `</div></details>`;
     }
   } else if (edge._type === "hierarchy") {
     html += `<div class="edge-relation-type">Hiyerarşi Bağlantısı</div>`;
