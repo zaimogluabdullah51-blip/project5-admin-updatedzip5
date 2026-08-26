@@ -107,6 +107,16 @@ function likeNeedle(value) {
   return `%${String(value || "").replace(/[%_]/g, "").trim()}%`;
 }
 
+function mapDeepSearchJob(row) {
+  if (!row) return null;
+  return {
+    ...row,
+    progress_percent: Number(row.progress_percent || 0),
+    estimated_seconds: Number(row.estimated_seconds || 0),
+    matched_count: Number(row.matched_count || 0)
+  };
+}
+
 app.get("/api/health", (req, res) => {
   res.json({ ok: true });
 });
@@ -798,15 +808,20 @@ app.post("/api/deep-search-jobs", async (req, res) => {
     }
     const id = crypto.randomUUID();
     const startedAt = new Date().toISOString();
+    const statusMessage = "Kuyruğa alındı. Hugging Face tarayıcı worker'ı aktif edildiğinde tarama başlayacak.";
+    const estimatedSeconds = 1800;
     await run(
       `INSERT INTO deep_search_jobs
-        (id, query, tck_code, status, matched_count, started_at, finished_at, error)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+        (id, query, tck_code, status, progress_percent, estimated_seconds, status_message, matched_count, started_at, finished_at, error)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         id,
         query || (tckCode ? `TCK ${tckCode}` : ""),
         tckCode,
         "queued",
+        0,
+        estimatedSeconds,
+        statusMessage,
         0,
         startedAt,
         "",
@@ -818,6 +833,9 @@ app.post("/api/deep-search-jobs", async (req, res) => {
       query: query || (tckCode ? `TCK ${tckCode}` : ""),
       tck_code: tckCode,
       status: "queued",
+      progress_percent: 0,
+      estimated_seconds: estimatedSeconds,
+      status_message: statusMessage,
       matched_count: 0,
       started_at: startedAt
     });
@@ -832,10 +850,21 @@ app.get("/api/deep-search-jobs", requireAuthApi, async (req, res) => {
     const rows = await all(
       "SELECT * FROM deep_search_jobs ORDER BY started_at DESC LIMIT 50"
     );
-    res.json(rows);
+    res.json(rows.map(mapDeepSearchJob));
   } catch (err) {
     console.error("Deep search jobs list error:", err);
     res.status(500).json({ error: "Derin arama işleri yüklenemedi." });
+  }
+});
+
+app.get("/api/deep-search-jobs/:id", async (req, res) => {
+  try {
+    const row = await get("SELECT * FROM deep_search_jobs WHERE id = ?", [req.params.id]);
+    if (!row) return res.status(404).json({ error: "Derin arama işi bulunamadı." });
+    res.json(mapDeepSearchJob(row));
+  } catch (err) {
+    console.error("Deep search job detail error:", err);
+    res.status(500).json({ error: "Derin arama durumu yüklenemedi." });
   }
 });
 

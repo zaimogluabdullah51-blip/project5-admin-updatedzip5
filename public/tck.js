@@ -3,6 +3,7 @@ const PROFILES_INITIAL_SHOW = 5;
 let tckDefinitions = {};
 let allData = [];
 let legalReferences = [];
+const deepSearchPollers = new Map();
 
 function esc(str) {
   if (!str) return "";
@@ -263,6 +264,7 @@ function renderLegalReferences(code) {
           Derin arama başlat
         </button>
       </div>
+      <div class="tck-deep-search-status" data-deep-status-for="${esc(normalized)}"></div>
       ${refs.length ? `<div class="tck-reference-list">${items}</div>` : `
         <div class="tck-reference-empty">
           Hugging Face arşivinde bu madde için derin arama kuyruğa alınabilir.
@@ -285,13 +287,95 @@ function bindDeepSearchButtons() {
           body: JSON.stringify({ tckCode, query: `TCK ${tckCode}` })
         });
         if (!res.ok) throw new Error("job error");
-        btn.textContent = "Derin arama kuyruğa alındı";
+        const job = await res.json();
+        btn.textContent = "Durum aşağıda";
+        renderDeepSearchStatus(tckCode, job);
+        pollDeepSearchJob(tckCode, job.id);
       } catch {
         btn.disabled = false;
         btn.textContent = "Tekrar dene";
       }
     });
   });
+}
+
+function formatDuration(seconds) {
+  const total = Number(seconds || 0);
+  if (!total) return "Tahmin yok";
+  const minutes = Math.max(1, Math.round(total / 60));
+  if (minutes < 60) return `Yaklaşık ${minutes} dk`;
+  const hours = Math.floor(minutes / 60);
+  const rest = minutes % 60;
+  return rest ? `Yaklaşık ${hours} sa ${rest} dk` : `Yaklaşık ${hours} sa`;
+}
+
+function statusLabel(status) {
+  const map = {
+    queued: "Kuyrukta",
+    running: "Taranıyor",
+    completed: "Tamamlandı",
+    failed: "Hata",
+    cancelled: "İptal"
+  };
+  return map[status] || status || "Bilinmiyor";
+}
+
+function renderDeepSearchStatus(tckCode, job) {
+  const normalized = String(tckCode || "").replace(/^TCK\s*/i, "").replace(/\s+/g, "").trim().toUpperCase();
+  const statusEl = document.querySelector(`.tck-deep-search-status[data-deep-status-for="${CSS.escape(normalized)}"]`);
+  if (!statusEl || !job) return;
+  const progress = Math.max(0, Math.min(100, Number(job.progress_percent || 0)));
+  const message = job.status_message || (
+    job.status === "queued"
+      ? "Kuyruğa alındı. Tarayıcı worker aktif edildiğinde tarama başlayacak."
+      : "Durum güncelleniyor."
+  );
+  const etaText = job.status === "completed"
+    ? "Bitti"
+    : job.status === "queued"
+      ? "Worker bekliyor. Worker aktifken tahmini süre: " + formatDuration(job.estimated_seconds)
+      : "Tahmini kalan süre: " + formatDuration(job.estimated_seconds);
+
+  statusEl.innerHTML = `
+    <div class="tck-deep-status-card">
+      <div class="tck-deep-status-top">
+        <strong>${esc(statusLabel(job.status))}</strong>
+        <span>${esc(String(progress))}%</span>
+      </div>
+      <div class="tck-deep-progress" aria-label="Derin arama ilerlemesi">
+        <span style="width:${progress}%"></span>
+      </div>
+      <div class="tck-deep-status-meta">
+        <span>${esc(etaText)}</span>
+        <span>${esc(String(job.matched_count || 0))} eşleşme</span>
+      </div>
+      <p>${esc(message)}</p>
+      <code>${esc(job.id || "")}</code>
+    </div>
+  `;
+}
+
+function pollDeepSearchJob(tckCode, jobId) {
+  if (!jobId) return;
+  if (deepSearchPollers.has(jobId)) clearInterval(deepSearchPollers.get(jobId));
+  const tick = async () => {
+    try {
+      const res = await fetch(`/api/deep-search-jobs/${encodeURIComponent(jobId)}`);
+      if (!res.ok) throw new Error("status error");
+      const job = await res.json();
+      renderDeepSearchStatus(tckCode, job);
+      if (["completed", "failed", "cancelled"].includes(job.status)) {
+        clearInterval(deepSearchPollers.get(jobId));
+        deepSearchPollers.delete(jobId);
+        if (job.status === "completed") loadLegalReferences().then(() => renderList(allData));
+      }
+    } catch {
+      clearInterval(deepSearchPollers.get(jobId));
+      deepSearchPollers.delete(jobId);
+    }
+  };
+  const interval = setInterval(tick, 5000);
+  deepSearchPollers.set(jobId, interval);
 }
 
 function getDescription(article) {
