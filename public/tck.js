@@ -2,6 +2,7 @@ const PROFILES_INITIAL_SHOW = 5;
 
 let tckDefinitions = {};
 let allData = [];
+let legalReferences = [];
 
 function esc(str) {
   if (!str) return "";
@@ -36,11 +37,22 @@ async function loadDefinitions() {
   }
 }
 
+async function loadLegalReferences() {
+  try {
+    const res = await fetch("/api/legal-references?limit=250");
+    if (!res.ok) throw new Error("API error");
+    legalReferences = await res.json();
+  } catch {
+    legalReferences = [];
+  }
+}
+
 async function loadTCK() {
   const listEl = document.getElementById("tck-list");
   updateAdminUI();
   try {
     await loadDefinitions();
+    await loadLegalReferences();
     allData = [];
     const res = await fetch("/api/tck-summary");
     if (res.ok) {
@@ -171,6 +183,7 @@ function renderList(data) {
       return merged.join("\n");
     };
     const displayFullText = buildFullText(node);
+    const referencesHtml = renderLegalReferences(node.code);
     const childCodes = node.children.map((child) =>
       `<span class="tck-subcode-chip">TCK ${esc(codeLabel(child.code))}</span>`
     ).join("");
@@ -193,6 +206,7 @@ function renderList(data) {
                 <div class="tck-legal-text">${esc(displayFullText)}</div>
               </div>` : `<div class="tck-legal-section tck-legal-empty"><span class="tck-legal-title" style="opacity:0.5;">Yasal karşılığı henüz eklenmemiş</span></div>`
             }
+            ${referencesHtml}
             ${profileCount ? `<div class="tck-profiles">${renderProfiles(node.profiles, normalizeCode(node.code))}</div>` : ""}
             ${childrenHtml}
           </div>
@@ -203,6 +217,81 @@ function renderList(data) {
 
   roots.sort((a, b) => sortCodes(a.code, b.code));
   listEl.innerHTML = roots.map((node) => renderNode(node, 0)).join("");
+  bindDeepSearchButtons();
+}
+
+function getReferencesForCode(code) {
+  const normalized = String(code || "").replace(/^TCK\s*/i, "").replace(/\s+/g, "").trim().toLowerCase();
+  if (!normalized) return [];
+  const root = normalized.match(/^(\d+)/)?.[1] || normalized;
+  return legalReferences.filter((ref) => {
+    const codes = Array.isArray(ref.detected_tck_codes) ? ref.detected_tck_codes : [];
+    return codes.some((raw) => {
+      const c = String(raw || "").replace(/^TCK\s*/i, "").replace(/\s+/g, "").trim().toLowerCase();
+      return c === normalized || c === root || c.startsWith(`${normalized}/`);
+    });
+  });
+}
+
+function renderLegalReferences(code) {
+  const refs = getReferencesForCode(code).slice(0, 3);
+  const normalized = String(code || "").replace(/^TCK\s*/i, "").replace(/\s+/g, "").trim().toUpperCase();
+  const items = refs.map((ref) => {
+    const meta = [
+      ref.source,
+      ref.court,
+      ref.esas_no ? `E. ${ref.esas_no}` : "",
+      ref.karar_no ? `K. ${ref.karar_no}` : "",
+      ref.karar_tarihi
+    ].filter(Boolean).join(" · ");
+    return `
+      <article class="tck-reference-card">
+        <div class="tck-reference-meta">${esc(meta)}</div>
+        <p>${esc(ref.short_preview || "Kısa karar kesiti henüz yok.")}</p>
+      </article>
+    `;
+  }).join("");
+
+  return `
+    <section class="tck-reference-section">
+      <div class="tck-reference-header">
+        <div>
+          <h4>İlgili İçtihatlar</h4>
+          <p>${refs.length ? `${refs.length} yapılandırılmış karar kaydı gösteriliyor.` : "Bu madde için kayıtlı içtihat yok."}</p>
+        </div>
+        <button type="button" class="tck-deep-search-btn" data-tck-code="${esc(normalized)}">
+          Derin arama başlat
+        </button>
+      </div>
+      ${refs.length ? `<div class="tck-reference-list">${items}</div>` : `
+        <div class="tck-reference-empty">
+          Hugging Face arşivinde bu madde için derin arama kuyruğa alınabilir.
+        </div>
+      `}
+    </section>
+  `;
+}
+
+function bindDeepSearchButtons() {
+  document.querySelectorAll(".tck-deep-search-btn").forEach((btn) => {
+    btn.addEventListener("click", async () => {
+      const tckCode = btn.getAttribute("data-tck-code") || "";
+      btn.disabled = true;
+      btn.textContent = "Kuyruğa alınıyor...";
+      try {
+        const res = await fetch("/api/deep-search-jobs", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ tckCode, query: `TCK ${tckCode}` })
+        });
+        if (!res.ok) throw new Error("job error");
+        btn.textContent = "Derin arama kuyruğa alındı";
+      } catch {
+        btn.disabled = false;
+        btn.textContent = "Tekrar dene";
+      }
+    });
+  });
 }
 
 function getDescription(article) {
@@ -336,7 +425,17 @@ document.getElementById("tck-search").addEventListener("input", (e) => {
     const articleMatch = item.article.toLowerCase().includes(q);
     const descMatch = descObj.short.toLowerCase().includes(q);
     const nameMatch = item.profiles.some(p => p.name.toLowerCase().includes(q));
-    return articleMatch || descMatch || nameMatch;
+    const referenceMatch = getReferencesForCode(item.article).some((ref) => {
+      return [
+        ref.court,
+        ref.esas_no,
+        ref.karar_no,
+        ref.karar_tarihi,
+        ref.short_preview,
+        ...(Array.isArray(ref.detected_law_refs) ? ref.detected_law_refs : [])
+      ].filter(Boolean).join(" ").toLowerCase().includes(q);
+    });
+    return articleMatch || descMatch || nameMatch || referenceMatch;
   });
   renderList(filtered);
 });

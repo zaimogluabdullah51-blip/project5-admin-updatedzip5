@@ -95,6 +95,18 @@ function filterKnownTckCodes(values, definedSet) {
   return out;
 }
 
+function mapLegalReference(row) {
+  return {
+    ...row,
+    detected_law_refs: parseJsonField(row.detected_law_refs, []),
+    detected_tck_codes: parseJsonField(row.detected_tck_codes, [])
+  };
+}
+
+function likeNeedle(value) {
+  return `%${String(value || "").replace(/[%_]/g, "").trim()}%`;
+}
+
 app.get("/api/health", (req, res) => {
   res.json({ ok: true });
 });
@@ -740,6 +752,90 @@ app.delete("/api/tck-definitions/:code", requireAuthApi, async (req, res) => {
   } catch (err) {
     console.error("TCK definition delete error:", err);
     res.status(500).json({ error: "TCK tanımı silinemedi." });
+  }
+});
+
+app.get("/api/legal-references", async (req, res) => {
+  try {
+    const tckCode = normalizeTckCode(req.query.tck || req.query.tckCode || "");
+    const query = String(req.query.q || "").trim();
+    const limit = Math.min(Math.max(parseInt(req.query.limit, 10) || 6, 1), 250);
+    const params = [];
+    const where = [];
+
+    if (tckCode) {
+      where.push("(detected_tck_codes LIKE ? OR detected_law_refs LIKE ?)");
+      params.push(likeNeedle(tckCode), likeNeedle(`TCK ${tckCode}`));
+    }
+
+    if (query) {
+      where.push("(court LIKE ? OR esas_no LIKE ? OR karar_no LIKE ? OR short_preview LIKE ? OR detected_law_refs LIKE ?)");
+      const q = likeNeedle(query);
+      params.push(q, q, q, q, q);
+    }
+
+    const sql = `
+      SELECT *
+      FROM legal_references
+      ${where.length ? `WHERE ${where.join(" AND ")}` : ""}
+      ORDER BY karar_tarihi DESC, year DESC
+      LIMIT ?
+    `;
+    const rows = await all(sql, [...params, limit]);
+    res.json(rows.map(mapLegalReference));
+  } catch (err) {
+    console.error("Legal references error:", err);
+    res.status(500).json({ error: "İçtihat kayıtları yüklenemedi." });
+  }
+});
+
+app.post("/api/deep-search-jobs", async (req, res) => {
+  try {
+    const query = String(req.body?.query || "").trim();
+    const tckCode = normalizeTckCode(req.body?.tckCode || "");
+    if (!query && !tckCode) {
+      return res.status(400).json({ error: "Arama sorgusu veya TCK kodu gerekli." });
+    }
+    const id = crypto.randomUUID();
+    const startedAt = new Date().toISOString();
+    await run(
+      `INSERT INTO deep_search_jobs
+        (id, query, tck_code, status, matched_count, started_at, finished_at, error)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+      [
+        id,
+        query || (tckCode ? `TCK ${tckCode}` : ""),
+        tckCode,
+        "queued",
+        0,
+        startedAt,
+        "",
+        ""
+      ]
+    );
+    res.status(202).json({
+      id,
+      query: query || (tckCode ? `TCK ${tckCode}` : ""),
+      tck_code: tckCode,
+      status: "queued",
+      matched_count: 0,
+      started_at: startedAt
+    });
+  } catch (err) {
+    console.error("Deep search job error:", err);
+    res.status(500).json({ error: "Derin arama isteği oluşturulamadı." });
+  }
+});
+
+app.get("/api/deep-search-jobs", requireAuthApi, async (req, res) => {
+  try {
+    const rows = await all(
+      "SELECT * FROM deep_search_jobs ORDER BY started_at DESC LIMIT 50"
+    );
+    res.json(rows);
+  } catch (err) {
+    console.error("Deep search jobs list error:", err);
+    res.status(500).json({ error: "Derin arama işleri yüklenemedi." });
   }
 });
 

@@ -236,6 +236,71 @@ async function init() {
     )
   `);
 
+  await run(`
+    CREATE TABLE IF NOT EXISTS legal_references (
+      id TEXT PRIMARY KEY,
+      hf_id TEXT UNIQUE,
+      source TEXT,
+      document_id TEXT,
+      court TEXT,
+      esas_no TEXT,
+      karar_no TEXT,
+      karar_tarihi TEXT,
+      year INTEGER,
+      month INTEGER,
+      text_len INTEGER,
+      masked_count INTEGER,
+      raw_sha256 TEXT,
+      detected_law_refs TEXT,
+      detected_tck_codes TEXT,
+      short_preview TEXT,
+      indexed_level TEXT,
+      created_at TEXT
+    )
+  `);
+
+  await run(`
+    CREATE TABLE IF NOT EXISTS deep_search_jobs (
+      id TEXT PRIMARY KEY,
+      query TEXT NOT NULL,
+      tck_code TEXT,
+      status TEXT,
+      matched_count INTEGER,
+      started_at TEXT,
+      finished_at TEXT,
+      error TEXT
+    )
+  `);
+
+  await run(`
+    CREATE TABLE IF NOT EXISTS deep_search_matches (
+      id TEXT PRIMARY KEY,
+      job_id TEXT NOT NULL,
+      legal_reference_id TEXT,
+      matched_terms TEXT,
+      score REAL,
+      excerpt TEXT
+    )
+  `);
+
+  await run(`
+    CREATE TABLE IF NOT EXISTS case_legal_references (
+      case_id TEXT NOT NULL,
+      legal_reference_id TEXT NOT NULL,
+      note TEXT,
+      PRIMARY KEY (case_id, legal_reference_id)
+    )
+  `);
+
+  await run(`
+    CREATE TABLE IF NOT EXISTS profile_legal_references (
+      profile_id TEXT NOT NULL,
+      legal_reference_id TEXT NOT NULL,
+      note TEXT,
+      PRIMARY KEY (profile_id, legal_reference_id)
+    )
+  `);
+
   await ensureColumn("cases", "case_number", "TEXT");
   await ensureColumn("cases", "court_name", "TEXT");
   await ensureColumn("cases", "judge", "TEXT");
@@ -272,8 +337,12 @@ async function init() {
   await ensureColumn("actions", "sentence_demand", "TEXT");
   await ensureColumn("actions", "mentioned_names", "TEXT");
   await ensureColumn("tck_definitions", "source_url", "TEXT");
+  await run("CREATE INDEX IF NOT EXISTS idx_legal_references_year ON legal_references(year)");
+  await run("CREATE INDEX IF NOT EXISTS idx_legal_references_date ON legal_references(karar_tarihi)");
+  await run("CREATE INDEX IF NOT EXISTS idx_deep_search_jobs_status ON deep_search_jobs(status)");
   await normalizeLegacyActionRows();
   await seedTckDefinitions();
+  await seedLegalReferences();
 
   const row = await get("SELECT COUNT(*) as count FROM cases");
   if (row && row.count > 0) return;
@@ -343,6 +412,79 @@ async function init() {
     await run(
       "INSERT INTO case_people (case_id, person_id, relationship) VALUES (?, ?, ?)",
       [link.caseId, link.personId, link.relationship]
+    );
+  }
+}
+
+async function seedLegalReferences() {
+  const existing = await get("SELECT COUNT(*) as count FROM legal_references");
+  if (existing && existing.count > 0) return;
+
+  const now = new Date().toISOString();
+  const refs = [
+    {
+      hf_id: "sample:yargitay:tck-314-2-001",
+      source: "yargitay",
+      document_id: "sample-tck-314-2-001",
+      court: "Yargıtay Ceza Dairesi",
+      esas_no: "2021/0000",
+      karar_no: "2022/0000",
+      karar_tarihi: "2022-05-12",
+      year: 2022,
+      month: 5,
+      text_len: 4200,
+      masked_count: 0,
+      raw_sha256: "sample:tck-314-2-001",
+      detected_law_refs: ["TCK 314/2"],
+      detected_tck_codes: ["314/2", "314"],
+      short_preview: "Silahlı örgüt üyeliği değerlendirmesinde süreklilik, çeşitlilik ve yoğunluk kriterlerinin birlikte tartışıldığı örnek karar kaydı.",
+      indexed_level: "structured"
+    },
+    {
+      hf_id: "sample:yargitay:tck-220-7-001",
+      source: "yargitay",
+      document_id: "sample-tck-220-7-001",
+      court: "Yargıtay Ceza Dairesi",
+      esas_no: "2020/0000",
+      karar_no: "2021/0000",
+      karar_tarihi: "2021-11-03",
+      year: 2021,
+      month: 11,
+      text_len: 3600,
+      masked_count: 0,
+      raw_sha256: "sample:tck-220-7-001",
+      detected_law_refs: ["TCK 220/7"],
+      detected_tck_codes: ["220/7", "220"],
+      short_preview: "Örgüte yardım suçlamasında yardım fiilinin somut katkı ve kast bakımından incelendiği örnek karar kaydı.",
+      indexed_level: "structured"
+    }
+  ];
+
+  for (const ref of refs) {
+    await run(
+      `INSERT OR IGNORE INTO legal_references
+        (id, hf_id, source, document_id, court, esas_no, karar_no, karar_tarihi, year, month, text_len, masked_count, raw_sha256, detected_law_refs, detected_tck_codes, short_preview, indexed_level, created_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [
+        nanoid(),
+        ref.hf_id,
+        ref.source,
+        ref.document_id,
+        ref.court,
+        ref.esas_no,
+        ref.karar_no,
+        ref.karar_tarihi,
+        ref.year,
+        ref.month,
+        ref.text_len,
+        ref.masked_count,
+        ref.raw_sha256,
+        JSON.stringify(ref.detected_law_refs),
+        JSON.stringify(ref.detected_tck_codes),
+        ref.short_preview,
+        ref.indexed_level,
+        now
+      ]
     );
   }
 }
