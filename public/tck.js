@@ -115,6 +115,38 @@ function renderList(data) {
     if (pa.clause !== pb.clause) return pa.clause - pb.clause;
     return pa.letter.localeCompare(pb.letter);
   };
+  const uniqueActionTitles = (profiles) => {
+    const seen = new Set();
+    return (profiles || [])
+      .map((p) => String(p.actionTitle || "").trim())
+      .filter(Boolean)
+      .filter((title) => {
+        const key = title.toLowerCase();
+        if (seen.has(key)) return false;
+        seen.add(key);
+        return true;
+      });
+  };
+  const collectSubtreeProfiles = (n, acc = []) => {
+    acc.push(...(n.profiles || []));
+    (n.children || []).forEach((child) => collectSubtreeProfiles(child, acc));
+    return acc;
+  };
+  const getArticleTitle = (node) => {
+    const titles = uniqueActionTitles(collectSubtreeProfiles(node, []));
+    if (!titles.length) {
+      return {
+        primary: node.short || "",
+        extra: "",
+        lawTitle: ""
+      };
+    }
+    return {
+      primary: titles.slice(0, 2).join(" · "),
+      extra: titles.length > 2 ? `+${titles.length - 2} suçlama başlığı` : "",
+      lawTitle: node.short || ""
+    };
+  };
 
   const profilesByCode = new Map();
   (Array.isArray(data) ? data : []).forEach((item) => {
@@ -184,6 +216,7 @@ function renderList(data) {
       return merged.join("\n");
     };
     const displayFullText = buildFullText(node);
+    const articleTitle = getArticleTitle(node);
     const referencesHtml = renderLegalReferences(node.code);
     const childCodes = node.children.map((child) =>
       `<span class="tck-subcode-chip">TCK ${esc(codeLabel(child.code))}</span>`
@@ -197,8 +230,10 @@ function renderList(data) {
         <details class="profile-collapse" ${depth === 0 ? "" : ""}>
           <summary class="profile-collapse-summary">
             <span class="tck-article-num">TCK ${esc(codeLabel(node.code))}</span>
-            ${node.short ? `<span class="tck-article-desc">${esc(node.short)}</span>` : ""}
+            ${articleTitle.primary ? `<span class="tck-article-desc">${esc(articleTitle.primary)}</span>` : ""}
+            ${articleTitle.extra ? `<span class="tck-article-title-more">${esc(articleTitle.extra)}</span>` : ""}
             <span class="tck-article-count">${profileCount} profil</span>
+            ${articleTitle.lawTitle ? `<span class="tck-article-law-title">${esc(articleTitle.lawTitle)}</span>` : ""}
             ${childCodes ? `<span class="tck-article-subcodes">${childCodes}</span>` : ""}
           </summary>
           <div class="tck-article-body">
@@ -412,6 +447,10 @@ function renderProfile(p) {
   const claimText = esc(p.claim);
   const evidenceText = esc(p.evidence);
   const defenseText = esc(p.defense);
+  const actionLabel = [
+    p.actionNum ? `Eylem ${p.actionNum}` : "",
+    p.actionTitle || ""
+  ].filter(Boolean).join(": ");
 
   const sentenceBadge = p.sentenceDemand ? `
     <div class="tck-sentence-badge">
@@ -432,7 +471,7 @@ function renderProfile(p) {
           <div class="tck-profile-meta">
             ${roleLabel ? `<span class="tck-profile-role">${esc(roleLabel)}</span>` : ""}
             ${p.caseTitle ? `<span class="tck-profile-case">${esc(p.caseTitle)}</span>` : ""}
-            ${p.actionNum ? `<span class="tck-profile-action">Eylem ${esc(String(p.actionNum))}</span>` : ""}
+            ${actionLabel ? `<span class="tck-profile-action">${esc(actionLabel)}</span>` : ""}
           </div>
         </div>
       </div>
@@ -509,6 +548,7 @@ document.getElementById("tck-search").addEventListener("input", (e) => {
     const articleMatch = item.article.toLowerCase().includes(q);
     const descMatch = descObj.short.toLowerCase().includes(q);
     const nameMatch = item.profiles.some(p => p.name.toLowerCase().includes(q));
+    const actionTitleMatch = item.profiles.some(p => String(p.actionTitle || "").toLowerCase().includes(q));
     const referenceMatch = getReferencesForCode(item.article).some((ref) => {
       return [
         ref.court,
@@ -519,7 +559,7 @@ document.getElementById("tck-search").addEventListener("input", (e) => {
         ...(Array.isArray(ref.detected_law_refs) ? ref.detected_law_refs : [])
       ].filter(Boolean).join(" ").toLowerCase().includes(q);
     });
-    return articleMatch || descMatch || nameMatch || referenceMatch;
+    return articleMatch || descMatch || nameMatch || actionTitleMatch || referenceMatch;
   });
   renderList(filtered);
 });
