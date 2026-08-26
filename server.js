@@ -14,6 +14,13 @@ const AUTH_COOKIE = "cc_admin";
 const ADMIN_USER = process.env.ADMIN_USER || "admin";
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || "admin135";
 const AUTH_SECRET = process.env.AUTH_SECRET || "change-this-secret";
+const HF_DATASET = "hamzabagirsakci/turkish-court-decisions";
+const HF_CONFIG = process.env.HF_DATASET_CONFIG || "all";
+const HF_SPLIT = process.env.HF_DATASET_SPLIT || "train";
+const DEEP_SEARCH_PAGE_SIZE = Math.min(Math.max(parseInt(process.env.DEEP_SEARCH_PAGE_SIZE, 10) || 25, 1), 100);
+const DEEP_SEARCH_MAX_PAGES = Math.min(Math.max(parseInt(process.env.DEEP_SEARCH_MAX_PAGES, 10) || 3, 1), 20);
+const DEEP_SEARCH_WORKER_ENABLED = process.env.DEEP_SEARCH_WORKER_ENABLED !== "false";
+let deepSearchWorkerRunning = false;
 
 function parseCookies(header) {
   if (!header) return {};
@@ -115,6 +122,194 @@ function mapDeepSearchJob(row) {
     estimated_seconds: Number(row.estimated_seconds || 0),
     matched_count: Number(row.matched_count || 0)
   };
+}
+
+function extractTckCodes(text) {
+  const codes = new Set();
+  const regex = /TCK\s*(\d{2,3})(?:\/([0-9a-zA-Z.-]+))?/gi;
+  let match;
+  while ((match = regex.exec(String(text || ""))) !== null) {
+    const base = match[1];
+    const suffix = match[2];
+    codes.add(suffix ? `${base}/${suffix}` : base);
+  }
+  return Array.from(codes);
+}
+
+function makeExcerpt(text, query, maxLength = 520) {
+  const clean = String(text || "").replace(/\s+/g, " ").trim();
+  if (!clean) return "";
+  const q = String(query || "").replace(/^TCK\s*/i, "").trim();
+  const lower = clean.toLowerCase();
+  const idx = q ? lower.indexOf(q.toLowerCase()) : -1;
+  const start = Math.max(0, (idx >= 0 ? idx : 0) - 120);
+  const excerpt = clean.slice(start, start + maxLength);
+  return `${start > 0 ? "..." : ""}${excerpt}${start + maxLength < clean.length ? "..." : ""}`;
+}
+
+async function upsertLegalReferenceFromHfRow(rowWrapper, query, tckCode) {
+  const row = rowWrapper?.row || {};
+  const text = row.text || "";
+  const hfId = row.id || `${row.source || "hf"}:${row.document_id || rowWrapper?.row_idx || crypto.randomUUID()}`;
+  const detectedCodes = Array.from(new Set([
+    ...extractTckCodes(text),
+    ...(tckCode ? [tckCode] : [])
+  ].map(normalizeTckCode).filter(Boolean)));
+  const lawRefs = detectedCodes.map((code) => `TCK ${code}`);
+  const now = new Date().toISOString();
+
+  await run(
+    `INSERT INTO legal_references
+      (id, hf_id, source, document_id, court, esas_no, karar_no, karar_tarihi, year, month, text_len, masked_count, raw_sha256, detected_law_refs, detected_tck_codes, short_preview, indexed_level, created_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+     ON CONFLICT(hf_id) DO UPDATE SET
+      source = excluded.source,
+      document_id = excluded.document_id,
+      court = excluded.court,
+      esas_no = excluded.esas_no,
+      karar_no = excluded.karar_no,
+      karar_tarihi = excluded.karar_tarihi,
+      year = excluded.year,
+      month = excluded.month,
+      text_len = excluded.text_len,
+      masked_count = excluded.masked_count,
+      raw_sha256 = excluded.raw_sha256,
+      detected_law_refs = excluded.detected_law_refs,
+      detected_tck_codes = excluded.detected_tck_codes,
+      short_preview = excluded.short_preview,
+      indexed_level = excluded.indexed_level`,
+    [
+      crypto.randomUUID(),
+      hfId,
+      row.source || "",
+      row.document_id || "",
+      row.court || "",
+      row.esas_no || "",
+      row.karar_no || "",
+      row.karar_tarihi || "",
+      Number(row.year || 0),
+      Number(row.month || 0),
+      Number(row.text_len || String(text).length || 0),
+      Number(row.masked_count || 0),
+      row.raw_sha256 || "",
+      JSON.stringify(lawRefs),
+      JSON.stringify(detectedCodes),
+      makeExcerpt(text, query || tckCode),
+      "deep_search",
+      now
+    ]
+  );
+
+  return await get("SELECT id FROM legal_references WHERE hf_id = ?", [hfId]);
+}
+
+async function processDeepSearchJob(job) {
+  const query = job.query || (job.tck_code ? `TCK ${job.tck_code}` : "");
+  const tckCode = normalizeTckCode(job.tck_code || "");
+  const startedAt = new Date().toISOString();
+  await run(
+    "UPDATE deep_search_jobs SET status = ?, progress_percent = ?, status_message = ?, started_at = ?, error = ? WHERE id = ?",
+    ["running", 2, "Hugging Face arama indeksi sorgulanıyor.", startedAt, "", job.id]
+  );
+
+  let matchedCount = 0;
+  let totalRows = null;
+  let totalPages = DEEP_SEARCH_MAX_PAGES;
+
+  for (let page = 0; page < totalPages; page += 1) {
+    const offset = page * DEEP_SEARCH_PAGE_SIZE;
+    const url = new URL("https://datasets-server.huggingface.co/search");
+    url.searchParams.set("dataset", HF_DATASET);
+    url.searchParams.set("config", HF_CONFIG);
+    url.searchParams.set("split", HF_SPLIT);
+    url.searchParams.set("query", query);
+    url.searchParams.set("offset", String(offset));
+    url.searchParams.set("length", String(DEEP_SEARCH_PAGE_SIZE));
+
+    const response = await fetch(url);
+    if (!response.ok) {
+      throw new Error(`Hugging Face search failed: ${response.status}`);
+    }
+    const payload = await response.json();
+    const rows = Array.isArray(payload.rows) ? payload.rows : [];
+
+    if (totalRows === null) {
+      totalRows = Number(payload.num_rows_total || rows.length || 0);
+      totalPages = Math.min(DEEP_SEARCH_MAX_PAGES, Math.max(1, Math.ceil(totalRows / DEEP_SEARCH_PAGE_SIZE)));
+    }
+
+    for (const resultRow of rows) {
+      const ref = await upsertLegalReferenceFromHfRow(resultRow, query, tckCode);
+      if (!ref?.id) continue;
+      matchedCount += 1;
+      await run(
+        `INSERT INTO deep_search_matches
+          (id, job_id, legal_reference_id, matched_terms, score, excerpt)
+         VALUES (?, ?, ?, ?, ?, ?)`,
+        [
+          crypto.randomUUID(),
+          job.id,
+          ref.id,
+          JSON.stringify([query, tckCode].filter(Boolean)),
+          0,
+          makeExcerpt(resultRow?.row?.text || "", query || tckCode, 360)
+        ]
+      );
+    }
+
+    const progress = Math.min(95, Math.round(((page + 1) / totalPages) * 90) + 5);
+    const remainingPages = Math.max(0, totalPages - page - 1);
+    await run(
+      "UPDATE deep_search_jobs SET progress_percent = ?, estimated_seconds = ?, matched_count = ?, status_message = ? WHERE id = ?",
+      [
+        progress,
+        remainingPages * 8,
+        matchedCount,
+        `${page + 1}/${totalPages} sayfa tarandı. Hugging Face toplam ${totalRows || 0} olası eşleşme bildirdi.`,
+        job.id
+      ]
+    );
+
+    if (!rows.length) break;
+  }
+
+  await run(
+    "UPDATE deep_search_jobs SET status = ?, progress_percent = ?, estimated_seconds = ?, matched_count = ?, finished_at = ?, status_message = ? WHERE id = ?",
+    [
+      "completed",
+      100,
+      0,
+      matchedCount,
+      new Date().toISOString(),
+      `${matchedCount} karar indekse eklendi. İlk aşamada ${DEEP_SEARCH_MAX_PAGES} sayfa sınırı uygulanır.`,
+      job.id
+    ]
+  );
+}
+
+async function runDeepSearchWorkerOnce() {
+  if (!DEEP_SEARCH_WORKER_ENABLED || deepSearchWorkerRunning) return;
+  deepSearchWorkerRunning = true;
+  try {
+    const job = await get(
+      "SELECT * FROM deep_search_jobs WHERE status = ? ORDER BY started_at ASC LIMIT 1",
+      ["queued"]
+    );
+    if (job) {
+      await processDeepSearchJob(job);
+    }
+  } catch (err) {
+    console.error("Deep search worker error:", err);
+    const running = await get("SELECT * FROM deep_search_jobs WHERE status = ? ORDER BY started_at DESC LIMIT 1", ["running"]);
+    if (running) {
+      await run(
+        "UPDATE deep_search_jobs SET status = ?, status_message = ?, error = ?, finished_at = ? WHERE id = ?",
+        ["failed", "Derin arama hata verdi.", err.message || String(err), new Date().toISOString(), running.id]
+      );
+    }
+  } finally {
+    deepSearchWorkerRunning = false;
+  }
 }
 
 app.get("/api/health", (req, res) => {
@@ -808,7 +1003,7 @@ app.post("/api/deep-search-jobs", async (req, res) => {
     }
     const id = crypto.randomUUID();
     const startedAt = new Date().toISOString();
-    const statusMessage = "Kuyruğa alındı. Hugging Face tarayıcı worker'ı aktif edildiğinde tarama başlayacak.";
+    const statusMessage = "Kuyruğa alındı. Hugging Face taraması birazdan başlayacak.";
     const estimatedSeconds = 1800;
     await run(
       `INSERT INTO deep_search_jobs
@@ -971,6 +1166,10 @@ init()
     app.listen(port, "0.0.0.0", () => {
       console.log(`Server running on http://0.0.0.0:${port}`);
     });
+    if (DEEP_SEARCH_WORKER_ENABLED) {
+      setInterval(runDeepSearchWorkerOnce, 5000);
+      setTimeout(runDeepSearchWorkerOnce, 1000);
+    }
   })
   .catch((err) => {
     console.error("Failed to init database", err);

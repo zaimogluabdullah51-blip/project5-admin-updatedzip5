@@ -327,13 +327,13 @@ function renderDeepSearchStatus(tckCode, job) {
   const progress = Math.max(0, Math.min(100, Number(job.progress_percent || 0)));
   const message = job.status_message || (
     job.status === "queued"
-      ? "Kuyruğa alındı. Tarayıcı worker aktif edildiğinde tarama başlayacak."
+      ? "Kuyruğa alındı. Tarama birazdan başlayacak."
       : "Durum güncelleniyor."
   );
   const etaText = job.status === "completed"
     ? "Bitti"
     : job.status === "queued"
-      ? "Worker bekliyor. Worker aktifken tahmini süre: " + formatDuration(job.estimated_seconds)
+      ? "Kuyrukta. Tahmini süre: " + formatDuration(job.estimated_seconds)
       : "Tahmini kalan süre: " + formatDuration(job.estimated_seconds);
 
   statusEl.innerHTML = `
