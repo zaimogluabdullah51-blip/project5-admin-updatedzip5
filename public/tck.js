@@ -133,7 +133,12 @@ function renderList(data) {
     definitionsByCode.set(normalized, def || {});
   });
 
-  const allCodes = new Set(definitionsByCode.keys());
+  const allCodes = new Set();
+  definitionsByCode.forEach((def, code) => {
+    if (/^\d+$/.test(code) || /^\d+\/[a-z]$/i.test(code) || /^geçici/i.test(code)) {
+      allCodes.add(code);
+    }
+  });
   profilesByCode.forEach((profiles, code) => {
     if (!code || !profiles.length) return;
     allCodes.add(code);
