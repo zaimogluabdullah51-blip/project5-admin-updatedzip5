@@ -315,10 +315,26 @@ async function runDeepSearchWorkerOnce() {
     console.error("Deep search worker error:", err);
     const running = await get("SELECT * FROM deep_search_jobs WHERE status = ? ORDER BY started_at DESC LIMIT 1", ["running"]);
     if (running) {
-      await run(
-        "UPDATE deep_search_jobs SET status = ?, status_message = ?, error = ?, finished_at = ? WHERE id = ?",
-        ["failed", "Derin arama hata verdi.", err.message || String(err), new Date().toISOString(), running.id]
-      );
+      const matchedCount = Number(running.matched_count || 0);
+      if (matchedCount > 0) {
+        await run(
+          "UPDATE deep_search_jobs SET status = ?, progress_percent = ?, estimated_seconds = ?, status_message = ?, error = ?, finished_at = ? WHERE id = ?",
+          [
+            "completed",
+            100,
+            0,
+            `${matchedCount} karar indekse eklendi. Hugging Face sonraki sayfada yanıt vermedi; kayıtlı sonuçlar kullanılabilir.`,
+            err.message || String(err),
+            new Date().toISOString(),
+            running.id
+          ]
+        );
+      } else {
+        await run(
+          "UPDATE deep_search_jobs SET status = ?, status_message = ?, error = ?, finished_at = ? WHERE id = ?",
+          ["failed", "Derin arama hata verdi.", err.message || String(err), new Date().toISOString(), running.id]
+        );
+      }
     }
   } finally {
     deepSearchWorkerRunning = false;
