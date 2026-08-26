@@ -80,6 +80,7 @@ function normalizeTckCode(value) {
   return String(value || "")
     .trim()
     .replace(/^TCK\s*/i, "")
+    .replace(/\/(\d+)\./g, "/$1-")
     .replace(/\s+/g, "")
     .toUpperCase();
 }
@@ -1025,11 +1026,35 @@ app.get("/api/tck-summary", async (req, res) => {
 
 app.get("/api/tck-definitions", async (req, res) => {
   try {
-    const rows = await all("SELECT code, short_desc, full_text, source_url FROM tck_definitions ORDER BY code ASC");
+    const rows = await all("SELECT code, short_desc, full_text, source_url, category, status FROM tck_definitions ORDER BY code ASC");
     res.json(rows);
   } catch (err) {
     console.error("TCK definitions error:", err);
     res.status(500).json({ error: "TCK tanımları yüklenemedi." });
+  }
+});
+
+app.get("/api/tck-article-parts", async (req, res) => {
+  try {
+    const tckCode = normalizeTckCode(req.query.tck || req.query.tckCode || "");
+    const root = rootTckCode(tckCode);
+    const params = [];
+    let where = "";
+    if (tckCode) {
+      where = "WHERE article_code = ? OR code = ? OR parent_code = ?";
+      params.push(root || tckCode, tckCode, tckCode);
+    }
+    const rows = await all(
+      `SELECT code, article_code, parent_code, level, label, title, text, category, status, source_url, book, part, chapter, order_index
+       FROM tck_article_parts
+       ${where}
+       ORDER BY order_index ASC, code ASC`,
+      params
+    );
+    res.json(rows);
+  } catch (err) {
+    console.error("TCK article parts error:", err);
+    res.status(500).json({ error: "TCK kırılımları yüklenemedi." });
   }
 });
 

@@ -5,6 +5,7 @@ import path from "path";
 
 const dbPath = path.join(process.cwd(), "data", "cases.db");
 const officialTckTitlesPath = path.join(process.cwd(), "data", "tck_madde_basliklari_2026-08-26.json");
+const officialTckPartsPath = path.join(process.cwd(), "data", "tck_madde_kirilimlari_2026-08-26.json");
 
 if (!fs.existsSync(path.dirname(dbPath))) {
   fs.mkdirSync(path.dirname(dbPath), { recursive: true });
@@ -43,6 +44,7 @@ function normalizeTckDefinitionCode(value) {
   return String(value || "")
     .trim()
     .replace(/^TCK\s*/i, "")
+    .replace(/\/(\d+)\./g, "/$1-")
     .replace(/\s+/g, "")
     .toUpperCase();
 }
@@ -59,6 +61,16 @@ function loadOfficialTckTitles() {
     return JSON.parse(raw).filter((row) => row && row.code && row.title);
   } catch (err) {
     console.warn("Official TCK title file could not be loaded:", err.message);
+    return [];
+  }
+}
+
+function loadOfficialTckParts() {
+  try {
+    const raw = fs.readFileSync(officialTckPartsPath, "utf8");
+    return JSON.parse(raw).filter((row) => row && row.code);
+  } catch (err) {
+    console.warn("Official TCK parts file could not be loaded:", err.message);
     return [];
   }
 }
@@ -203,7 +215,28 @@ async function init() {
       code TEXT PRIMARY KEY,
       short_desc TEXT NOT NULL,
       full_text TEXT,
-      source_url TEXT
+      source_url TEXT,
+      category TEXT,
+      status TEXT
+    )
+  `);
+
+  await run(`
+    CREATE TABLE IF NOT EXISTS tck_article_parts (
+      code TEXT PRIMARY KEY,
+      article_code TEXT NOT NULL,
+      parent_code TEXT,
+      level TEXT NOT NULL,
+      label TEXT,
+      title TEXT,
+      text TEXT,
+      category TEXT,
+      status TEXT,
+      source_url TEXT,
+      book TEXT,
+      part TEXT,
+      chapter TEXT,
+      order_index INTEGER
     )
   `);
 
@@ -365,15 +398,20 @@ async function init() {
   await ensureColumn("actions", "sentence_demand", "TEXT");
   await ensureColumn("actions", "mentioned_names", "TEXT");
   await ensureColumn("tck_definitions", "source_url", "TEXT");
+  await ensureColumn("tck_definitions", "category", "TEXT");
+  await ensureColumn("tck_definitions", "status", "TEXT");
   await ensureColumn("deep_search_jobs", "progress_percent", "INTEGER");
   await ensureColumn("deep_search_jobs", "estimated_seconds", "INTEGER");
   await ensureColumn("deep_search_jobs", "status_message", "TEXT");
   await run("CREATE INDEX IF NOT EXISTS idx_legal_references_year ON legal_references(year)");
   await run("CREATE INDEX IF NOT EXISTS idx_legal_references_date ON legal_references(karar_tarihi)");
   await run("CREATE INDEX IF NOT EXISTS idx_deep_search_jobs_status ON deep_search_jobs(status)");
+  await run("CREATE INDEX IF NOT EXISTS idx_tck_article_parts_article ON tck_article_parts(article_code)");
+  await run("CREATE INDEX IF NOT EXISTS idx_tck_article_parts_parent ON tck_article_parts(parent_code)");
   await normalizeLegacyActionRows();
   await seedTckDefinitions();
   await applyOfficialTckTitles();
+  await applyOfficialTckParts();
   await seedLegalReferences();
 
   const row = await get("SELECT COUNT(*) as count FROM cases");
@@ -570,14 +608,18 @@ async function applyOfficialTckTitles() {
     const title = String(row.title || "").trim();
     if (!code || !title) continue;
     const source = String(row.source_url || "").trim();
-    titleByRoot.set(rootTckDefinitionCode(code), { title, source });
+    const category = String(row.category || "").trim();
+    const status = String(row.status || "").trim();
+    titleByRoot.set(rootTckDefinitionCode(code), { title, source, category, status });
     await run(
-      `INSERT INTO tck_definitions (code, short_desc, full_text, source_url)
-       VALUES (?, ?, COALESCE((SELECT full_text FROM tck_definitions WHERE code = ?), ''), ?)
+      `INSERT INTO tck_definitions (code, short_desc, full_text, source_url, category, status)
+       VALUES (?, ?, COALESCE((SELECT full_text FROM tck_definitions WHERE code = ?), ''), ?, ?, ?)
        ON CONFLICT(code) DO UPDATE SET
          short_desc = excluded.short_desc,
-         source_url = COALESCE(NULLIF(excluded.source_url, ''), tck_definitions.source_url)`,
-      [code, title, code, source]
+         source_url = COALESCE(NULLIF(excluded.source_url, ''), tck_definitions.source_url),
+         category = COALESCE(NULLIF(excluded.category, ''), tck_definitions.category),
+         status = COALESCE(NULLIF(excluded.status, ''), tck_definitions.status)`,
+      [code, title, code, source, category, status]
     );
   }
 
@@ -590,10 +632,78 @@ async function applyOfficialTckTitles() {
     await run(
       `UPDATE tck_definitions
        SET short_desc = ?,
-           source_url = COALESCE(NULLIF(?, ''), source_url)
+           source_url = COALESCE(NULLIF(?, ''), source_url),
+           category = COALESCE(NULLIF(?, ''), category),
+           status = COALESCE(NULLIF(?, ''), status)
        WHERE code = ?`,
-      [official.title, official.source, row.code]
+      [official.title, official.source, official.category, official.status, row.code]
     );
+  }
+}
+
+async function applyOfficialTckParts() {
+  const parts = loadOfficialTckParts();
+  if (!parts.length) return;
+
+  for (const item of parts) {
+    const code = normalizeTckDefinitionCode(item.code);
+    const articleCode = normalizeTckDefinitionCode(item.article_code || item.articleCode || rootTckDefinitionCode(code));
+    const parentCode = item.parent_code ? normalizeTckDefinitionCode(item.parent_code) : "";
+    const title = String(item.title || "").trim();
+    const text = String(item.text || "").trim();
+    const category = String(item.category || "").trim();
+    const status = String(item.status || "").trim();
+    const source = String(item.source_url || "").trim();
+
+    await run(
+      `INSERT INTO tck_article_parts
+        (code, article_code, parent_code, level, label, title, text, category, status, source_url, book, part, chapter, order_index)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+       ON CONFLICT(code) DO UPDATE SET
+        article_code = excluded.article_code,
+        parent_code = excluded.parent_code,
+        level = excluded.level,
+        label = excluded.label,
+        title = excluded.title,
+        text = excluded.text,
+        category = excluded.category,
+        status = excluded.status,
+        source_url = excluded.source_url,
+        book = excluded.book,
+        part = excluded.part,
+        chapter = excluded.chapter,
+        order_index = excluded.order_index`,
+      [
+        code,
+        articleCode,
+        parentCode,
+        item.level || "",
+        item.label || "",
+        title,
+        text,
+        category,
+        status,
+        source,
+        item.book || "",
+        item.part || "",
+        item.chapter || "",
+        Number(item.order_index || 0)
+      ]
+    );
+
+    if (code && title) {
+      await run(
+        `INSERT INTO tck_definitions (code, short_desc, full_text, source_url, category, status)
+         VALUES (?, ?, ?, ?, ?, ?)
+         ON CONFLICT(code) DO UPDATE SET
+           short_desc = COALESCE(NULLIF(tck_definitions.short_desc, ''), excluded.short_desc),
+           full_text = COALESCE(NULLIF(tck_definitions.full_text, ''), excluded.full_text),
+           source_url = COALESCE(NULLIF(tck_definitions.source_url, ''), excluded.source_url),
+           category = COALESCE(NULLIF(tck_definitions.category, ''), excluded.category),
+           status = COALESCE(NULLIF(tck_definitions.status, ''), excluded.status)`,
+        [code, title, text, source, category, status]
+      );
+    }
   }
 }
 

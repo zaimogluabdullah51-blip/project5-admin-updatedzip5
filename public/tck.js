@@ -3,6 +3,7 @@ const PROFILES_INITIAL_SHOW = 5;
 let tckDefinitions = {};
 let allData = [];
 let legalReferences = [];
+let tckArticleParts = [];
 const deepSearchPollers = new Map();
 
 function esc(str) {
@@ -31,10 +32,26 @@ async function loadDefinitions() {
     const rows = await res.json();
     tckDefinitions = {};
     for (const r of rows) {
-      tckDefinitions[r.code] = { short: r.short_desc || "", full: r.full_text || "", link: r.source_url || "" };
+      tckDefinitions[r.code] = {
+        short: r.short_desc || "",
+        full: r.full_text || "",
+        link: r.source_url || "",
+        category: r.category || "",
+        status: r.status || ""
+      };
     }
   } catch {
     tckDefinitions = {};
+  }
+}
+
+async function loadTckArticleParts() {
+  try {
+    const res = await fetch("/api/tck-article-parts");
+    if (!res.ok) throw new Error("API error");
+    tckArticleParts = await res.json();
+  } catch {
+    tckArticleParts = [];
   }
 }
 
@@ -53,6 +70,7 @@ async function loadTCK() {
   updateAdminUI();
   try {
     await loadDefinitions();
+    await loadTckArticleParts();
     await loadLegalReferences();
     allData = [];
     const res = await fetch("/api/tck-summary");
@@ -76,7 +94,7 @@ function renderList(data) {
     listEl.innerHTML = '<div class="tck-empty">Henüz TCK maddesi bulunamadı.</div>';
     return;
   }
-  const normalizeCode = (code) => String(code || "").replace(/^TCK\s*/i, "").replace(/\s+/g, "").trim().toLowerCase();
+  const normalizeCode = (code) => String(code || "").replace(/^TCK\s*/i, "").replace(/\/(\d+)\./g, "/$1-").replace(/\s+/g, "").trim().toLowerCase();
   const codeLabel = (code) => {
     const raw = String(code || "").replace(/^tck\s*/i, "").trim();
     return raw.toUpperCase();
@@ -154,6 +172,7 @@ function renderList(data) {
       code,
       short: def.short || "",
       full: def.full || "",
+      category: def.category || "",
       profiles: profilesByCode.get(code) || [],
       children: []
     });
@@ -222,6 +241,7 @@ function renderList(data) {
                 <div class="tck-legal-text">${esc(displayFullText)}</div>
               </div>` : `<div class="tck-legal-section tck-legal-empty"><span class="tck-legal-title" style="opacity:0.5;">Yasal karşılığı henüz eklenmemiş</span></div>`
             }
+            ${renderTckBreakdown(node.code)}
             ${referencesHtml}
             ${profileCount ? `<div class="tck-profiles">${renderProfiles(node.profiles, normalizeCode(node.code))}</div>` : ""}
             ${childrenHtml}
@@ -236,8 +256,59 @@ function renderList(data) {
   bindDeepSearchButtons();
 }
 
+function getPartsForCode(code) {
+  const normalized = String(code || "").replace(/^TCK\s*/i, "").replace(/\/(\d+)\./g, "/$1-").replace(/\s+/g, "").trim().toLowerCase();
+  if (!normalized) return [];
+  const root = normalized.match(/^(\d+)/)?.[1] || normalized;
+  return tckArticleParts.filter((part) => {
+    const partCode = String(part.code || "").toLowerCase();
+    const parent = String(part.parent_code || "").toLowerCase();
+    const article = String(part.article_code || "").toLowerCase();
+    if (normalized === root) return article === root && part.level !== "article";
+    return partCode === normalized || parent === normalized || partCode.startsWith(`${normalized}-`);
+  });
+}
+
+function renderTckBreakdown(code) {
+  const parts = getPartsForCode(code);
+  if (!parts.length) return "";
+  const shown = parts.slice(0, 18);
+  const more = Math.max(0, parts.length - shown.length);
+  const levelLabels = {
+    paragraph: "Fıkra",
+    subparagraph: "Bent",
+    item: "Alt bent"
+  };
+  const rows = shown.map((part) => {
+    const level = levelLabels[part.level] || part.label || part.level || "Kırılım";
+    return `
+      <article class="tck-breakdown-row level-${esc(part.level || "part")}">
+        <div class="tck-breakdown-code">TCK ${esc(String(part.code || "").toUpperCase())}</div>
+        <div>
+          <div class="tck-breakdown-title">
+            <span>${esc(level)}</span>
+            ${part.category ? `<em>${esc(part.category)}</em>` : ""}
+          </div>
+          <p>${esc(part.text || part.title || "Metin yok")}</p>
+        </div>
+      </article>
+    `;
+  }).join("");
+
+  return `
+    <section class="tck-breakdown-section">
+      <div class="tck-breakdown-header">
+        <h4>Madde kırılımları</h4>
+        <span>${parts.length} fıkra / bent</span>
+      </div>
+      <div class="tck-breakdown-list">${rows}</div>
+      ${more ? `<div class="tck-breakdown-more">+${more} kırılım daha var. Arama ile daraltabilirsiniz.</div>` : ""}
+    </section>
+  `;
+}
+
 function getReferencesForCode(code) {
-  const normalized = String(code || "").replace(/^TCK\s*/i, "").replace(/\s+/g, "").trim().toLowerCase();
+  const normalized = String(code || "").replace(/^TCK\s*/i, "").replace(/\/(\d+)\./g, "/$1-").replace(/\s+/g, "").trim().toLowerCase();
   if (!normalized) return [];
   const root = normalized.match(/^(\d+)/)?.[1] || normalized;
   return legalReferences.filter((ref) => {
