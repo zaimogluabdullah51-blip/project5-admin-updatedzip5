@@ -4,6 +4,7 @@ import fs from "fs";
 import path from "path";
 
 const dbPath = path.join(process.cwd(), "data", "cases.db");
+const officialTckTitlesPath = path.join(process.cwd(), "data", "tck_madde_basliklari_2026-08-26.json");
 
 if (!fs.existsSync(path.dirname(dbPath))) {
   fs.mkdirSync(path.dirname(dbPath), { recursive: true });
@@ -36,6 +37,30 @@ function all(sql, params = []) {
       resolve(rows);
     });
   });
+}
+
+function normalizeTckDefinitionCode(value) {
+  return String(value || "")
+    .trim()
+    .replace(/^TCK\s*/i, "")
+    .replace(/\s+/g, "")
+    .toUpperCase();
+}
+
+function rootTckDefinitionCode(value) {
+  const normalized = normalizeTckDefinitionCode(value);
+  const match = normalized.match(/^(\d+)/);
+  return match ? match[1] : normalized;
+}
+
+function loadOfficialTckTitles() {
+  try {
+    const raw = fs.readFileSync(officialTckTitlesPath, "utf8");
+    return JSON.parse(raw).filter((row) => row && row.code && row.title);
+  } catch (err) {
+    console.warn("Official TCK title file could not be loaded:", err.message);
+    return [];
+  }
 }
 
 function splitActionNums(rawValue) {
@@ -348,6 +373,7 @@ async function init() {
   await run("CREATE INDEX IF NOT EXISTS idx_deep_search_jobs_status ON deep_search_jobs(status)");
   await normalizeLegacyActionRows();
   await seedTckDefinitions();
+  await applyOfficialTckTitles();
   await seedLegalReferences();
 
   const row = await get("SELECT COUNT(*) as count FROM cases");
@@ -530,6 +556,43 @@ async function seedTckDefinitions() {
     await run(
       "INSERT OR IGNORE INTO tck_definitions (code, short_desc, full_text) VALUES (?, ?, ?)",
       [d.code, d.short_desc, d.full_text]
+    );
+  }
+}
+
+async function applyOfficialTckTitles() {
+  const titles = loadOfficialTckTitles();
+  if (!titles.length) return;
+
+  const titleByRoot = new Map();
+  for (const row of titles) {
+    const code = normalizeTckDefinitionCode(row.code);
+    const title = String(row.title || "").trim();
+    if (!code || !title) continue;
+    const source = String(row.source_url || "").trim();
+    titleByRoot.set(rootTckDefinitionCode(code), { title, source });
+    await run(
+      `INSERT INTO tck_definitions (code, short_desc, full_text, source_url)
+       VALUES (?, ?, COALESCE((SELECT full_text FROM tck_definitions WHERE code = ?), ''), ?)
+       ON CONFLICT(code) DO UPDATE SET
+         short_desc = excluded.short_desc,
+         source_url = COALESCE(NULLIF(excluded.source_url, ''), tck_definitions.source_url)`,
+      [code, title, code, source]
+    );
+  }
+
+  const existingRows = await all("SELECT code FROM tck_definitions");
+  for (const row of existingRows) {
+    const code = normalizeTckDefinitionCode(row.code);
+    const root = rootTckDefinitionCode(code);
+    if (!code || code === root || !titleByRoot.has(root)) continue;
+    const official = titleByRoot.get(root);
+    await run(
+      `UPDATE tck_definitions
+       SET short_desc = ?,
+           source_url = COALESCE(NULLIF(?, ''), source_url)
+       WHERE code = ?`,
+      [official.title, official.source, row.code]
     );
   }
 }

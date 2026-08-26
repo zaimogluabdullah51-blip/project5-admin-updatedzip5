@@ -84,6 +84,12 @@ function normalizeTckCode(value) {
     .toUpperCase();
 }
 
+function rootTckCode(value) {
+  const normalized = normalizeTckCode(value);
+  const match = normalized.match(/^(\d+)/);
+  return match ? match[1] : normalized;
+}
+
 async function getDefinedTckCodeSet() {
   const rows = await all("SELECT code FROM tck_definitions");
   return new Set(rows.map((row) => normalizeTckCode(row.code)).filter(Boolean));
@@ -95,7 +101,7 @@ function filterKnownTckCodes(values, definedSet) {
   const out = [];
   for (const raw of values) {
     const code = normalizeTckCode(raw);
-    if (!code || !definedSet.has(code) || seen.has(code)) continue;
+    if (!code || (!definedSet.has(code) && !definedSet.has(rootTckCode(code))) || seen.has(code)) continue;
     seen.add(code);
     out.push(code);
   }
@@ -855,7 +861,12 @@ app.get("/api/tck-summary", async (req, res) => {
       const codes = parseJsonField(action.tck_codes, []);
       for (const code of codes) {
         const normalized = normalizeTckCode(code);
-        if (!normalized || !tckData.has(normalized)) continue;
+        if (!normalized) continue;
+        const root = rootTckCode(normalized);
+        if (!tckData.has(normalized)) {
+          if (!tckData.has(root)) continue;
+          tckData.set(normalized, { article: normalized, profiles: [] });
+        }
         const person = personMap.get(action.person_id);
         if (!person) continue;
 
@@ -884,7 +895,12 @@ app.get("/api/tck-summary", async (req, res) => {
       const articles = parseJsonField(person.tck_articles, []);
       for (const code of articles) {
         const normalized = normalizeTckCode(code);
-        if (!normalized || !tckData.has(normalized)) continue;
+        if (!normalized) continue;
+        const root = rootTckCode(normalized);
+        if (!tckData.has(normalized)) {
+          if (!tckData.has(root)) continue;
+          tckData.set(normalized, { article: normalized, profiles: [] });
+        }
         const existing = tckData.get(normalized).profiles;
         if (existing.some(p => p.personId === person.id)) continue;
 

@@ -115,37 +115,9 @@ function renderList(data) {
     if (pa.clause !== pb.clause) return pa.clause - pb.clause;
     return pa.letter.localeCompare(pb.letter);
   };
-  const uniqueActionTitles = (profiles) => {
-    const seen = new Set();
-    return (profiles || [])
-      .map((p) => String(p.actionTitle || "").trim())
-      .filter(Boolean)
-      .filter((title) => {
-        const key = title.toLowerCase();
-        if (seen.has(key)) return false;
-        seen.add(key);
-        return true;
-      });
-  };
-  const collectSubtreeProfiles = (n, acc = []) => {
-    acc.push(...(n.profiles || []));
-    (n.children || []).forEach((child) => collectSubtreeProfiles(child, acc));
-    return acc;
-  };
-  const getArticleTitle = (node) => {
-    const titles = uniqueActionTitles(collectSubtreeProfiles(node, []));
-    if (!titles.length) {
-      return {
-        primary: node.short || "",
-        extra: "",
-        lawTitle: ""
-      };
-    }
-    return {
-      primary: titles.slice(0, 2).join(" · "),
-      extra: titles.length > 2 ? `+${titles.length - 2} suçlama başlığı` : "",
-      lawTitle: node.short || ""
-    };
+  const definitionForCode = (code) => {
+    const normalized = normalizeCode(code);
+    return definitionsByCode.get(normalized) || definitionsByCode.get(rootCode(normalized)) || {};
   };
 
   const profilesByCode = new Map();
@@ -162,13 +134,17 @@ function renderList(data) {
   });
 
   const allCodes = new Set(definitionsByCode.keys());
+  profilesByCode.forEach((profiles, code) => {
+    if (!code || !profiles.length) return;
+    allCodes.add(code);
+  });
   Array.from(allCodes).forEach((code) => {
     const root = rootCode(code);
     if (root) allCodes.add(root);
   });
   const nodes = new Map();
   allCodes.forEach((code) => {
-    const def = definitionsByCode.get(code) || { short: "", full: "" };
+    const def = definitionForCode(code);
     nodes.set(code, {
       code,
       short: def.short || "",
@@ -183,6 +159,8 @@ function renderList(data) {
     const parent = parentCode(code);
     if (parent && nodes.has(parent)) {
       nodes.get(parent).children.push(node);
+    } else if (rootCode(code) && rootCode(code) !== code && nodes.has(rootCode(code))) {
+      nodes.get(rootCode(code)).children.push(node);
     } else if (/^\d+$/.test(code)) {
       roots.push(node);
     }
@@ -216,7 +194,6 @@ function renderList(data) {
       return merged.join("\n");
     };
     const displayFullText = buildFullText(node);
-    const articleTitle = getArticleTitle(node);
     const referencesHtml = renderLegalReferences(node.code);
     const childCodes = node.children.map((child) =>
       `<span class="tck-subcode-chip">TCK ${esc(codeLabel(child.code))}</span>`
@@ -230,10 +207,8 @@ function renderList(data) {
         <details class="profile-collapse" ${depth === 0 ? "" : ""}>
           <summary class="profile-collapse-summary">
             <span class="tck-article-num">TCK ${esc(codeLabel(node.code))}</span>
-            ${articleTitle.primary ? `<span class="tck-article-desc">${esc(articleTitle.primary)}</span>` : ""}
-            ${articleTitle.extra ? `<span class="tck-article-title-more">${esc(articleTitle.extra)}</span>` : ""}
+            ${node.short ? `<span class="tck-article-desc">${esc(node.short)}</span>` : ""}
             <span class="tck-article-count">${profileCount} profil</span>
-            ${articleTitle.lawTitle ? `<span class="tck-article-law-title">${esc(articleTitle.lawTitle)}</span>` : ""}
             ${childCodes ? `<span class="tck-article-subcodes">${childCodes}</span>` : ""}
           </summary>
           <div class="tck-article-body">

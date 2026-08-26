@@ -1,0 +1,2445 @@
+[
+  {
+    "code": "1",
+    "title": "Ceza Kanununun amacı",
+    "category": "Temel İlkeler ve Tanımlar",
+    "status": "Yürürlükte",
+    "source_url": "https://www.mevzuat.gov.tr/mevzuatmetin/1.5.5237.pdf"
+  },
+  {
+    "code": "2",
+    "title": "Suçta ve cezada kanunîlik ilkesi",
+    "category": "Temel İlkeler ve Tanımlar",
+    "status": "Yürürlükte",
+    "source_url": "https://www.mevzuat.gov.tr/mevzuatmetin/1.5.5237.pdf"
+  },
+  {
+    "code": "3",
+    "title": "Adalet ve kanun önünde eşitlik ilkesi",
+    "category": "Temel İlkeler ve Tanımlar",
+    "status": "Yürürlükte",
+    "source_url": "https://www.mevzuat.gov.tr/mevzuatmetin/1.5.5237.pdf"
+  },
+  {
+    "code": "4",
+    "title": "Kanunun bağlayıcılığı",
+    "category": "Temel İlkeler ve Tanımlar",
+    "status": "Yürürlükte",
+    "source_url": "https://www.mevzuat.gov.tr/mevzuatmetin/1.5.5237.pdf"
+  },
+  {
+    "code": "5",
+    "title": "Özel kanunlarla ilişki",
+    "category": "Temel İlkeler ve Tanımlar",
+    "status": "Yürürlükte",
+    "source_url": "https://www.mevzuat.gov.tr/mevzuatmetin/1.5.5237.pdf"
+  },
+  {
+    "code": "6",
+    "title": "Tanımlar",
+    "category": "Temel İlkeler ve Tanımlar",
+    "status": "Yürürlükte",
+    "source_url": "https://www.mevzuat.gov.tr/mevzuatmetin/1.5.5237.pdf"
+  },
+  {
+    "code": "7",
+    "title": "Zaman bakımından uygulama",
+    "category": "Kanunun Uygulama Alanı",
+    "status": "Yürürlükte",
+    "source_url": "https://www.mevzuat.gov.tr/mevzuatmetin/1.5.5237.pdf"
+  },
+  {
+    "code": "8",
+    "title": "Yer bakımından uygulama",
+    "category": "Kanunun Uygulama Alanı",
+    "status": "Yürürlükte",
+    "source_url": "https://www.mevzuat.gov.tr/mevzuatmetin/1.5.5237.pdf"
+  },
+  {
+    "code": "9",
+    "title": "Yabancı ülkede hüküm verilmesi",
+    "category": "Kanunun Uygulama Alanı",
+    "status": "Yürürlükte",
+    "source_url": "https://www.mevzuat.gov.tr/mevzuatmetin/1.5.5237.pdf"
+  },
+  {
+    "code": "10",
+    "title": "Görev suçları",
+    "category": "Kanunun Uygulama Alanı",
+    "status": "Yürürlükte",
+    "source_url": "https://www.mevzuat.gov.tr/mevzuatmetin/1.5.5237.pdf"
+  },
+  {
+    "code": "11",
+    "title": "Vatandaş tarafından işlenen suç",
+    "category": "Kanunun Uygulama Alanı",
+    "status": "Yürürlükte",
+    "source_url": "https://www.mevzuat.gov.tr/mevzuatmetin/1.5.5237.pdf"
+  },
+  {
+    "code": "12",
+    "title": "Yabancı tarafından işlenen suç",
+    "category": "Kanunun Uygulama Alanı",
+    "status": "Yürürlükte",
+    "source_url": "https://www.mevzuat.gov.tr/mevzuatmetin/1.5.5237.pdf"
+  },
+  {
+    "code": "13",
+    "title": "Diğer suçlar",
+    "category": "Kanunun Uygulama Alanı",
+    "status": "Yürürlükte",
+    "source_url": "https://www.mevzuat.gov.tr/mevzuatmetin/1.5.5237.pdf"
+  },
+  {
+    "code": "14",
+    "title": "Seçimlik cezalarda soruşturma",
+    "category": "Kanunun Uygulama Alanı",
+    "status": "Yürürlükte",
+    "source_url": "https://www.mevzuat.gov.tr/mevzuatmetin/1.5.5237.pdf"
+  },
+  {
+    "code": "15",
+    "title": "Soruşturma koşulu olan cezanın hesaplanması",
+    "category": "Kanunun Uygulama Alanı",
+    "status": "Yürürlükte",
+    "source_url": "https://www.mevzuat.gov.tr/mevzuatmetin/1.5.5237.pdf"
+  },
+  {
+    "code": "16",
+    "title": "Cezadan mahsup",
+    "category": "Kanunun Uygulama Alanı",
+    "status": "Yürürlükte",
+    "source_url": "https://www.mevzuat.gov.tr/mevzuatmetin/1.5.5237.pdf"
+  },
+  {
+    "code": "17",
+    "title": "Hak yoksunlukları",
+    "category": "Kanunun Uygulama Alanı",
+    "status": "Yürürlükte",
+    "source_url": "https://www.mevzuat.gov.tr/mevzuatmetin/1.5.5237.pdf"
+  },
+  {
+    "code": "18",
+    "title": "Geri verme",
+    "category": "Kanunun Uygulama Alanı",
+    "status": "Mülga",
+    "source_url": "https://www.mevzuat.gov.tr/mevzuatmetin/1.5.5237.pdf"
+  },
+  {
+    "code": "19",
+    "title": "Yabancı kanunun göz önünde bulundurulması",
+    "category": "Kanunun Uygulama Alanı",
+    "status": "Yürürlükte",
+    "source_url": "https://www.mevzuat.gov.tr/mevzuatmetin/1.5.5237.pdf"
+  },
+  {
+    "code": "20",
+    "title": "Ceza sorumluluğunun şahsiliği",
+    "category": "Ceza Sorumluluğunun Şahsiliği, Kast ve Taksir",
+    "status": "Yürürlükte",
+    "source_url": "https://www.mevzuat.gov.tr/mevzuatmetin/1.5.5237.pdf"
+  },
+  {
+    "code": "21",
+    "title": "Kast",
+    "category": "Ceza Sorumluluğunun Şahsiliği, Kast ve Taksir",
+    "status": "Yürürlükte",
+    "source_url": "https://www.mevzuat.gov.tr/mevzuatmetin/1.5.5237.pdf"
+  },
+  {
+    "code": "22",
+    "title": "Taksir",
+    "category": "Ceza Sorumluluğunun Şahsiliği, Kast ve Taksir",
+    "status": "Yürürlükte",
+    "source_url": "https://www.mevzuat.gov.tr/mevzuatmetin/1.5.5237.pdf"
+  },
+  {
+    "code": "23",
+    "title": "Netice sebebiyle ağırlaşmış suç",
+    "category": "Ceza Sorumluluğunun Şahsiliği, Kast ve Taksir",
+    "status": "Yürürlükte",
+    "source_url": "https://www.mevzuat.gov.tr/mevzuatmetin/1.5.5237.pdf"
+  },
+  {
+    "code": "24",
+    "title": "Kanunun hükmü ve amirin emri",
+    "category": "Ceza Sorumluluğunu Kaldıran veya Azaltan Nedenler",
+    "status": "Yürürlükte",
+    "source_url": "https://www.mevzuat.gov.tr/mevzuatmetin/1.5.5237.pdf"
+  },
+  {
+    "code": "25",
+    "title": "Meşru savunma ve zorunluluk hali",
+    "category": "Ceza Sorumluluğunu Kaldıran veya Azaltan Nedenler",
+    "status": "Yürürlükte",
+    "source_url": "https://www.mevzuat.gov.tr/mevzuatmetin/1.5.5237.pdf"
+  },
+  {
+    "code": "26",
+    "title": "Hakkın kullanılması ve ilgilinin rızası",
+    "category": "Ceza Sorumluluğunu Kaldıran veya Azaltan Nedenler",
+    "status": "Yürürlükte",
+    "source_url": "https://www.mevzuat.gov.tr/mevzuatmetin/1.5.5237.pdf"
+  },
+  {
+    "code": "27",
+    "title": "Sınırın aşılması",
+    "category": "Ceza Sorumluluğunu Kaldıran veya Azaltan Nedenler",
+    "status": "Yürürlükte",
+    "source_url": "https://www.mevzuat.gov.tr/mevzuatmetin/1.5.5237.pdf"
+  },
+  {
+    "code": "28",
+    "title": "Cebir ve şiddet, korkutma ve tehdit",
+    "category": "Ceza Sorumluluğunu Kaldıran veya Azaltan Nedenler",
+    "status": "Yürürlükte",
+    "source_url": "https://www.mevzuat.gov.tr/mevzuatmetin/1.5.5237.pdf"
+  },
+  {
+    "code": "29",
+    "title": "Haksız tahrik",
+    "category": "Ceza Sorumluluğunu Kaldıran veya Azaltan Nedenler",
+    "status": "Yürürlükte",
+    "source_url": "https://www.mevzuat.gov.tr/mevzuatmetin/1.5.5237.pdf"
+  },
+  {
+    "code": "30",
+    "title": "Hata",
+    "category": "Ceza Sorumluluğunu Kaldıran veya Azaltan Nedenler",
+    "status": "Yürürlükte",
+    "source_url": "https://www.mevzuat.gov.tr/mevzuatmetin/1.5.5237.pdf"
+  },
+  {
+    "code": "31",
+    "title": "Yaş küçüklüğü",
+    "category": "Ceza Sorumluluğunu Kaldıran veya Azaltan Nedenler",
+    "status": "Yürürlükte",
+    "source_url": "https://www.mevzuat.gov.tr/mevzuatmetin/1.5.5237.pdf"
+  },
+  {
+    "code": "32",
+    "title": "Akıl hastalığı",
+    "category": "Ceza Sorumluluğunu Kaldıran veya Azaltan Nedenler",
+    "status": "Yürürlükte",
+    "source_url": "https://www.mevzuat.gov.tr/mevzuatmetin/1.5.5237.pdf"
+  },
+  {
+    "code": "33",
+    "title": "Sağır ve dilsizlik",
+    "category": "Ceza Sorumluluğunu Kaldıran veya Azaltan Nedenler",
+    "status": "Yürürlükte",
+    "source_url": "https://www.mevzuat.gov.tr/mevzuatmetin/1.5.5237.pdf"
+  },
+  {
+    "code": "34",
+    "title": "Geçici nedenler, alkol veya uyuşturucu madde etkisinde olma",
+    "category": "Ceza Sorumluluğunu Kaldıran veya Azaltan Nedenler",
+    "status": "Yürürlükte",
+    "source_url": "https://www.mevzuat.gov.tr/mevzuatmetin/1.5.5237.pdf"
+  },
+  {
+    "code": "35",
+    "title": "Suça teşebbüs",
+    "category": "Suça Teşebbüs",
+    "status": "Yürürlükte",
+    "source_url": "https://www.mevzuat.gov.tr/mevzuatmetin/1.5.5237.pdf"
+  },
+  {
+    "code": "36",
+    "title": "Gönüllü vazgeçme",
+    "category": "Suça Teşebbüs",
+    "status": "Yürürlükte",
+    "source_url": "https://www.mevzuat.gov.tr/mevzuatmetin/1.5.5237.pdf"
+  },
+  {
+    "code": "37",
+    "title": "Faillik",
+    "category": "Suça İştirak",
+    "status": "Yürürlükte",
+    "source_url": "https://www.mevzuat.gov.tr/mevzuatmetin/1.5.5237.pdf"
+  },
+  {
+    "code": "38",
+    "title": "Azmettirme",
+    "category": "Suça İştirak",
+    "status": "Yürürlükte",
+    "source_url": "https://www.mevzuat.gov.tr/mevzuatmetin/1.5.5237.pdf"
+  },
+  {
+    "code": "39",
+    "title": "Yardım etme",
+    "category": "Suça İştirak",
+    "status": "Yürürlükte",
+    "source_url": "https://www.mevzuat.gov.tr/mevzuatmetin/1.5.5237.pdf"
+  },
+  {
+    "code": "40",
+    "title": "Bağlılık kuralı",
+    "category": "Suça İştirak",
+    "status": "Yürürlükte",
+    "source_url": "https://www.mevzuat.gov.tr/mevzuatmetin/1.5.5237.pdf"
+  },
+  {
+    "code": "41",
+    "title": "İştirak hâlinde işlenen suçlarda gönüllü vazgeçme",
+    "category": "Suça İştirak",
+    "status": "Yürürlükte",
+    "source_url": "https://www.mevzuat.gov.tr/mevzuatmetin/1.5.5237.pdf"
+  },
+  {
+    "code": "42",
+    "title": "Bileşik suç",
+    "category": "Suçların İçtimaı",
+    "status": "Yürürlükte",
+    "source_url": "https://www.mevzuat.gov.tr/mevzuatmetin/1.5.5237.pdf"
+  },
+  {
+    "code": "43",
+    "title": "Zincirleme suç",
+    "category": "Suçların İçtimaı",
+    "status": "Yürürlükte",
+    "source_url": "https://www.mevzuat.gov.tr/mevzuatmetin/1.5.5237.pdf"
+  },
+  {
+    "code": "44",
+    "title": "Fikri içtima",
+    "category": "Suçların İçtimaı",
+    "status": "Yürürlükte",
+    "source_url": "https://www.mevzuat.gov.tr/mevzuatmetin/1.5.5237.pdf"
+  },
+  {
+    "code": "45",
+    "title": "Cezalar",
+    "category": "Cezalar",
+    "status": "Yürürlükte",
+    "source_url": "https://www.mevzuat.gov.tr/mevzuatmetin/1.5.5237.pdf"
+  },
+  {
+    "code": "46",
+    "title": "Hapis cezaları",
+    "category": "Cezalar",
+    "status": "Yürürlükte",
+    "source_url": "https://www.mevzuat.gov.tr/mevzuatmetin/1.5.5237.pdf"
+  },
+  {
+    "code": "47",
+    "title": "Ağırlaştırılmış müebbet hapis cezası",
+    "category": "Cezalar",
+    "status": "Yürürlükte",
+    "source_url": "https://www.mevzuat.gov.tr/mevzuatmetin/1.5.5237.pdf"
+  },
+  {
+    "code": "48",
+    "title": "Müebbet hapis cezası",
+    "category": "Cezalar",
+    "status": "Yürürlükte",
+    "source_url": "https://www.mevzuat.gov.tr/mevzuatmetin/1.5.5237.pdf"
+  },
+  {
+    "code": "49",
+    "title": "Süreli hapis cezası",
+    "category": "Cezalar",
+    "status": "Yürürlükte",
+    "source_url": "https://www.mevzuat.gov.tr/mevzuatmetin/1.5.5237.pdf"
+  },
+  {
+    "code": "50",
+    "title": "Kısa süreli hapis cezasına seçenek yaptırımlar",
+    "category": "Cezalar",
+    "status": "Yürürlükte",
+    "source_url": "https://www.mevzuat.gov.tr/mevzuatmetin/1.5.5237.pdf"
+  },
+  {
+    "code": "51",
+    "title": "Hapis cezasının ertelenmesi",
+    "category": "Cezalar",
+    "status": "Yürürlükte",
+    "source_url": "https://www.mevzuat.gov.tr/mevzuatmetin/1.5.5237.pdf"
+  },
+  {
+    "code": "52",
+    "title": "Adlî para cezası",
+    "category": "Cezalar",
+    "status": "Yürürlükte",
+    "source_url": "https://www.mevzuat.gov.tr/mevzuatmetin/1.5.5237.pdf"
+  },
+  {
+    "code": "53",
+    "title": "Belli hakları kullanmaktan yoksun bırakılma",
+    "category": "Güvenlik Tedbirleri",
+    "status": "Yürürlükte",
+    "source_url": "https://www.mevzuat.gov.tr/mevzuatmetin/1.5.5237.pdf"
+  },
+  {
+    "code": "54",
+    "title": "Eşya müsaderesi",
+    "category": "Güvenlik Tedbirleri",
+    "status": "Yürürlükte",
+    "source_url": "https://www.mevzuat.gov.tr/mevzuatmetin/1.5.5237.pdf"
+  },
+  {
+    "code": "55",
+    "title": "Kazanç müsaderesi",
+    "category": "Güvenlik Tedbirleri",
+    "status": "Yürürlükte",
+    "source_url": "https://www.mevzuat.gov.tr/mevzuatmetin/1.5.5237.pdf"
+  },
+  {
+    "code": "56",
+    "title": "Çocuklara özgü güvenlik tedbirleri",
+    "category": "Güvenlik Tedbirleri",
+    "status": "Yürürlükte",
+    "source_url": "https://www.mevzuat.gov.tr/mevzuatmetin/1.5.5237.pdf"
+  },
+  {
+    "code": "57",
+    "title": "Akıl hastalarına özgü güvenlik tedbirleri",
+    "category": "Güvenlik Tedbirleri",
+    "status": "Yürürlükte",
+    "source_url": "https://www.mevzuat.gov.tr/mevzuatmetin/1.5.5237.pdf"
+  },
+  {
+    "code": "58",
+    "title": "Suçta tekerrür ve özel tehlikeli suçlular",
+    "category": "Güvenlik Tedbirleri",
+    "status": "Yürürlükte",
+    "source_url": "https://www.mevzuat.gov.tr/mevzuatmetin/1.5.5237.pdf"
+  },
+  {
+    "code": "59",
+    "title": "Sınır dışı edilme",
+    "category": "Güvenlik Tedbirleri",
+    "status": "Yürürlükte",
+    "source_url": "https://www.mevzuat.gov.tr/mevzuatmetin/1.5.5237.pdf"
+  },
+  {
+    "code": "60",
+    "title": "Tüzel kişiler hakkında güvenlik tedbirleri",
+    "category": "Güvenlik Tedbirleri",
+    "status": "Yürürlükte",
+    "source_url": "https://www.mevzuat.gov.tr/mevzuatmetin/1.5.5237.pdf"
+  },
+  {
+    "code": "61",
+    "title": "Cezanın belirlenmesi",
+    "category": "Cezanın Belirlenmesi ve Bireyselleştirilmesi",
+    "status": "Yürürlükte",
+    "source_url": "https://www.mevzuat.gov.tr/mevzuatmetin/1.5.5237.pdf"
+  },
+  {
+    "code": "62",
+    "title": "Takdiri indirim nedenleri",
+    "category": "Cezanın Belirlenmesi ve Bireyselleştirilmesi",
+    "status": "Yürürlükte",
+    "source_url": "https://www.mevzuat.gov.tr/mevzuatmetin/1.5.5237.pdf"
+  },
+  {
+    "code": "63",
+    "title": "Mahsup",
+    "category": "Cezanın Belirlenmesi ve Bireyselleştirilmesi",
+    "status": "Yürürlükte",
+    "source_url": "https://www.mevzuat.gov.tr/mevzuatmetin/1.5.5237.pdf"
+  },
+  {
+    "code": "64",
+    "title": "Sanığın veya hükümlünün ölümü",
+    "category": "Dava ve Cezanın Düşürülmesi",
+    "status": "Yürürlükte",
+    "source_url": "https://www.mevzuat.gov.tr/mevzuatmetin/1.5.5237.pdf"
+  },
+  {
+    "code": "65",
+    "title": "Af",
+    "category": "Dava ve Cezanın Düşürülmesi",
+    "status": "Yürürlükte",
+    "source_url": "https://www.mevzuat.gov.tr/mevzuatmetin/1.5.5237.pdf"
+  },
+  {
+    "code": "66",
+    "title": "Dava zamanaşımı",
+    "category": "Dava ve Cezanın Düşürülmesi",
+    "status": "Yürürlükte",
+    "source_url": "https://www.mevzuat.gov.tr/mevzuatmetin/1.5.5237.pdf"
+  },
+  {
+    "code": "67",
+    "title": "Dava zamanaşımı süresinin durması veya kesilmesi",
+    "category": "Dava ve Cezanın Düşürülmesi",
+    "status": "Yürürlükte",
+    "source_url": "https://www.mevzuat.gov.tr/mevzuatmetin/1.5.5237.pdf"
+  },
+  {
+    "code": "68",
+    "title": "Ceza zamanaşımı",
+    "category": "Dava ve Cezanın Düşürülmesi",
+    "status": "Yürürlükte",
+    "source_url": "https://www.mevzuat.gov.tr/mevzuatmetin/1.5.5237.pdf"
+  },
+  {
+    "code": "69",
+    "title": "Ceza zamanaşımı ve hak yoksunlukları",
+    "category": "Dava ve Cezanın Düşürülmesi",
+    "status": "Yürürlükte",
+    "source_url": "https://www.mevzuat.gov.tr/mevzuatmetin/1.5.5237.pdf"
+  },
+  {
+    "code": "70",
+    "title": "Müsaderede zamanaşımı",
+    "category": "Dava ve Cezanın Düşürülmesi",
+    "status": "Yürürlükte",
+    "source_url": "https://www.mevzuat.gov.tr/mevzuatmetin/1.5.5237.pdf"
+  },
+  {
+    "code": "71",
+    "title": "Ceza zamanaşımının kesilmesi",
+    "category": "Dava ve Cezanın Düşürülmesi",
+    "status": "Yürürlükte",
+    "source_url": "https://www.mevzuat.gov.tr/mevzuatmetin/1.5.5237.pdf"
+  },
+  {
+    "code": "72",
+    "title": "Zamanaşımının hesabı ve uygulanması",
+    "category": "Dava ve Cezanın Düşürülmesi",
+    "status": "Yürürlükte",
+    "source_url": "https://www.mevzuat.gov.tr/mevzuatmetin/1.5.5237.pdf"
+  },
+  {
+    "code": "73",
+    "title": "Soruşturulması ve kovuşturulması şikayete bağlı suçlar",
+    "category": "Dava ve Cezanın Düşürülmesi",
+    "status": "Yürürlükte",
+    "source_url": "https://www.mevzuat.gov.tr/mevzuatmetin/1.5.5237.pdf"
+  },
+  {
+    "code": "74",
+    "title": "Dava veya cezanın düşmesinin etkisi",
+    "category": "Dava ve Cezanın Düşürülmesi",
+    "status": "Yürürlükte",
+    "source_url": "https://www.mevzuat.gov.tr/mevzuatmetin/1.5.5237.pdf"
+  },
+  {
+    "code": "75",
+    "title": "Önödeme",
+    "category": "Dava ve Cezanın Düşürülmesi",
+    "status": "Yürürlükte",
+    "source_url": "https://www.mevzuat.gov.tr/mevzuatmetin/1.5.5237.pdf"
+  },
+  {
+    "code": "76",
+    "title": "Soykırım",
+    "category": "Soykırım ve İnsanlığa Karşı Suçlar",
+    "status": "Yürürlükte",
+    "source_url": "https://www.mevzuat.gov.tr/mevzuatmetin/1.5.5237.pdf"
+  },
+  {
+    "code": "77",
+    "title": "İnsanlığa karşı suçlar",
+    "category": "Soykırım ve İnsanlığa Karşı Suçlar",
+    "status": "Yürürlükte",
+    "source_url": "https://www.mevzuat.gov.tr/mevzuatmetin/1.5.5237.pdf"
+  },
+  {
+    "code": "78",
+    "title": "Örgüt",
+    "category": "Soykırım ve İnsanlığa Karşı Suçlar",
+    "status": "Yürürlükte",
+    "source_url": "https://www.mevzuat.gov.tr/mevzuatmetin/1.5.5237.pdf"
+  },
+  {
+    "code": "79",
+    "title": "Göçmen kaçakçılığı",
+    "category": "Göçmen Kaçakçılığı ve İnsan Ticareti",
+    "status": "Yürürlükte",
+    "source_url": "https://www.mevzuat.gov.tr/mevzuatmetin/1.5.5237.pdf"
+  },
+  {
+    "code": "80",
+    "title": "İnsan ticareti",
+    "category": "Göçmen Kaçakçılığı ve İnsan Ticareti",
+    "status": "Yürürlükte",
+    "source_url": "https://www.mevzuat.gov.tr/mevzuatmetin/1.5.5237.pdf"
+  },
+  {
+    "code": "81",
+    "title": "Kasten öldürme",
+    "category": "Hayata Karşı Suçlar",
+    "status": "Yürürlükte",
+    "source_url": "https://www.mevzuat.gov.tr/mevzuatmetin/1.5.5237.pdf"
+  },
+  {
+    "code": "82",
+    "title": "Nitelikli haller",
+    "category": "Hayata Karşı Suçlar",
+    "status": "Yürürlükte",
+    "source_url": "https://www.mevzuat.gov.tr/mevzuatmetin/1.5.5237.pdf"
+  },
+  {
+    "code": "83",
+    "title": "Kasten öldürmenin ihmali davranışla işlenmesi",
+    "category": "Hayata Karşı Suçlar",
+    "status": "Yürürlükte",
+    "source_url": "https://www.mevzuat.gov.tr/mevzuatmetin/1.5.5237.pdf"
+  },
+  {
+    "code": "84",
+    "title": "İntihara yönlendirme",
+    "category": "Hayata Karşı Suçlar",
+    "status": "Yürürlükte",
+    "source_url": "https://www.mevzuat.gov.tr/mevzuatmetin/1.5.5237.pdf"
+  },
+  {
+    "code": "85",
+    "title": "Taksirle öldürme",
+    "category": "Hayata Karşı Suçlar",
+    "status": "Yürürlükte",
+    "source_url": "https://www.mevzuat.gov.tr/mevzuatmetin/1.5.5237.pdf"
+  },
+  {
+    "code": "86",
+    "title": "Kasten yaralama",
+    "category": "Vücut Dokunulmazlığına Karşı Suçlar",
+    "status": "Yürürlükte",
+    "source_url": "https://www.mevzuat.gov.tr/mevzuatmetin/1.5.5237.pdf"
+  },
+  {
+    "code": "87",
+    "title": "Neticesi sebebiyle ağırlaşmış yaralama",
+    "category": "Vücut Dokunulmazlığına Karşı Suçlar",
+    "status": "Yürürlükte",
+    "source_url": "https://www.mevzuat.gov.tr/mevzuatmetin/1.5.5237.pdf"
+  },
+  {
+    "code": "88",
+    "title": "Kasten yaralamanın ihmali davranışla işlenmesi",
+    "category": "Vücut Dokunulmazlığına Karşı Suçlar",
+    "status": "Yürürlükte",
+    "source_url": "https://www.mevzuat.gov.tr/mevzuatmetin/1.5.5237.pdf"
+  },
+  {
+    "code": "89",
+    "title": "Taksirle yaralama",
+    "category": "Vücut Dokunulmazlığına Karşı Suçlar",
+    "status": "Yürürlükte",
+    "source_url": "https://www.mevzuat.gov.tr/mevzuatmetin/1.5.5237.pdf"
+  },
+  {
+    "code": "90",
+    "title": "İnsan üzerinde deney",
+    "category": "Vücut Dokunulmazlığına Karşı Suçlar",
+    "status": "Yürürlükte",
+    "source_url": "https://www.mevzuat.gov.tr/mevzuatmetin/1.5.5237.pdf"
+  },
+  {
+    "code": "91",
+    "title": "Organ veya doku ticareti",
+    "category": "Vücut Dokunulmazlığına Karşı Suçlar",
+    "status": "Yürürlükte",
+    "source_url": "https://www.mevzuat.gov.tr/mevzuatmetin/1.5.5237.pdf"
+  },
+  {
+    "code": "92",
+    "title": "Zorunluluk hali",
+    "category": "Vücut Dokunulmazlığına Karşı Suçlar",
+    "status": "Yürürlükte",
+    "source_url": "https://www.mevzuat.gov.tr/mevzuatmetin/1.5.5237.pdf"
+  },
+  {
+    "code": "93",
+    "title": "Etkin pişmanlık",
+    "category": "Vücut Dokunulmazlığına Karşı Suçlar",
+    "status": "Yürürlükte",
+    "source_url": "https://www.mevzuat.gov.tr/mevzuatmetin/1.5.5237.pdf"
+  },
+  {
+    "code": "94",
+    "title": "İşkence",
+    "category": "İşkence ve Eziyet",
+    "status": "Yürürlükte",
+    "source_url": "https://www.mevzuat.gov.tr/mevzuatmetin/1.5.5237.pdf"
+  },
+  {
+    "code": "95",
+    "title": "Neticesi sebebiyle ağırlaşmış işkence",
+    "category": "İşkence ve Eziyet",
+    "status": "Yürürlükte",
+    "source_url": "https://www.mevzuat.gov.tr/mevzuatmetin/1.5.5237.pdf"
+  },
+  {
+    "code": "96",
+    "title": "Eziyet",
+    "category": "İşkence ve Eziyet",
+    "status": "Yürürlükte",
+    "source_url": "https://www.mevzuat.gov.tr/mevzuatmetin/1.5.5237.pdf"
+  },
+  {
+    "code": "97",
+    "title": "Terk",
+    "category": "Koruma, Gözetim, Yardım veya Bildirim Yükümlülüğünün İhlali",
+    "status": "Yürürlükte",
+    "source_url": "https://www.mevzuat.gov.tr/mevzuatmetin/1.5.5237.pdf"
+  },
+  {
+    "code": "98",
+    "title": "Yardım veya bildirim yükümlülüğünün yerine getirilmemesi",
+    "category": "Koruma, Gözetim, Yardım veya Bildirim Yükümlülüğünün İhlali",
+    "status": "Yürürlükte",
+    "source_url": "https://www.mevzuat.gov.tr/mevzuatmetin/1.5.5237.pdf"
+  },
+  {
+    "code": "99",
+    "title": "Çocuk düşürtme",
+    "category": "Çocuk Düşürtme, Düşürme veya Kısırlaştırma",
+    "status": "Yürürlükte",
+    "source_url": "https://www.mevzuat.gov.tr/mevzuatmetin/1.5.5237.pdf"
+  },
+  {
+    "code": "100",
+    "title": "Çocuk düşürme",
+    "category": "Çocuk Düşürtme, Düşürme veya Kısırlaştırma",
+    "status": "Yürürlükte",
+    "source_url": "https://www.mevzuat.gov.tr/mevzuatmetin/1.5.5237.pdf"
+  },
+  {
+    "code": "101",
+    "title": "Kısırlaştırma",
+    "category": "Çocuk Düşürtme, Düşürme veya Kısırlaştırma",
+    "status": "Yürürlükte",
+    "source_url": "https://www.mevzuat.gov.tr/mevzuatmetin/1.5.5237.pdf"
+  },
+  {
+    "code": "102",
+    "title": "Cinsel saldırı",
+    "category": "Cinsel Dokunulmazlığa Karşı Suçlar",
+    "status": "Yürürlükte",
+    "source_url": "https://www.mevzuat.gov.tr/mevzuatmetin/1.5.5237.pdf"
+  },
+  {
+    "code": "103",
+    "title": "Çocukların cinsel istismarı",
+    "category": "Cinsel Dokunulmazlığa Karşı Suçlar",
+    "status": "Yürürlükte",
+    "source_url": "https://www.mevzuat.gov.tr/mevzuatmetin/1.5.5237.pdf"
+  },
+  {
+    "code": "104",
+    "title": "Reşit olmayanla cinsel ilişki",
+    "category": "Cinsel Dokunulmazlığa Karşı Suçlar",
+    "status": "Yürürlükte",
+    "source_url": "https://www.mevzuat.gov.tr/mevzuatmetin/1.5.5237.pdf"
+  },
+  {
+    "code": "105",
+    "title": "Cinsel taciz",
+    "category": "Cinsel Dokunulmazlığa Karşı Suçlar",
+    "status": "Yürürlükte",
+    "source_url": "https://www.mevzuat.gov.tr/mevzuatmetin/1.5.5237.pdf"
+  },
+  {
+    "code": "106",
+    "title": "Tehdit",
+    "category": "Hürriyete Karşı Suçlar",
+    "status": "Yürürlükte",
+    "source_url": "https://www.mevzuat.gov.tr/mevzuatmetin/1.5.5237.pdf"
+  },
+  {
+    "code": "107",
+    "title": "Şantaj",
+    "category": "Hürriyete Karşı Suçlar",
+    "status": "Yürürlükte",
+    "source_url": "https://www.mevzuat.gov.tr/mevzuatmetin/1.5.5237.pdf"
+  },
+  {
+    "code": "108",
+    "title": "Cebir",
+    "category": "Hürriyete Karşı Suçlar",
+    "status": "Yürürlükte",
+    "source_url": "https://www.mevzuat.gov.tr/mevzuatmetin/1.5.5237.pdf"
+  },
+  {
+    "code": "109",
+    "title": "Kişiyi hürriyetinden yoksun kılma",
+    "category": "Hürriyete Karşı Suçlar",
+    "status": "Yürürlükte",
+    "source_url": "https://www.mevzuat.gov.tr/mevzuatmetin/1.5.5237.pdf"
+  },
+  {
+    "code": "110",
+    "title": "Etkin pişmanlık",
+    "category": "Hürriyete Karşı Suçlar",
+    "status": "Yürürlükte",
+    "source_url": "https://www.mevzuat.gov.tr/mevzuatmetin/1.5.5237.pdf"
+  },
+  {
+    "code": "111",
+    "title": "Tüzel kişiler hakkında güvenlik tedbiri uygulanması",
+    "category": "Hürriyete Karşı Suçlar",
+    "status": "Yürürlükte",
+    "source_url": "https://www.mevzuat.gov.tr/mevzuatmetin/1.5.5237.pdf"
+  },
+  {
+    "code": "112",
+    "title": "Eğitim ve öğretim hakkının engellenmesi",
+    "category": "Hürriyete Karşı Suçlar",
+    "status": "Yürürlükte",
+    "source_url": "https://www.mevzuat.gov.tr/mevzuatmetin/1.5.5237.pdf"
+  },
+  {
+    "code": "113",
+    "title": "Kamu hizmetlerinden yararlanma hakkının engellenmesi",
+    "category": "Hürriyete Karşı Suçlar",
+    "status": "Yürürlükte",
+    "source_url": "https://www.mevzuat.gov.tr/mevzuatmetin/1.5.5237.pdf"
+  },
+  {
+    "code": "114",
+    "title": "Siyasi hakların kullanılmasının engellenmesi",
+    "category": "Hürriyete Karşı Suçlar",
+    "status": "Yürürlükte",
+    "source_url": "https://www.mevzuat.gov.tr/mevzuatmetin/1.5.5237.pdf"
+  },
+  {
+    "code": "115",
+    "title": "İnanç, düşünce ve kanaat hürriyetinin kullanılmasını engelleme",
+    "category": "Hürriyete Karşı Suçlar",
+    "status": "Yürürlükte",
+    "source_url": "https://www.mevzuat.gov.tr/mevzuatmetin/1.5.5237.pdf"
+  },
+  {
+    "code": "116",
+    "title": "Konut dokunulmazlığının ihlali",
+    "category": "Hürriyete Karşı Suçlar",
+    "status": "Yürürlükte",
+    "source_url": "https://www.mevzuat.gov.tr/mevzuatmetin/1.5.5237.pdf"
+  },
+  {
+    "code": "117",
+    "title": "İş ve çalışma hürriyetinin ihlali",
+    "category": "Hürriyete Karşı Suçlar",
+    "status": "Yürürlükte",
+    "source_url": "https://www.mevzuat.gov.tr/mevzuatmetin/1.5.5237.pdf"
+  },
+  {
+    "code": "118",
+    "title": "Sendikal hakların kullanılmasının engellenmesi",
+    "category": "Hürriyete Karşı Suçlar",
+    "status": "Yürürlükte",
+    "source_url": "https://www.mevzuat.gov.tr/mevzuatmetin/1.5.5237.pdf"
+  },
+  {
+    "code": "119",
+    "title": "Ortak hüküm",
+    "category": "Hürriyete Karşı Suçlar",
+    "status": "Yürürlükte",
+    "source_url": "https://www.mevzuat.gov.tr/mevzuatmetin/1.5.5237.pdf"
+  },
+  {
+    "code": "120",
+    "title": "Haksız arama",
+    "category": "Hürriyete Karşı Suçlar",
+    "status": "Yürürlükte",
+    "source_url": "https://www.mevzuat.gov.tr/mevzuatmetin/1.5.5237.pdf"
+  },
+  {
+    "code": "121",
+    "title": "Dilekçe hakkının kullanılmasının engellenmesi",
+    "category": "Hürriyete Karşı Suçlar",
+    "status": "Yürürlükte",
+    "source_url": "https://www.mevzuat.gov.tr/mevzuatmetin/1.5.5237.pdf"
+  },
+  {
+    "code": "122",
+    "title": "Nefret ve ayırımcılık",
+    "category": "Hürriyete Karşı Suçlar",
+    "status": "Yürürlükte",
+    "source_url": "https://www.mevzuat.gov.tr/mevzuatmetin/1.5.5237.pdf"
+  },
+  {
+    "code": "123",
+    "title": "Kişilerin huzur ve sükununu bozma",
+    "category": "Hürriyete Karşı Suçlar",
+    "status": "Yürürlükte",
+    "source_url": "https://www.mevzuat.gov.tr/mevzuatmetin/1.5.5237.pdf"
+  },
+  {
+    "code": "123/A",
+    "title": "Israrlı takip",
+    "category": "Hürriyete Karşı Suçlar",
+    "status": "Ek madde – yürürlükte",
+    "source_url": "https://www.mevzuat.gov.tr/mevzuatmetin/1.5.5237.pdf"
+  },
+  {
+    "code": "124",
+    "title": "Haberleşmenin engellenmesi",
+    "category": "Hürriyete Karşı Suçlar",
+    "status": "Yürürlükte",
+    "source_url": "https://www.mevzuat.gov.tr/mevzuatmetin/1.5.5237.pdf"
+  },
+  {
+    "code": "125",
+    "title": "Hakaret",
+    "category": "Şerefe Karşı Suçlar",
+    "status": "Yürürlükte",
+    "source_url": "https://www.mevzuat.gov.tr/mevzuatmetin/1.5.5237.pdf"
+  },
+  {
+    "code": "126",
+    "title": "Mağdurun belirlenmesi",
+    "category": "Şerefe Karşı Suçlar",
+    "status": "Yürürlükte",
+    "source_url": "https://www.mevzuat.gov.tr/mevzuatmetin/1.5.5237.pdf"
+  },
+  {
+    "code": "127",
+    "title": "İsnadın ispatı",
+    "category": "Şerefe Karşı Suçlar",
+    "status": "Yürürlükte",
+    "source_url": "https://www.mevzuat.gov.tr/mevzuatmetin/1.5.5237.pdf"
+  },
+  {
+    "code": "128",
+    "title": "İddia ve savunma dokunulmazlığı",
+    "category": "Şerefe Karşı Suçlar",
+    "status": "Yürürlükte",
+    "source_url": "https://www.mevzuat.gov.tr/mevzuatmetin/1.5.5237.pdf"
+  },
+  {
+    "code": "129",
+    "title": "Haksız fiil nedeniyle veya karşılıklı hakaret",
+    "category": "Şerefe Karşı Suçlar",
+    "status": "Yürürlükte",
+    "source_url": "https://www.mevzuat.gov.tr/mevzuatmetin/1.5.5237.pdf"
+  },
+  {
+    "code": "130",
+    "title": "Kişinin hatırasına hakaret",
+    "category": "Şerefe Karşı Suçlar",
+    "status": "Yürürlükte",
+    "source_url": "https://www.mevzuat.gov.tr/mevzuatmetin/1.5.5237.pdf"
+  },
+  {
+    "code": "131",
+    "title": "Soruşturma ve kovuşturma koşulu",
+    "category": "Şerefe Karşı Suçlar",
+    "status": "Yürürlükte",
+    "source_url": "https://www.mevzuat.gov.tr/mevzuatmetin/1.5.5237.pdf"
+  },
+  {
+    "code": "132",
+    "title": "Haberleşmenin gizliliğini ihlal",
+    "category": "Özel Hayata ve Hayatın Gizli Alanına Karşı Suçlar",
+    "status": "Yürürlükte",
+    "source_url": "https://www.mevzuat.gov.tr/mevzuatmetin/1.5.5237.pdf"
+  },
+  {
+    "code": "133",
+    "title": "Kişiler arasındaki konuşmaların dinlenmesi ve kayda alınması",
+    "category": "Özel Hayata ve Hayatın Gizli Alanına Karşı Suçlar",
+    "status": "Yürürlükte",
+    "source_url": "https://www.mevzuat.gov.tr/mevzuatmetin/1.5.5237.pdf"
+  },
+  {
+    "code": "134",
+    "title": "Özel hayatın gizliliğini ihlal",
+    "category": "Özel Hayata ve Hayatın Gizli Alanına Karşı Suçlar",
+    "status": "Yürürlükte",
+    "source_url": "https://www.mevzuat.gov.tr/mevzuatmetin/1.5.5237.pdf"
+  },
+  {
+    "code": "135",
+    "title": "Kişisel verilerin kaydedilmesi",
+    "category": "Özel Hayata ve Hayatın Gizli Alanına Karşı Suçlar",
+    "status": "Yürürlükte",
+    "source_url": "https://www.mevzuat.gov.tr/mevzuatmetin/1.5.5237.pdf"
+  },
+  {
+    "code": "136",
+    "title": "Verileri hukuka aykırı olarak verme veya ele geçirme",
+    "category": "Özel Hayata ve Hayatın Gizli Alanına Karşı Suçlar",
+    "status": "Yürürlükte",
+    "source_url": "https://www.mevzuat.gov.tr/mevzuatmetin/1.5.5237.pdf"
+  },
+  {
+    "code": "137",
+    "title": "Nitelikli haller",
+    "category": "Özel Hayata ve Hayatın Gizli Alanına Karşı Suçlar",
+    "status": "Yürürlükte",
+    "source_url": "https://www.mevzuat.gov.tr/mevzuatmetin/1.5.5237.pdf"
+  },
+  {
+    "code": "138",
+    "title": "Verileri yok etmeme",
+    "category": "Özel Hayata ve Hayatın Gizli Alanına Karşı Suçlar",
+    "status": "Yürürlükte",
+    "source_url": "https://www.mevzuat.gov.tr/mevzuatmetin/1.5.5237.pdf"
+  },
+  {
+    "code": "139",
+    "title": "Şikayet",
+    "category": "Özel Hayata ve Hayatın Gizli Alanına Karşı Suçlar",
+    "status": "Yürürlükte",
+    "source_url": "https://www.mevzuat.gov.tr/mevzuatmetin/1.5.5237.pdf"
+  },
+  {
+    "code": "140",
+    "title": "Tüzel kişiler hakkında güvenlik tedbiri uygulanması",
+    "category": "Özel Hayata ve Hayatın Gizli Alanına Karşı Suçlar",
+    "status": "Yürürlükte",
+    "source_url": "https://www.mevzuat.gov.tr/mevzuatmetin/1.5.5237.pdf"
+  },
+  {
+    "code": "141",
+    "title": "Hırsızlık",
+    "category": "Malvarlığına Karşı Suçlar",
+    "status": "Yürürlükte",
+    "source_url": "https://www.mevzuat.gov.tr/mevzuatmetin/1.5.5237.pdf"
+  },
+  {
+    "code": "142",
+    "title": "Nitelikli hırsızlık",
+    "category": "Malvarlığına Karşı Suçlar",
+    "status": "Yürürlükte",
+    "source_url": "https://www.mevzuat.gov.tr/mevzuatmetin/1.5.5237.pdf"
+  },
+  {
+    "code": "143",
+    "title": "Suçun gece vakti işlenmesi",
+    "category": "Malvarlığına Karşı Suçlar",
+    "status": "Yürürlükte",
+    "source_url": "https://www.mevzuat.gov.tr/mevzuatmetin/1.5.5237.pdf"
+  },
+  {
+    "code": "144",
+    "title": "Daha az cezayı gerektiren haller",
+    "category": "Malvarlığına Karşı Suçlar",
+    "status": "Yürürlükte",
+    "source_url": "https://www.mevzuat.gov.tr/mevzuatmetin/1.5.5237.pdf"
+  },
+  {
+    "code": "145",
+    "title": "Malın değerinin az olması",
+    "category": "Malvarlığına Karşı Suçlar",
+    "status": "Yürürlükte",
+    "source_url": "https://www.mevzuat.gov.tr/mevzuatmetin/1.5.5237.pdf"
+  },
+  {
+    "code": "146",
+    "title": "Kullanma hırsızlığı",
+    "category": "Malvarlığına Karşı Suçlar",
+    "status": "Yürürlükte",
+    "source_url": "https://www.mevzuat.gov.tr/mevzuatmetin/1.5.5237.pdf"
+  },
+  {
+    "code": "147",
+    "title": "Zorunluluk hâli",
+    "category": "Malvarlığına Karşı Suçlar",
+    "status": "Yürürlükte",
+    "source_url": "https://www.mevzuat.gov.tr/mevzuatmetin/1.5.5237.pdf"
+  },
+  {
+    "code": "148",
+    "title": "Yağma",
+    "category": "Malvarlığına Karşı Suçlar",
+    "status": "Yürürlükte",
+    "source_url": "https://www.mevzuat.gov.tr/mevzuatmetin/1.5.5237.pdf"
+  },
+  {
+    "code": "149",
+    "title": "Nitelikli yağma",
+    "category": "Malvarlığına Karşı Suçlar",
+    "status": "Yürürlükte",
+    "source_url": "https://www.mevzuat.gov.tr/mevzuatmetin/1.5.5237.pdf"
+  },
+  {
+    "code": "150",
+    "title": "Daha az cezayı gerektiren hâl",
+    "category": "Malvarlığına Karşı Suçlar",
+    "status": "Yürürlükte",
+    "source_url": "https://www.mevzuat.gov.tr/mevzuatmetin/1.5.5237.pdf"
+  },
+  {
+    "code": "151",
+    "title": "Mala zarar verme",
+    "category": "Malvarlığına Karşı Suçlar",
+    "status": "Yürürlükte",
+    "source_url": "https://www.mevzuat.gov.tr/mevzuatmetin/1.5.5237.pdf"
+  },
+  {
+    "code": "152",
+    "title": "Mala zarar vermenin nitelikli halleri",
+    "category": "Malvarlığına Karşı Suçlar",
+    "status": "Yürürlükte",
+    "source_url": "https://www.mevzuat.gov.tr/mevzuatmetin/1.5.5237.pdf"
+  },
+  {
+    "code": "153",
+    "title": "İbadethanelere ve mezarlıklara zarar verme",
+    "category": "Malvarlığına Karşı Suçlar",
+    "status": "Yürürlükte",
+    "source_url": "https://www.mevzuat.gov.tr/mevzuatmetin/1.5.5237.pdf"
+  },
+  {
+    "code": "154",
+    "title": "Hakkı olmayan yere tecavüz",
+    "category": "Malvarlığına Karşı Suçlar",
+    "status": "Yürürlükte",
+    "source_url": "https://www.mevzuat.gov.tr/mevzuatmetin/1.5.5237.pdf"
+  },
+  {
+    "code": "155",
+    "title": "Güveni kötüye kullanma",
+    "category": "Malvarlığına Karşı Suçlar",
+    "status": "Yürürlükte",
+    "source_url": "https://www.mevzuat.gov.tr/mevzuatmetin/1.5.5237.pdf"
+  },
+  {
+    "code": "156",
+    "title": "Bedelsiz senedi kullanma",
+    "category": "Malvarlığına Karşı Suçlar",
+    "status": "Yürürlükte",
+    "source_url": "https://www.mevzuat.gov.tr/mevzuatmetin/1.5.5237.pdf"
+  },
+  {
+    "code": "157",
+    "title": "Dolandırıcılık",
+    "category": "Malvarlığına Karşı Suçlar",
+    "status": "Yürürlükte",
+    "source_url": "https://www.mevzuat.gov.tr/mevzuatmetin/1.5.5237.pdf"
+  },
+  {
+    "code": "158",
+    "title": "Nitelikli dolandırıcılık",
+    "category": "Malvarlığına Karşı Suçlar",
+    "status": "Yürürlükte",
+    "source_url": "https://www.mevzuat.gov.tr/mevzuatmetin/1.5.5237.pdf"
+  },
+  {
+    "code": "159",
+    "title": "Daha az cezayı gerektiren hal",
+    "category": "Malvarlığına Karşı Suçlar",
+    "status": "Yürürlükte",
+    "source_url": "https://www.mevzuat.gov.tr/mevzuatmetin/1.5.5237.pdf"
+  },
+  {
+    "code": "160",
+    "title": "Kaybolmuş veya hata sonucu ele geçmiş eşya üzerinde tasarruf",
+    "category": "Malvarlığına Karşı Suçlar",
+    "status": "Yürürlükte",
+    "source_url": "https://www.mevzuat.gov.tr/mevzuatmetin/1.5.5237.pdf"
+  },
+  {
+    "code": "161",
+    "title": "Hileli iflâs",
+    "category": "Malvarlığına Karşı Suçlar",
+    "status": "Yürürlükte",
+    "source_url": "https://www.mevzuat.gov.tr/mevzuatmetin/1.5.5237.pdf"
+  },
+  {
+    "code": "162",
+    "title": "Taksirli iflas",
+    "category": "Malvarlığına Karşı Suçlar",
+    "status": "Yürürlükte",
+    "source_url": "https://www.mevzuat.gov.tr/mevzuatmetin/1.5.5237.pdf"
+  },
+  {
+    "code": "163",
+    "title": "Karşılıksız yararlanma",
+    "category": "Malvarlığına Karşı Suçlar",
+    "status": "Yürürlükte",
+    "source_url": "https://www.mevzuat.gov.tr/mevzuatmetin/1.5.5237.pdf"
+  },
+  {
+    "code": "164",
+    "title": "Şirket veya kooperatifler hakkında yanlış bilgi",
+    "category": "Malvarlığına Karşı Suçlar",
+    "status": "Yürürlükte",
+    "source_url": "https://www.mevzuat.gov.tr/mevzuatmetin/1.5.5237.pdf"
+  },
+  {
+    "code": "165",
+    "title": "Suç eşyasının satın alınması veya kabul edilmesi",
+    "category": "Malvarlığına Karşı Suçlar",
+    "status": "Yürürlükte",
+    "source_url": "https://www.mevzuat.gov.tr/mevzuatmetin/1.5.5237.pdf"
+  },
+  {
+    "code": "166",
+    "title": "Bilgi vermeme",
+    "category": "Malvarlığına Karşı Suçlar",
+    "status": "Yürürlükte",
+    "source_url": "https://www.mevzuat.gov.tr/mevzuatmetin/1.5.5237.pdf"
+  },
+  {
+    "code": "167",
+    "title": "Şahsi cezasızlık sebebi veya cezada indirim yapılmasını gerektiren şahsi sebep",
+    "category": "Malvarlığına Karşı Suçlar",
+    "status": "Yürürlükte",
+    "source_url": "https://www.mevzuat.gov.tr/mevzuatmetin/1.5.5237.pdf"
+  },
+  {
+    "code": "168",
+    "title": "Etkin pişmanlık",
+    "category": "Malvarlığına Karşı Suçlar",
+    "status": "Yürürlükte",
+    "source_url": "https://www.mevzuat.gov.tr/mevzuatmetin/1.5.5237.pdf"
+  },
+  {
+    "code": "169",
+    "title": "Tüzel kişiler hakkında güvenlik tedbiri uygulanması",
+    "category": "Malvarlığına Karşı Suçlar",
+    "status": "Yürürlükte",
+    "source_url": "https://www.mevzuat.gov.tr/mevzuatmetin/1.5.5237.pdf"
+  },
+  {
+    "code": "170",
+    "title": "Genel güvenliğin kasten tehlikeye sokulması",
+    "category": "Genel Tehlike Yaratan Suçlar",
+    "status": "Yürürlükte",
+    "source_url": "https://www.mevzuat.gov.tr/mevzuatmetin/1.5.5237.pdf"
+  },
+  {
+    "code": "171",
+    "title": "Genel güvenliğin taksirle tehlikeye sokulması",
+    "category": "Genel Tehlike Yaratan Suçlar",
+    "status": "Yürürlükte",
+    "source_url": "https://www.mevzuat.gov.tr/mevzuatmetin/1.5.5237.pdf"
+  },
+  {
+    "code": "172",
+    "title": "Radyasyon yayma",
+    "category": "Genel Tehlike Yaratan Suçlar",
+    "status": "Yürürlükte",
+    "source_url": "https://www.mevzuat.gov.tr/mevzuatmetin/1.5.5237.pdf"
+  },
+  {
+    "code": "173",
+    "title": "Atom enerjisi ile patlamaya sebebiyet verme",
+    "category": "Genel Tehlike Yaratan Suçlar",
+    "status": "Yürürlükte",
+    "source_url": "https://www.mevzuat.gov.tr/mevzuatmetin/1.5.5237.pdf"
+  },
+  {
+    "code": "174",
+    "title": "Tehlikeli maddelerin izinsiz olarak bulundurulması veya el değiştirmesi",
+    "category": "Genel Tehlike Yaratan Suçlar",
+    "status": "Yürürlükte",
+    "source_url": "https://www.mevzuat.gov.tr/mevzuatmetin/1.5.5237.pdf"
+  },
+  {
+    "code": "175",
+    "title": "Akıl hastası üzerindeki bakım ve gözetim yükümlülüğünün ihlali",
+    "category": "Genel Tehlike Yaratan Suçlar",
+    "status": "Yürürlükte",
+    "source_url": "https://www.mevzuat.gov.tr/mevzuatmetin/1.5.5237.pdf"
+  },
+  {
+    "code": "176",
+    "title": "İnşaat veya yıkımla ilgili emniyet kurallarına uymama",
+    "category": "Genel Tehlike Yaratan Suçlar",
+    "status": "Yürürlükte",
+    "source_url": "https://www.mevzuat.gov.tr/mevzuatmetin/1.5.5237.pdf"
+  },
+  {
+    "code": "177",
+    "title": "Hayvanın tehlike yaratabilecek şekilde serbest bırakılması",
+    "category": "Genel Tehlike Yaratan Suçlar",
+    "status": "Yürürlükte",
+    "source_url": "https://www.mevzuat.gov.tr/mevzuatmetin/1.5.5237.pdf"
+  },
+  {
+    "code": "178",
+    "title": "İşaret ve engel koymama",
+    "category": "Genel Tehlike Yaratan Suçlar",
+    "status": "Yürürlükte",
+    "source_url": "https://www.mevzuat.gov.tr/mevzuatmetin/1.5.5237.pdf"
+  },
+  {
+    "code": "179",
+    "title": "Trafik güvenliğini tehlikeye sokma",
+    "category": "Genel Tehlike Yaratan Suçlar",
+    "status": "Yürürlükte",
+    "source_url": "https://www.mevzuat.gov.tr/mevzuatmetin/1.5.5237.pdf"
+  },
+  {
+    "code": "180",
+    "title": "Trafik güvenliğini taksirle tehlikeye sokma",
+    "category": "Genel Tehlike Yaratan Suçlar",
+    "status": "Yürürlükte",
+    "source_url": "https://www.mevzuat.gov.tr/mevzuatmetin/1.5.5237.pdf"
+  },
+  {
+    "code": "181",
+    "title": "Çevrenin kasten kirletilmesi",
+    "category": "Çevreye Karşı Suçlar",
+    "status": "Yürürlükte",
+    "source_url": "https://www.mevzuat.gov.tr/mevzuatmetin/1.5.5237.pdf"
+  },
+  {
+    "code": "182",
+    "title": "Çevrenin taksirle kirletilmesi",
+    "category": "Çevreye Karşı Suçlar",
+    "status": "Yürürlükte",
+    "source_url": "https://www.mevzuat.gov.tr/mevzuatmetin/1.5.5237.pdf"
+  },
+  {
+    "code": "183",
+    "title": "Gürültüye neden olma",
+    "category": "Çevreye Karşı Suçlar",
+    "status": "Yürürlükte",
+    "source_url": "https://www.mevzuat.gov.tr/mevzuatmetin/1.5.5237.pdf"
+  },
+  {
+    "code": "184",
+    "title": "İmar kirliliğine neden olma",
+    "category": "Çevreye Karşı Suçlar",
+    "status": "Yürürlükte",
+    "source_url": "https://www.mevzuat.gov.tr/mevzuatmetin/1.5.5237.pdf"
+  },
+  {
+    "code": "185",
+    "title": "Zehirli madde katma",
+    "category": "Kamunun Sağlığına Karşı Suçlar",
+    "status": "Yürürlükte",
+    "source_url": "https://www.mevzuat.gov.tr/mevzuatmetin/1.5.5237.pdf"
+  },
+  {
+    "code": "186",
+    "title": "Bozulmuş veya değiştirilmiş gıda veya ilaçların ticareti",
+    "category": "Kamunun Sağlığına Karşı Suçlar",
+    "status": "Yürürlükte",
+    "source_url": "https://www.mevzuat.gov.tr/mevzuatmetin/1.5.5237.pdf"
+  },
+  {
+    "code": "187",
+    "title": "Kişilerin hayatını ve sağlığını tehlikeye sokacak biçimde ilaç yapma veya satma",
+    "category": "Kamunun Sağlığına Karşı Suçlar",
+    "status": "Yürürlükte",
+    "source_url": "https://www.mevzuat.gov.tr/mevzuatmetin/1.5.5237.pdf"
+  },
+  {
+    "code": "188",
+    "title": "Uyuşturucu veya uyarıcı madde imal ve ticareti",
+    "category": "Kamunun Sağlığına Karşı Suçlar",
+    "status": "Yürürlükte",
+    "source_url": "https://www.mevzuat.gov.tr/mevzuatmetin/1.5.5237.pdf"
+  },
+  {
+    "code": "189",
+    "title": "Tüzel kişiler hakkında güvenlik tedbiri uygulanması",
+    "category": "Kamunun Sağlığına Karşı Suçlar",
+    "status": "Yürürlükte",
+    "source_url": "https://www.mevzuat.gov.tr/mevzuatmetin/1.5.5237.pdf"
+  },
+  {
+    "code": "190",
+    "title": "Uyuşturucu veya uyarıcı madde kullanılmasını kolaylaştırma",
+    "category": "Kamunun Sağlığına Karşı Suçlar",
+    "status": "Yürürlükte",
+    "source_url": "https://www.mevzuat.gov.tr/mevzuatmetin/1.5.5237.pdf"
+  },
+  {
+    "code": "191",
+    "title": "Kullanmak için uyuşturucu veya uyarıcı madde satın almak, kabul etmek veya bulundurmak ya da uyuşturucu veya uyarıcı madde kullanmak",
+    "category": "Kamunun Sağlığına Karşı Suçlar",
+    "status": "Yürürlükte",
+    "source_url": "https://www.mevzuat.gov.tr/mevzuatmetin/1.5.5237.pdf"
+  },
+  {
+    "code": "192",
+    "title": "Etkin pişmanlık",
+    "category": "Kamunun Sağlığına Karşı Suçlar",
+    "status": "Yürürlükte",
+    "source_url": "https://www.mevzuat.gov.tr/mevzuatmetin/1.5.5237.pdf"
+  },
+  {
+    "code": "193",
+    "title": "Zehirli madde imal ve ticareti",
+    "category": "Kamunun Sağlığına Karşı Suçlar",
+    "status": "Yürürlükte",
+    "source_url": "https://www.mevzuat.gov.tr/mevzuatmetin/1.5.5237.pdf"
+  },
+  {
+    "code": "194",
+    "title": "Sağlık için tehlikeli madde temini",
+    "category": "Kamunun Sağlığına Karşı Suçlar",
+    "status": "Yürürlükte",
+    "source_url": "https://www.mevzuat.gov.tr/mevzuatmetin/1.5.5237.pdf"
+  },
+  {
+    "code": "195",
+    "title": "Bulaşıcı hastalıklara ilişkin tedbirlere aykırı davranma",
+    "category": "Kamunun Sağlığına Karşı Suçlar",
+    "status": "Yürürlükte",
+    "source_url": "https://www.mevzuat.gov.tr/mevzuatmetin/1.5.5237.pdf"
+  },
+  {
+    "code": "196",
+    "title": "Usulsüz ölü gömülmesi",
+    "category": "Kamunun Sağlığına Karşı Suçlar",
+    "status": "Yürürlükte",
+    "source_url": "https://www.mevzuat.gov.tr/mevzuatmetin/1.5.5237.pdf"
+  },
+  {
+    "code": "197",
+    "title": "Parada sahtecilik",
+    "category": "Kamu Güvenine Karşı Suçlar",
+    "status": "Yürürlükte",
+    "source_url": "https://www.mevzuat.gov.tr/mevzuatmetin/1.5.5237.pdf"
+  },
+  {
+    "code": "198",
+    "title": "Paraya eşit sayılan değerler",
+    "category": "Kamu Güvenine Karşı Suçlar",
+    "status": "Yürürlükte",
+    "source_url": "https://www.mevzuat.gov.tr/mevzuatmetin/1.5.5237.pdf"
+  },
+  {
+    "code": "199",
+    "title": "Kıymetli damgada sahtecilik",
+    "category": "Kamu Güvenine Karşı Suçlar",
+    "status": "Yürürlükte",
+    "source_url": "https://www.mevzuat.gov.tr/mevzuatmetin/1.5.5237.pdf"
+  },
+  {
+    "code": "200",
+    "title": "Para ve kıymetli damgaları yapmaya yarayan araçlar",
+    "category": "Kamu Güvenine Karşı Suçlar",
+    "status": "Yürürlükte",
+    "source_url": "https://www.mevzuat.gov.tr/mevzuatmetin/1.5.5237.pdf"
+  },
+  {
+    "code": "201",
+    "title": "Etkin pişmanlık",
+    "category": "Kamu Güvenine Karşı Suçlar",
+    "status": "Yürürlükte",
+    "source_url": "https://www.mevzuat.gov.tr/mevzuatmetin/1.5.5237.pdf"
+  },
+  {
+    "code": "202",
+    "title": "Mühürde sahtecilik",
+    "category": "Kamu Güvenine Karşı Suçlar",
+    "status": "Yürürlükte",
+    "source_url": "https://www.mevzuat.gov.tr/mevzuatmetin/1.5.5237.pdf"
+  },
+  {
+    "code": "203",
+    "title": "Mühür bozma",
+    "category": "Kamu Güvenine Karşı Suçlar",
+    "status": "Yürürlükte",
+    "source_url": "https://www.mevzuat.gov.tr/mevzuatmetin/1.5.5237.pdf"
+  },
+  {
+    "code": "204",
+    "title": "Resmi belgede sahtecilik",
+    "category": "Kamu Güvenine Karşı Suçlar",
+    "status": "Yürürlükte",
+    "source_url": "https://www.mevzuat.gov.tr/mevzuatmetin/1.5.5237.pdf"
+  },
+  {
+    "code": "205",
+    "title": "Resmî belgeyi bozmak, yok etmek veya gizlemek",
+    "category": "Kamu Güvenine Karşı Suçlar",
+    "status": "Yürürlükte",
+    "source_url": "https://www.mevzuat.gov.tr/mevzuatmetin/1.5.5237.pdf"
+  },
+  {
+    "code": "206",
+    "title": "Resmi belgenin düzenlenmesinde yalan beyan",
+    "category": "Kamu Güvenine Karşı Suçlar",
+    "status": "Yürürlükte",
+    "source_url": "https://www.mevzuat.gov.tr/mevzuatmetin/1.5.5237.pdf"
+  },
+  {
+    "code": "207",
+    "title": "Özel belgede sahtecilik",
+    "category": "Kamu Güvenine Karşı Suçlar",
+    "status": "Yürürlükte",
+    "source_url": "https://www.mevzuat.gov.tr/mevzuatmetin/1.5.5237.pdf"
+  },
+  {
+    "code": "208",
+    "title": "Özel belgeyi bozmak, yok etmek veya gizlemek",
+    "category": "Kamu Güvenine Karşı Suçlar",
+    "status": "Yürürlükte",
+    "source_url": "https://www.mevzuat.gov.tr/mevzuatmetin/1.5.5237.pdf"
+  },
+  {
+    "code": "209",
+    "title": "Açığa imzanın kötüye kullanılması",
+    "category": "Kamu Güvenine Karşı Suçlar",
+    "status": "Yürürlükte",
+    "source_url": "https://www.mevzuat.gov.tr/mevzuatmetin/1.5.5237.pdf"
+  },
+  {
+    "code": "210",
+    "title": "Resmi belge hükmünde belgeler",
+    "category": "Kamu Güvenine Karşı Suçlar",
+    "status": "Yürürlükte",
+    "source_url": "https://www.mevzuat.gov.tr/mevzuatmetin/1.5.5237.pdf"
+  },
+  {
+    "code": "211",
+    "title": "Daha az cezayı gerektiren hal",
+    "category": "Kamu Güvenine Karşı Suçlar",
+    "status": "Yürürlükte",
+    "source_url": "https://www.mevzuat.gov.tr/mevzuatmetin/1.5.5237.pdf"
+  },
+  {
+    "code": "212",
+    "title": "İçtima",
+    "category": "Kamu Güvenine Karşı Suçlar",
+    "status": "Yürürlükte",
+    "source_url": "https://www.mevzuat.gov.tr/mevzuatmetin/1.5.5237.pdf"
+  },
+  {
+    "code": "213",
+    "title": "Halk arasında korku ve panik yaratmak amacıyla tehdit",
+    "category": "Kamu Barışına Karşı Suçlar",
+    "status": "Yürürlükte",
+    "source_url": "https://www.mevzuat.gov.tr/mevzuatmetin/1.5.5237.pdf"
+  },
+  {
+    "code": "214",
+    "title": "Suç işlemeye tahrik",
+    "category": "Kamu Barışına Karşı Suçlar",
+    "status": "Yürürlükte",
+    "source_url": "https://www.mevzuat.gov.tr/mevzuatmetin/1.5.5237.pdf"
+  },
+  {
+    "code": "215",
+    "title": "Suçu ve suçluyu övme",
+    "category": "Kamu Barışına Karşı Suçlar",
+    "status": "Yürürlükte",
+    "source_url": "https://www.mevzuat.gov.tr/mevzuatmetin/1.5.5237.pdf"
+  },
+  {
+    "code": "216",
+    "title": "Halkı kin ve düşmanlığa tahrik veya aşağılama",
+    "category": "Kamu Barışına Karşı Suçlar",
+    "status": "Yürürlükte",
+    "source_url": "https://www.mevzuat.gov.tr/mevzuatmetin/1.5.5237.pdf"
+  },
+  {
+    "code": "217",
+    "title": "Kanunlara uymamaya tahrik",
+    "category": "Kamu Barışına Karşı Suçlar",
+    "status": "Yürürlükte",
+    "source_url": "https://www.mevzuat.gov.tr/mevzuatmetin/1.5.5237.pdf"
+  },
+  {
+    "code": "217/A",
+    "title": "Halkı yanıltıcı bilgiyi alenen yayma",
+    "category": "Kamu Barışına Karşı Suçlar",
+    "status": "Ek madde – yürürlükte",
+    "source_url": "https://www.mevzuat.gov.tr/mevzuatmetin/1.5.5237.pdf"
+  },
+  {
+    "code": "218",
+    "title": "Ortak hüküm",
+    "category": "Kamu Barışına Karşı Suçlar",
+    "status": "Yürürlükte",
+    "source_url": "https://www.mevzuat.gov.tr/mevzuatmetin/1.5.5237.pdf"
+  },
+  {
+    "code": "219",
+    "title": "Görev sırasında din hizmetlerini kötüye kullanma",
+    "category": "Kamu Barışına Karşı Suçlar",
+    "status": "Yürürlükte",
+    "source_url": "https://www.mevzuat.gov.tr/mevzuatmetin/1.5.5237.pdf"
+  },
+  {
+    "code": "220",
+    "title": "Suç işlemek amacıyla örgüt kurma",
+    "category": "Kamu Barışına Karşı Suçlar",
+    "status": "Yürürlükte",
+    "source_url": "https://www.mevzuat.gov.tr/mevzuatmetin/1.5.5237.pdf"
+  },
+  {
+    "code": "221",
+    "title": "Etkin pişmanlık",
+    "category": "Kamu Barışına Karşı Suçlar",
+    "status": "Yürürlükte",
+    "source_url": "https://www.mevzuat.gov.tr/mevzuatmetin/1.5.5237.pdf"
+  },
+  {
+    "code": "222",
+    "title": "Şapka ve Türk harfleri",
+    "category": "Kamu Barışına Karşı Suçlar",
+    "status": "Mülga",
+    "source_url": "https://www.mevzuat.gov.tr/mevzuatmetin/1.5.5237.pdf"
+  },
+  {
+    "code": "223",
+    "title": "Ulaşım araçlarının hareketinin engellenmesi, kaçırılması veya alıkonulması",
+    "category": "Ulaşım Araçlarına veya Sabit Platformlara Karşı Suçlar",
+    "status": "Yürürlükte",
+    "source_url": "https://www.mevzuat.gov.tr/mevzuatmetin/1.5.5237.pdf"
+  },
+  {
+    "code": "224",
+    "title": "Kıt’a sahanlığında veya münhasır ekonomik bölgedeki sabit platformların işgali",
+    "category": "Ulaşım Araçlarına veya Sabit Platformlara Karşı Suçlar",
+    "status": "Yürürlükte",
+    "source_url": "https://www.mevzuat.gov.tr/mevzuatmetin/1.5.5237.pdf"
+  },
+  {
+    "code": "225",
+    "title": "Hayasızca hareketler",
+    "category": "Genel Ahlaka Karşı Suçlar",
+    "status": "Yürürlükte",
+    "source_url": "https://www.mevzuat.gov.tr/mevzuatmetin/1.5.5237.pdf"
+  },
+  {
+    "code": "226",
+    "title": "Müstehcenlik",
+    "category": "Genel Ahlaka Karşı Suçlar",
+    "status": "Yürürlükte",
+    "source_url": "https://www.mevzuat.gov.tr/mevzuatmetin/1.5.5237.pdf"
+  },
+  {
+    "code": "227",
+    "title": "Fuhuş",
+    "category": "Genel Ahlaka Karşı Suçlar",
+    "status": "Yürürlükte",
+    "source_url": "https://www.mevzuat.gov.tr/mevzuatmetin/1.5.5237.pdf"
+  },
+  {
+    "code": "228",
+    "title": "Kumar oynanması için yer ve imkan sağlama",
+    "category": "Genel Ahlaka Karşı Suçlar",
+    "status": "Yürürlükte",
+    "source_url": "https://www.mevzuat.gov.tr/mevzuatmetin/1.5.5237.pdf"
+  },
+  {
+    "code": "229",
+    "title": "Dilencilik",
+    "category": "Genel Ahlaka Karşı Suçlar",
+    "status": "Yürürlükte",
+    "source_url": "https://www.mevzuat.gov.tr/mevzuatmetin/1.5.5237.pdf"
+  },
+  {
+    "code": "230",
+    "title": "Birden çok evlilik, hileli evlenme, dinsel tören",
+    "category": "Aile Düzenine Karşı Suçlar",
+    "status": "Yürürlükte",
+    "source_url": "https://www.mevzuat.gov.tr/mevzuatmetin/1.5.5237.pdf"
+  },
+  {
+    "code": "231",
+    "title": "Çocuğun soybağını değiştirme",
+    "category": "Aile Düzenine Karşı Suçlar",
+    "status": "Yürürlükte",
+    "source_url": "https://www.mevzuat.gov.tr/mevzuatmetin/1.5.5237.pdf"
+  },
+  {
+    "code": "232",
+    "title": "Kötü muamele",
+    "category": "Aile Düzenine Karşı Suçlar",
+    "status": "Yürürlükte",
+    "source_url": "https://www.mevzuat.gov.tr/mevzuatmetin/1.5.5237.pdf"
+  },
+  {
+    "code": "233",
+    "title": "Aile hukukundan kaynaklanan yükümlülüğün ihlali",
+    "category": "Aile Düzenine Karşı Suçlar",
+    "status": "Yürürlükte",
+    "source_url": "https://www.mevzuat.gov.tr/mevzuatmetin/1.5.5237.pdf"
+  },
+  {
+    "code": "234",
+    "title": "Çocuğun kaçırılması ve alıkonulması",
+    "category": "Aile Düzenine Karşı Suçlar",
+    "status": "Yürürlükte",
+    "source_url": "https://www.mevzuat.gov.tr/mevzuatmetin/1.5.5237.pdf"
+  },
+  {
+    "code": "235",
+    "title": "İhaleye fesat karıştırma",
+    "category": "Ekonomi, Sanayi ve Ticarete İlişkin Suçlar",
+    "status": "Yürürlükte",
+    "source_url": "https://www.mevzuat.gov.tr/mevzuatmetin/1.5.5237.pdf"
+  },
+  {
+    "code": "236",
+    "title": "Edimin ifasına fesat karıştırma",
+    "category": "Ekonomi, Sanayi ve Ticarete İlişkin Suçlar",
+    "status": "Yürürlükte",
+    "source_url": "https://www.mevzuat.gov.tr/mevzuatmetin/1.5.5237.pdf"
+  },
+  {
+    "code": "237",
+    "title": "Fiyatları etkileme",
+    "category": "Ekonomi, Sanayi ve Ticarete İlişkin Suçlar",
+    "status": "Yürürlükte",
+    "source_url": "https://www.mevzuat.gov.tr/mevzuatmetin/1.5.5237.pdf"
+  },
+  {
+    "code": "238",
+    "title": "Kamuya gerekli şeylerin yokluğuna neden olma",
+    "category": "Ekonomi, Sanayi ve Ticarete İlişkin Suçlar",
+    "status": "Yürürlükte",
+    "source_url": "https://www.mevzuat.gov.tr/mevzuatmetin/1.5.5237.pdf"
+  },
+  {
+    "code": "239",
+    "title": "Ticarî sır, bankacılık sırrı veya müşteri sırrı niteliğindeki bilgi veya belgelerin açıklanması",
+    "category": "Ekonomi, Sanayi ve Ticarete İlişkin Suçlar",
+    "status": "Yürürlükte",
+    "source_url": "https://www.mevzuat.gov.tr/mevzuatmetin/1.5.5237.pdf"
+  },
+  {
+    "code": "240",
+    "title": "Mal veya hizmet satımından kaçınma",
+    "category": "Ekonomi, Sanayi ve Ticarete İlişkin Suçlar",
+    "status": "Yürürlükte",
+    "source_url": "https://www.mevzuat.gov.tr/mevzuatmetin/1.5.5237.pdf"
+  },
+  {
+    "code": "241",
+    "title": "Tefecilik",
+    "category": "Ekonomi, Sanayi ve Ticarete İlişkin Suçlar",
+    "status": "Yürürlükte",
+    "source_url": "https://www.mevzuat.gov.tr/mevzuatmetin/1.5.5237.pdf"
+  },
+  {
+    "code": "242",
+    "title": "Tüzel kişiler hakkında güvenlik tedbiri uygulanması",
+    "category": "Ekonomi, Sanayi ve Ticarete İlişkin Suçlar",
+    "status": "Yürürlükte",
+    "source_url": "https://www.mevzuat.gov.tr/mevzuatmetin/1.5.5237.pdf"
+  },
+  {
+    "code": "243",
+    "title": "Bilişim sistemine girme",
+    "category": "Bilişim Alanında Suçlar",
+    "status": "Yürürlükte",
+    "source_url": "https://www.mevzuat.gov.tr/mevzuatmetin/1.5.5237.pdf"
+  },
+  {
+    "code": "244",
+    "title": "Sistemi engelleme, bozma, verileri yok etme veya değiştirme",
+    "category": "Bilişim Alanında Suçlar",
+    "status": "Yürürlükte",
+    "source_url": "https://www.mevzuat.gov.tr/mevzuatmetin/1.5.5237.pdf"
+  },
+  {
+    "code": "245",
+    "title": "Banka veya kredi kartlarının kötüye kullanılması",
+    "category": "Bilişim Alanında Suçlar",
+    "status": "Yürürlükte",
+    "source_url": "https://www.mevzuat.gov.tr/mevzuatmetin/1.5.5237.pdf"
+  },
+  {
+    "code": "245/A",
+    "title": "Yasak cihaz veya programlar",
+    "category": "Bilişim Alanında Suçlar",
+    "status": "Ek madde – yürürlükte",
+    "source_url": "https://www.mevzuat.gov.tr/mevzuatmetin/1.5.5237.pdf"
+  },
+  {
+    "code": "246",
+    "title": "Tüzel kişiler hakkında güvenlik tedbiri uygulanması",
+    "category": "Bilişim Alanında Suçlar",
+    "status": "Yürürlükte",
+    "source_url": "https://www.mevzuat.gov.tr/mevzuatmetin/1.5.5237.pdf"
+  },
+  {
+    "code": "247",
+    "title": "Zimmet",
+    "category": "Kamu İdaresinin Güvenilirliğine ve İşleyişine Karşı Suçlar",
+    "status": "Yürürlükte",
+    "source_url": "https://www.mevzuat.gov.tr/mevzuatmetin/1.5.5237.pdf"
+  },
+  {
+    "code": "248",
+    "title": "Etkin pişmanlık",
+    "category": "Kamu İdaresinin Güvenilirliğine ve İşleyişine Karşı Suçlar",
+    "status": "Yürürlükte",
+    "source_url": "https://www.mevzuat.gov.tr/mevzuatmetin/1.5.5237.pdf"
+  },
+  {
+    "code": "249",
+    "title": "Daha az cezayı gerektiren hal",
+    "category": "Kamu İdaresinin Güvenilirliğine ve İşleyişine Karşı Suçlar",
+    "status": "Yürürlükte",
+    "source_url": "https://www.mevzuat.gov.tr/mevzuatmetin/1.5.5237.pdf"
+  },
+  {
+    "code": "250",
+    "title": "İrtikap",
+    "category": "Kamu İdaresinin Güvenilirliğine ve İşleyişine Karşı Suçlar",
+    "status": "Yürürlükte",
+    "source_url": "https://www.mevzuat.gov.tr/mevzuatmetin/1.5.5237.pdf"
+  },
+  {
+    "code": "251",
+    "title": "Denetim görevinin ihmali",
+    "category": "Kamu İdaresinin Güvenilirliğine ve İşleyişine Karşı Suçlar",
+    "status": "Yürürlükte",
+    "source_url": "https://www.mevzuat.gov.tr/mevzuatmetin/1.5.5237.pdf"
+  },
+  {
+    "code": "252",
+    "title": "Rüşvet",
+    "category": "Kamu İdaresinin Güvenilirliğine ve İşleyişine Karşı Suçlar",
+    "status": "Yürürlükte",
+    "source_url": "https://www.mevzuat.gov.tr/mevzuatmetin/1.5.5237.pdf"
+  },
+  {
+    "code": "253",
+    "title": "Tüzel kişiler hakkında güvenlik tedbiri uygulanması",
+    "category": "Kamu İdaresinin Güvenilirliğine ve İşleyişine Karşı Suçlar",
+    "status": "Yürürlükte",
+    "source_url": "https://www.mevzuat.gov.tr/mevzuatmetin/1.5.5237.pdf"
+  },
+  {
+    "code": "254",
+    "title": "Etkin pişmanlık",
+    "category": "Kamu İdaresinin Güvenilirliğine ve İşleyişine Karşı Suçlar",
+    "status": "Yürürlükte",
+    "source_url": "https://www.mevzuat.gov.tr/mevzuatmetin/1.5.5237.pdf"
+  },
+  {
+    "code": "255",
+    "title": "Nüfuz ticareti",
+    "category": "Kamu İdaresinin Güvenilirliğine ve İşleyişine Karşı Suçlar",
+    "status": "Yürürlükte",
+    "source_url": "https://www.mevzuat.gov.tr/mevzuatmetin/1.5.5237.pdf"
+  },
+  {
+    "code": "256",
+    "title": "Zor kullanma yetkisine ilişkin sınırın aşılması",
+    "category": "Kamu İdaresinin Güvenilirliğine ve İşleyişine Karşı Suçlar",
+    "status": "Yürürlükte",
+    "source_url": "https://www.mevzuat.gov.tr/mevzuatmetin/1.5.5237.pdf"
+  },
+  {
+    "code": "257",
+    "title": "Görevi kötüye kullanma",
+    "category": "Kamu İdaresinin Güvenilirliğine ve İşleyişine Karşı Suçlar",
+    "status": "Yürürlükte",
+    "source_url": "https://www.mevzuat.gov.tr/mevzuatmetin/1.5.5237.pdf"
+  },
+  {
+    "code": "258",
+    "title": "Göreve ilişkin sırrın açıklanması",
+    "category": "Kamu İdaresinin Güvenilirliğine ve İşleyişine Karşı Suçlar",
+    "status": "Yürürlükte",
+    "source_url": "https://www.mevzuat.gov.tr/mevzuatmetin/1.5.5237.pdf"
+  },
+  {
+    "code": "259",
+    "title": "Kamu görevlisinin ticareti",
+    "category": "Kamu İdaresinin Güvenilirliğine ve İşleyişine Karşı Suçlar",
+    "status": "Yürürlükte",
+    "source_url": "https://www.mevzuat.gov.tr/mevzuatmetin/1.5.5237.pdf"
+  },
+  {
+    "code": "260",
+    "title": "Kamu görevinin terki veya yapılmaması",
+    "category": "Kamu İdaresinin Güvenilirliğine ve İşleyişine Karşı Suçlar",
+    "status": "Yürürlükte",
+    "source_url": "https://www.mevzuat.gov.tr/mevzuatmetin/1.5.5237.pdf"
+  },
+  {
+    "code": "261",
+    "title": "Kişilerin malları üzerinde usulsüz tasarruf",
+    "category": "Kamu İdaresinin Güvenilirliğine ve İşleyişine Karşı Suçlar",
+    "status": "Yürürlükte",
+    "source_url": "https://www.mevzuat.gov.tr/mevzuatmetin/1.5.5237.pdf"
+  },
+  {
+    "code": "262",
+    "title": "Kamu görevinin usulsüz olarak üstlenilmesi",
+    "category": "Kamu İdaresinin Güvenilirliğine ve İşleyişine Karşı Suçlar",
+    "status": "Yürürlükte",
+    "source_url": "https://www.mevzuat.gov.tr/mevzuatmetin/1.5.5237.pdf"
+  },
+  {
+    "code": "263",
+    "title": "Kanuna aykırı eğitim kurumu",
+    "category": "Kamu İdaresinin Güvenilirliğine ve İşleyişine Karşı Suçlar",
+    "status": "Mülga",
+    "source_url": "https://www.mevzuat.gov.tr/mevzuatmetin/1.5.5237.pdf"
+  },
+  {
+    "code": "264",
+    "title": "Özel işaret ve kıyafetleri usulsüz kullanma",
+    "category": "Kamu İdaresinin Güvenilirliğine ve İşleyişine Karşı Suçlar",
+    "status": "Yürürlükte",
+    "source_url": "https://www.mevzuat.gov.tr/mevzuatmetin/1.5.5237.pdf"
+  },
+  {
+    "code": "265",
+    "title": "Görevi yaptırmamak için direnme",
+    "category": "Kamu İdaresinin Güvenilirliğine ve İşleyişine Karşı Suçlar",
+    "status": "Yürürlükte",
+    "source_url": "https://www.mevzuat.gov.tr/mevzuatmetin/1.5.5237.pdf"
+  },
+  {
+    "code": "266",
+    "title": "Kamu görevine ait araç ve gereçleri suçta kullanma",
+    "category": "Kamu İdaresinin Güvenilirliğine ve İşleyişine Karşı Suçlar",
+    "status": "Yürürlükte",
+    "source_url": "https://www.mevzuat.gov.tr/mevzuatmetin/1.5.5237.pdf"
+  },
+  {
+    "code": "267",
+    "title": "İftira",
+    "category": "Adliyeye Karşı Suçlar",
+    "status": "Yürürlükte",
+    "source_url": "https://www.mevzuat.gov.tr/mevzuatmetin/1.5.5237.pdf"
+  },
+  {
+    "code": "268",
+    "title": "Başkasına ait kimlik veya kimlik bilgilerinin kullanılması",
+    "category": "Adliyeye Karşı Suçlar",
+    "status": "Yürürlükte",
+    "source_url": "https://www.mevzuat.gov.tr/mevzuatmetin/1.5.5237.pdf"
+  },
+  {
+    "code": "269",
+    "title": "Etkin pişmanlık",
+    "category": "Adliyeye Karşı Suçlar",
+    "status": "Yürürlükte",
+    "source_url": "https://www.mevzuat.gov.tr/mevzuatmetin/1.5.5237.pdf"
+  },
+  {
+    "code": "270",
+    "title": "Suç üstlenme",
+    "category": "Adliyeye Karşı Suçlar",
+    "status": "Yürürlükte",
+    "source_url": "https://www.mevzuat.gov.tr/mevzuatmetin/1.5.5237.pdf"
+  },
+  {
+    "code": "271",
+    "title": "Suç uydurma",
+    "category": "Adliyeye Karşı Suçlar",
+    "status": "Yürürlükte",
+    "source_url": "https://www.mevzuat.gov.tr/mevzuatmetin/1.5.5237.pdf"
+  },
+  {
+    "code": "272",
+    "title": "Yalan tanıklık",
+    "category": "Adliyeye Karşı Suçlar",
+    "status": "Yürürlükte",
+    "source_url": "https://www.mevzuat.gov.tr/mevzuatmetin/1.5.5237.pdf"
+  },
+  {
+    "code": "273",
+    "title": "Şahsi cezasızlık veya cezanın azaltılmasını gerektiren sebepler",
+    "category": "Adliyeye Karşı Suçlar",
+    "status": "Yürürlükte",
+    "source_url": "https://www.mevzuat.gov.tr/mevzuatmetin/1.5.5237.pdf"
+  },
+  {
+    "code": "274",
+    "title": "Etkin pişmanlık",
+    "category": "Adliyeye Karşı Suçlar",
+    "status": "Yürürlükte",
+    "source_url": "https://www.mevzuat.gov.tr/mevzuatmetin/1.5.5237.pdf"
+  },
+  {
+    "code": "275",
+    "title": "Yalan yere yemin",
+    "category": "Adliyeye Karşı Suçlar",
+    "status": "Yürürlükte",
+    "source_url": "https://www.mevzuat.gov.tr/mevzuatmetin/1.5.5237.pdf"
+  },
+  {
+    "code": "276",
+    "title": "Gerçeğe aykırı bilirkişilik veya tercümanlık",
+    "category": "Adliyeye Karşı Suçlar",
+    "status": "Yürürlükte",
+    "source_url": "https://www.mevzuat.gov.tr/mevzuatmetin/1.5.5237.pdf"
+  },
+  {
+    "code": "277",
+    "title": "Yargı görevi yapanı, bilirkişiyi veya tanığı etkilemeye teşebbüs",
+    "category": "Adliyeye Karşı Suçlar",
+    "status": "Yürürlükte",
+    "source_url": "https://www.mevzuat.gov.tr/mevzuatmetin/1.5.5237.pdf"
+  },
+  {
+    "code": "278",
+    "title": "Suçu bildirmeme",
+    "category": "Adliyeye Karşı Suçlar",
+    "status": "Yürürlükte – yeniden düzenlenmiş",
+    "source_url": "https://www.mevzuat.gov.tr/mevzuatmetin/1.5.5237.pdf"
+  },
+  {
+    "code": "279",
+    "title": "Kamu görevlisinin suçu bildirmemesi",
+    "category": "Adliyeye Karşı Suçlar",
+    "status": "Yürürlükte",
+    "source_url": "https://www.mevzuat.gov.tr/mevzuatmetin/1.5.5237.pdf"
+  },
+  {
+    "code": "280",
+    "title": "Sağlık mesleği mensuplarının suçu bildirmemesi",
+    "category": "Adliyeye Karşı Suçlar",
+    "status": "Yürürlükte",
+    "source_url": "https://www.mevzuat.gov.tr/mevzuatmetin/1.5.5237.pdf"
+  },
+  {
+    "code": "281",
+    "title": "Suç delillerini yok etme, gizleme veya değiştirme",
+    "category": "Adliyeye Karşı Suçlar",
+    "status": "Yürürlükte",
+    "source_url": "https://www.mevzuat.gov.tr/mevzuatmetin/1.5.5237.pdf"
+  },
+  {
+    "code": "282",
+    "title": "Suçtan kaynaklanan malvarlığı değerlerini aklama",
+    "category": "Adliyeye Karşı Suçlar",
+    "status": "Yürürlükte",
+    "source_url": "https://www.mevzuat.gov.tr/mevzuatmetin/1.5.5237.pdf"
+  },
+  {
+    "code": "283",
+    "title": "Suçluyu kayırma",
+    "category": "Adliyeye Karşı Suçlar",
+    "status": "Yürürlükte",
+    "source_url": "https://www.mevzuat.gov.tr/mevzuatmetin/1.5.5237.pdf"
+  },
+  {
+    "code": "284",
+    "title": "Tutuklu, hükümlü veya suç delillerini bildirmeme",
+    "category": "Adliyeye Karşı Suçlar",
+    "status": "Yürürlükte",
+    "source_url": "https://www.mevzuat.gov.tr/mevzuatmetin/1.5.5237.pdf"
+  },
+  {
+    "code": "285",
+    "title": "Gizliliğin ihlali",
+    "category": "Adliyeye Karşı Suçlar",
+    "status": "Yürürlükte",
+    "source_url": "https://www.mevzuat.gov.tr/mevzuatmetin/1.5.5237.pdf"
+  },
+  {
+    "code": "286",
+    "title": "Ses veya görüntülerin kayda alınması",
+    "category": "Adliyeye Karşı Suçlar",
+    "status": "Yürürlükte",
+    "source_url": "https://www.mevzuat.gov.tr/mevzuatmetin/1.5.5237.pdf"
+  },
+  {
+    "code": "287",
+    "title": "Genital muayene",
+    "category": "Adliyeye Karşı Suçlar",
+    "status": "Yürürlükte",
+    "source_url": "https://www.mevzuat.gov.tr/mevzuatmetin/1.5.5237.pdf"
+  },
+  {
+    "code": "288",
+    "title": "Adil yargılamayı etkilemeye teşebbüs",
+    "category": "Adliyeye Karşı Suçlar",
+    "status": "Yürürlükte",
+    "source_url": "https://www.mevzuat.gov.tr/mevzuatmetin/1.5.5237.pdf"
+  },
+  {
+    "code": "289",
+    "title": "Muhafaza görevini kötüye kullanma",
+    "category": "Adliyeye Karşı Suçlar",
+    "status": "Yürürlükte",
+    "source_url": "https://www.mevzuat.gov.tr/mevzuatmetin/1.5.5237.pdf"
+  },
+  {
+    "code": "290",
+    "title": "Resmen teslim olunan mala elkonulması ve bozulması",
+    "category": "Adliyeye Karşı Suçlar",
+    "status": "Yürürlükte",
+    "source_url": "https://www.mevzuat.gov.tr/mevzuatmetin/1.5.5237.pdf"
+  },
+  {
+    "code": "291",
+    "title": "Başkası yerine ceza infaz kurumuna veya tutukevine girme",
+    "category": "Adliyeye Karşı Suçlar",
+    "status": "Yürürlükte",
+    "source_url": "https://www.mevzuat.gov.tr/mevzuatmetin/1.5.5237.pdf"
+  },
+  {
+    "code": "292",
+    "title": "Hükümlü veya tutuklunun kaçması",
+    "category": "Adliyeye Karşı Suçlar",
+    "status": "Yürürlükte",
+    "source_url": "https://www.mevzuat.gov.tr/mevzuatmetin/1.5.5237.pdf"
+  },
+  {
+    "code": "293",
+    "title": "Etkin pişmanlık",
+    "category": "Adliyeye Karşı Suçlar",
+    "status": "Yürürlükte",
+    "source_url": "https://www.mevzuat.gov.tr/mevzuatmetin/1.5.5237.pdf"
+  },
+  {
+    "code": "294",
+    "title": "Kaçmaya imkan sağlama",
+    "category": "Adliyeye Karşı Suçlar",
+    "status": "Yürürlükte",
+    "source_url": "https://www.mevzuat.gov.tr/mevzuatmetin/1.5.5237.pdf"
+  },
+  {
+    "code": "295",
+    "title": "Muhafızın görevini kötüye kullanması",
+    "category": "Adliyeye Karşı Suçlar",
+    "status": "Yürürlükte",
+    "source_url": "https://www.mevzuat.gov.tr/mevzuatmetin/1.5.5237.pdf"
+  },
+  {
+    "code": "296",
+    "title": "Hükümlü veya tutukluların ayaklanması",
+    "category": "Adliyeye Karşı Suçlar",
+    "status": "Yürürlükte",
+    "source_url": "https://www.mevzuat.gov.tr/mevzuatmetin/1.5.5237.pdf"
+  },
+  {
+    "code": "297",
+    "title": "İnfaz kurumuna veya tutukevine yasak eşya sokmak",
+    "category": "Adliyeye Karşı Suçlar",
+    "status": "Yürürlükte",
+    "source_url": "https://www.mevzuat.gov.tr/mevzuatmetin/1.5.5237.pdf"
+  },
+  {
+    "code": "298",
+    "title": "Hak kullanımını ve beslenmeyi engelleme",
+    "category": "Adliyeye Karşı Suçlar",
+    "status": "Yürürlükte",
+    "source_url": "https://www.mevzuat.gov.tr/mevzuatmetin/1.5.5237.pdf"
+  },
+  {
+    "code": "299",
+    "title": "Cumhurbaşkanına hakaret",
+    "category": "Devletin Egemenlik Alametlerine ve Organlarının Saygınlığına Karşı Suçlar",
+    "status": "Yürürlükte",
+    "source_url": "https://www.mevzuat.gov.tr/mevzuatmetin/1.5.5237.pdf"
+  },
+  {
+    "code": "300",
+    "title": "Devletin egemenlik alametlerini aşağılama",
+    "category": "Devletin Egemenlik Alametlerine ve Organlarının Saygınlığına Karşı Suçlar",
+    "status": "Yürürlükte",
+    "source_url": "https://www.mevzuat.gov.tr/mevzuatmetin/1.5.5237.pdf"
+  },
+  {
+    "code": "301",
+    "title": "Türk Milletini, Türkiye Cumhuriyeti Devletini, Devletin kurum ve organlarını aşağılama",
+    "category": "Devletin Egemenlik Alametlerine ve Organlarının Saygınlığına Karşı Suçlar",
+    "status": "Yürürlükte",
+    "source_url": "https://www.mevzuat.gov.tr/mevzuatmetin/1.5.5237.pdf"
+  },
+  {
+    "code": "302",
+    "title": "Devletin birliğini ve ülke bütünlüğünü bozmak",
+    "category": "Devletin Güvenliğine Karşı Suçlar",
+    "status": "Yürürlükte",
+    "source_url": "https://www.mevzuat.gov.tr/mevzuatmetin/1.5.5237.pdf"
+  },
+  {
+    "code": "303",
+    "title": "Düşmanla işbirliği yapmak",
+    "category": "Devletin Güvenliğine Karşı Suçlar",
+    "status": "Yürürlükte",
+    "source_url": "https://www.mevzuat.gov.tr/mevzuatmetin/1.5.5237.pdf"
+  },
+  {
+    "code": "304",
+    "title": "Devlete karşı savaşa tahrik",
+    "category": "Devletin Güvenliğine Karşı Suçlar",
+    "status": "Yürürlükte",
+    "source_url": "https://www.mevzuat.gov.tr/mevzuatmetin/1.5.5237.pdf"
+  },
+  {
+    "code": "305",
+    "title": "Temel millî yararlara karşı faaliyette bulunmak için yarar sağlama",
+    "category": "Devletin Güvenliğine Karşı Suçlar",
+    "status": "Yürürlükte",
+    "source_url": "https://www.mevzuat.gov.tr/mevzuatmetin/1.5.5237.pdf"
+  },
+  {
+    "code": "306",
+    "title": "Yabancı devlet aleyhine asker toplama",
+    "category": "Devletin Güvenliğine Karşı Suçlar",
+    "status": "Yürürlükte",
+    "source_url": "https://www.mevzuat.gov.tr/mevzuatmetin/1.5.5237.pdf"
+  },
+  {
+    "code": "307",
+    "title": "Askerî tesisleri tahrip ve düşman askerî hareketleri yararına anlaşma",
+    "category": "Devletin Güvenliğine Karşı Suçlar",
+    "status": "Yürürlükte",
+    "source_url": "https://www.mevzuat.gov.tr/mevzuatmetin/1.5.5237.pdf"
+  },
+  {
+    "code": "308",
+    "title": "Düşman devlete maddi ve mali yardım",
+    "category": "Devletin Güvenliğine Karşı Suçlar",
+    "status": "Yürürlükte",
+    "source_url": "https://www.mevzuat.gov.tr/mevzuatmetin/1.5.5237.pdf"
+  },
+  {
+    "code": "309",
+    "title": "Anayasayı ihlal",
+    "category": "Anayasal Düzene ve Bu Düzenin İşleyişine Karşı Suçlar",
+    "status": "Yürürlükte",
+    "source_url": "https://www.mevzuat.gov.tr/mevzuatmetin/1.5.5237.pdf"
+  },
+  {
+    "code": "310",
+    "title": "Cumhurbaşkanına suikast ve fiilî saldırı",
+    "category": "Anayasal Düzene ve Bu Düzenin İşleyişine Karşı Suçlar",
+    "status": "Yürürlükte",
+    "source_url": "https://www.mevzuat.gov.tr/mevzuatmetin/1.5.5237.pdf"
+  },
+  {
+    "code": "311",
+    "title": "Yasama organına karşı suç",
+    "category": "Anayasal Düzene ve Bu Düzenin İşleyişine Karşı Suçlar",
+    "status": "Yürürlükte",
+    "source_url": "https://www.mevzuat.gov.tr/mevzuatmetin/1.5.5237.pdf"
+  },
+  {
+    "code": "312",
+    "title": "Hükûmete karşı suç",
+    "category": "Anayasal Düzene ve Bu Düzenin İşleyişine Karşı Suçlar",
+    "status": "Yürürlükte",
+    "source_url": "https://www.mevzuat.gov.tr/mevzuatmetin/1.5.5237.pdf"
+  },
+  {
+    "code": "313",
+    "title": "Türkiye Cumhuriyeti Hükûmetine karşı silâhlı isyan",
+    "category": "Anayasal Düzene ve Bu Düzenin İşleyişine Karşı Suçlar",
+    "status": "Yürürlükte",
+    "source_url": "https://www.mevzuat.gov.tr/mevzuatmetin/1.5.5237.pdf"
+  },
+  {
+    "code": "314",
+    "title": "Silâhlı örgüt",
+    "category": "Anayasal Düzene ve Bu Düzenin İşleyişine Karşı Suçlar",
+    "status": "Yürürlükte",
+    "source_url": "https://www.mevzuat.gov.tr/mevzuatmetin/1.5.5237.pdf"
+  },
+  {
+    "code": "315",
+    "title": "Silâh sağlama",
+    "category": "Anayasal Düzene ve Bu Düzenin İşleyişine Karşı Suçlar",
+    "status": "Yürürlükte",
+    "source_url": "https://www.mevzuat.gov.tr/mevzuatmetin/1.5.5237.pdf"
+  },
+  {
+    "code": "316",
+    "title": "Suç için anlaşma",
+    "category": "Anayasal Düzene ve Bu Düzenin İşleyişine Karşı Suçlar",
+    "status": "Yürürlükte",
+    "source_url": "https://www.mevzuat.gov.tr/mevzuatmetin/1.5.5237.pdf"
+  },
+  {
+    "code": "317",
+    "title": "Askerî komutanlıkların gasbı",
+    "category": "Millî Savunmaya Karşı Suçlar",
+    "status": "Yürürlükte",
+    "source_url": "https://www.mevzuat.gov.tr/mevzuatmetin/1.5.5237.pdf"
+  },
+  {
+    "code": "318",
+    "title": "Halkı askerlikten soğutma",
+    "category": "Millî Savunmaya Karşı Suçlar",
+    "status": "Yürürlükte",
+    "source_url": "https://www.mevzuat.gov.tr/mevzuatmetin/1.5.5237.pdf"
+  },
+  {
+    "code": "319",
+    "title": "Askerleri itaatsizliğe teşvik",
+    "category": "Millî Savunmaya Karşı Suçlar",
+    "status": "Yürürlükte",
+    "source_url": "https://www.mevzuat.gov.tr/mevzuatmetin/1.5.5237.pdf"
+  },
+  {
+    "code": "320",
+    "title": "Yabancı hizmetine asker yazma, yazılma",
+    "category": "Millî Savunmaya Karşı Suçlar",
+    "status": "Yürürlükte",
+    "source_url": "https://www.mevzuat.gov.tr/mevzuatmetin/1.5.5237.pdf"
+  },
+  {
+    "code": "321",
+    "title": "Savaş zamanında emirlere uymama",
+    "category": "Millî Savunmaya Karşı Suçlar",
+    "status": "Yürürlükte",
+    "source_url": "https://www.mevzuat.gov.tr/mevzuatmetin/1.5.5237.pdf"
+  },
+  {
+    "code": "322",
+    "title": "Savaş zamanında yükümlülükler",
+    "category": "Millî Savunmaya Karşı Suçlar",
+    "status": "Yürürlükte",
+    "source_url": "https://www.mevzuat.gov.tr/mevzuatmetin/1.5.5237.pdf"
+  },
+  {
+    "code": "323",
+    "title": "Savaşta yalan haber yayma",
+    "category": "Millî Savunmaya Karşı Suçlar",
+    "status": "Yürürlükte",
+    "source_url": "https://www.mevzuat.gov.tr/mevzuatmetin/1.5.5237.pdf"
+  },
+  {
+    "code": "324",
+    "title": "Seferberlikle ilgili görevin ihmali",
+    "category": "Millî Savunmaya Karşı Suçlar",
+    "status": "Yürürlükte",
+    "source_url": "https://www.mevzuat.gov.tr/mevzuatmetin/1.5.5237.pdf"
+  },
+  {
+    "code": "325",
+    "title": "Düşmandan unvan ve benzeri payeler kabulü",
+    "category": "Millî Savunmaya Karşı Suçlar",
+    "status": "Yürürlükte",
+    "source_url": "https://www.mevzuat.gov.tr/mevzuatmetin/1.5.5237.pdf"
+  },
+  {
+    "code": "326",
+    "title": "Devletin güvenliğine ilişkin belgeler",
+    "category": "Devlet Sırlarına Karşı Suçlar ve Casusluk",
+    "status": "Yürürlükte",
+    "source_url": "https://www.mevzuat.gov.tr/mevzuatmetin/1.5.5237.pdf"
+  },
+  {
+    "code": "327",
+    "title": "Devletin güvenliğine ilişkin bilgileri temin etme",
+    "category": "Devlet Sırlarına Karşı Suçlar ve Casusluk",
+    "status": "Yürürlükte",
+    "source_url": "https://www.mevzuat.gov.tr/mevzuatmetin/1.5.5237.pdf"
+  },
+  {
+    "code": "328",
+    "title": "Siyasal veya askerî casusluk",
+    "category": "Devlet Sırlarına Karşı Suçlar ve Casusluk",
+    "status": "Yürürlükte",
+    "source_url": "https://www.mevzuat.gov.tr/mevzuatmetin/1.5.5237.pdf"
+  },
+  {
+    "code": "329",
+    "title": "Devletin güvenliğine ve siyasal yararlarına ilişkin bilgileri açıklama",
+    "category": "Devlet Sırlarına Karşı Suçlar ve Casusluk",
+    "status": "Yürürlükte",
+    "source_url": "https://www.mevzuat.gov.tr/mevzuatmetin/1.5.5237.pdf"
+  },
+  {
+    "code": "330",
+    "title": "Gizli kalması gereken bilgileri açıklama",
+    "category": "Devlet Sırlarına Karşı Suçlar ve Casusluk",
+    "status": "Yürürlükte",
+    "source_url": "https://www.mevzuat.gov.tr/mevzuatmetin/1.5.5237.pdf"
+  },
+  {
+    "code": "331",
+    "title": "Uluslararası casusluk",
+    "category": "Devlet Sırlarına Karşı Suçlar ve Casusluk",
+    "status": "Yürürlükte",
+    "source_url": "https://www.mevzuat.gov.tr/mevzuatmetin/1.5.5237.pdf"
+  },
+  {
+    "code": "332",
+    "title": "Askerî yasak bölgelere girme",
+    "category": "Devlet Sırlarına Karşı Suçlar ve Casusluk",
+    "status": "Yürürlükte",
+    "source_url": "https://www.mevzuat.gov.tr/mevzuatmetin/1.5.5237.pdf"
+  },
+  {
+    "code": "333",
+    "title": "Devlet sırlarından yararlanma, Devlet hizmetlerinde sadakatsizlik",
+    "category": "Devlet Sırlarına Karşı Suçlar ve Casusluk",
+    "status": "Yürürlükte",
+    "source_url": "https://www.mevzuat.gov.tr/mevzuatmetin/1.5.5237.pdf"
+  },
+  {
+    "code": "334",
+    "title": "Yasaklanan bilgileri temin",
+    "category": "Devlet Sırlarına Karşı Suçlar ve Casusluk",
+    "status": "Yürürlükte",
+    "source_url": "https://www.mevzuat.gov.tr/mevzuatmetin/1.5.5237.pdf"
+  },
+  {
+    "code": "335",
+    "title": "Yasaklanan bilgilerin casusluk maksadıyla temini",
+    "category": "Devlet Sırlarına Karşı Suçlar ve Casusluk",
+    "status": "Yürürlükte",
+    "source_url": "https://www.mevzuat.gov.tr/mevzuatmetin/1.5.5237.pdf"
+  },
+  {
+    "code": "336",
+    "title": "Yasaklanan bilgileri açıklama",
+    "category": "Devlet Sırlarına Karşı Suçlar ve Casusluk",
+    "status": "Yürürlükte",
+    "source_url": "https://www.mevzuat.gov.tr/mevzuatmetin/1.5.5237.pdf"
+  },
+  {
+    "code": "337",
+    "title": "Yasaklanan bilgileri siyasal veya askerî casusluk maksadıyla açıklama",
+    "category": "Devlet Sırlarına Karşı Suçlar ve Casusluk",
+    "status": "Yürürlükte",
+    "source_url": "https://www.mevzuat.gov.tr/mevzuatmetin/1.5.5237.pdf"
+  },
+  {
+    "code": "338",
+    "title": "Taksir sonucu casusluk fiillerinin işlenmesi",
+    "category": "Devlet Sırlarına Karşı Suçlar ve Casusluk",
+    "status": "Yürürlükte",
+    "source_url": "https://www.mevzuat.gov.tr/mevzuatmetin/1.5.5237.pdf"
+  },
+  {
+    "code": "339",
+    "title": "Devlet güvenliği ile ilgili belgeleri elinde bulundurma",
+    "category": "Devlet Sırlarına Karşı Suçlar ve Casusluk",
+    "status": "Yürürlükte",
+    "source_url": "https://www.mevzuat.gov.tr/mevzuatmetin/1.5.5237.pdf"
+  },
+  {
+    "code": "340",
+    "title": "Yabancı devlet başkanına karşı suç",
+    "category": "Yabancı Devletlerle Olan İlişkilere Karşı Suçlar",
+    "status": "Yürürlükte",
+    "source_url": "https://www.mevzuat.gov.tr/mevzuatmetin/1.5.5237.pdf"
+  },
+  {
+    "code": "341",
+    "title": "Yabancı devlet bayrağına karşı hakaret",
+    "category": "Yabancı Devletlerle Olan İlişkilere Karşı Suçlar",
+    "status": "Yürürlükte",
+    "source_url": "https://www.mevzuat.gov.tr/mevzuatmetin/1.5.5237.pdf"
+  },
+  {
+    "code": "342",
+    "title": "Yabancı devlet temsilcilerine karşı suç",
+    "category": "Yabancı Devletlerle Olan İlişkilere Karşı Suçlar",
+    "status": "Yürürlükte",
+    "source_url": "https://www.mevzuat.gov.tr/mevzuatmetin/1.5.5237.pdf"
+  },
+  {
+    "code": "343",
+    "title": "Karşılıklılık koşulu",
+    "category": "Yabancı Devletlerle Olan İlişkilere Karşı Suçlar",
+    "status": "Yürürlükte",
+    "source_url": "https://www.mevzuat.gov.tr/mevzuatmetin/1.5.5237.pdf"
+  },
+  {
+    "code": "344",
+    "title": "Yürürlük",
+    "category": "Son Hükümler",
+    "status": "Yürürlükte",
+    "source_url": "https://www.mevzuat.gov.tr/mevzuatmetin/1.5.5237.pdf"
+  },
+  {
+    "code": "345",
+    "title": "Yürütme",
+    "category": "Son Hükümler",
+    "status": "Yürürlükte",
+    "source_url": "https://www.mevzuat.gov.tr/mevzuatmetin/1.5.5237.pdf"
+  },
+  {
+    "code": "Geçici 1",
+    "title": "Son Hükümler",
+    "category": "Son Hükümler",
+    "status": "Geçici madde – yürürlükte",
+    "source_url": "https://www.mevzuat.gov.tr/mevzuatmetin/1.5.5237.pdf"
+  }
+]

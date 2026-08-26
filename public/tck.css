@@ -144,23 +144,6 @@
   min-width: 0;
 }
 
-.tck-article-title-more {
-  color: #fbbf24;
-  font-size: 0.72rem;
-  white-space: nowrap;
-  padding: 3px 8px;
-  border-radius: 999px;
-  background: rgba(180, 83, 9, 0.14);
-  border: 1px solid rgba(180, 83, 9, 0.28);
-}
-
-.tck-article-law-title {
-  flex-basis: 100%;
-  color: var(--muted);
-  font-size: 0.78rem;
-  padding-left: 112px;
-}
-
 .tck-article-subcodes {
   display: flex;
   flex-wrap: wrap;
@@ -783,10 +766,6 @@
 
   .tck-profile-right {
     align-items: flex-start;
-  }
-
-  .tck-article-law-title {
-    padding-left: 0;
   }
 
   .tck-legal-header {
