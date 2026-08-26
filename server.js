@@ -206,6 +206,8 @@ async function upsertLegalReferenceFromHfRow(rowWrapper, query, tckCode) {
 async function processDeepSearchJob(job) {
   const query = job.query || (job.tck_code ? `TCK ${job.tck_code}` : "");
   const tckCode = normalizeTckCode(job.tck_code || "");
+  const rootTckCode = tckCode.match(/^(\d+)/)?.[1] || "";
+  let activeQuery = query;
   const startedAt = new Date().toISOString();
   await run(
     "UPDATE deep_search_jobs SET status = ?, progress_percent = ?, status_message = ?, started_at = ?, error = ? WHERE id = ?",
@@ -218,15 +220,15 @@ async function processDeepSearchJob(job) {
 
   for (let page = 0; page < totalPages; page += 1) {
     const offset = page * DEEP_SEARCH_PAGE_SIZE;
-    const url = new URL("https://datasets-server.huggingface.co/search");
-    url.searchParams.set("dataset", HF_DATASET);
-    url.searchParams.set("config", HF_CONFIG);
-    url.searchParams.set("split", HF_SPLIT);
-    url.searchParams.set("query", query);
-    url.searchParams.set("offset", String(offset));
-    url.searchParams.set("length", String(DEEP_SEARCH_PAGE_SIZE));
-
-    const response = await fetch(url);
+    let response = await fetchHfSearchPage(activeQuery, offset, DEEP_SEARCH_PAGE_SIZE);
+    if (!response.ok && page === 0 && rootTckCode && activeQuery !== `TCK ${rootTckCode}`) {
+      activeQuery = `TCK ${rootTckCode}`;
+      await run(
+        "UPDATE deep_search_jobs SET status_message = ? WHERE id = ?",
+        [`İlk sorgu yanıt vermedi. Kök madde ile deneniyor: ${activeQuery}`, job.id]
+      );
+      response = await fetchHfSearchPage(activeQuery, offset, DEEP_SEARCH_PAGE_SIZE);
+    }
     if (!response.ok) {
       throw new Error(`Hugging Face search failed: ${response.status}`);
     }
@@ -239,7 +241,7 @@ async function processDeepSearchJob(job) {
     }
 
     for (const resultRow of rows) {
-      const ref = await upsertLegalReferenceFromHfRow(resultRow, query, tckCode);
+      const ref = await upsertLegalReferenceFromHfRow(resultRow, activeQuery, tckCode);
       if (!ref?.id) continue;
       matchedCount += 1;
       await run(
@@ -250,9 +252,9 @@ async function processDeepSearchJob(job) {
           crypto.randomUUID(),
           job.id,
           ref.id,
-          JSON.stringify([query, tckCode].filter(Boolean)),
+          JSON.stringify([activeQuery, query, tckCode].filter(Boolean)),
           0,
-          makeExcerpt(resultRow?.row?.text || "", query || tckCode, 360)
+          makeExcerpt(resultRow?.row?.text || "", activeQuery || tckCode, 360)
         ]
       );
     }
@@ -265,7 +267,7 @@ async function processDeepSearchJob(job) {
         progress,
         remainingPages * 8,
         matchedCount,
-        `${page + 1}/${totalPages} sayfa tarandı. Hugging Face toplam ${totalRows || 0} olası eşleşme bildirdi.`,
+        `${page + 1}/${totalPages} sayfa tarandı (${activeQuery}). Hugging Face toplam ${totalRows || 0} olası eşleşme bildirdi.`,
         job.id
       ]
     );
@@ -285,6 +287,17 @@ async function processDeepSearchJob(job) {
       job.id
     ]
   );
+}
+
+function fetchHfSearchPage(query, offset, length) {
+  const url = new URL("https://datasets-server.huggingface.co/search");
+  url.searchParams.set("dataset", HF_DATASET);
+  url.searchParams.set("config", HF_CONFIG);
+  url.searchParams.set("split", HF_SPLIT);
+  url.searchParams.set("query", query);
+  url.searchParams.set("offset", String(offset));
+  url.searchParams.set("length", String(length));
+  return fetch(url);
 }
 
 async function runDeepSearchWorkerOnce() {
