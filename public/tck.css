@@ -345,6 +345,14 @@
   line-height: 1.45;
 }
 
+.tck-deep-status-card .tck-deep-error {
+  color: #fca5a5;
+  background: rgba(139, 30, 30, 0.14);
+  border: 1px solid rgba(139, 30, 30, 0.26);
+  border-radius: 8px;
+  padding: 8px 10px;
+}
+
 .tck-deep-status-card code {
   display: block;
   margin-top: 8px;

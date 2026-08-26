@@ -347,9 +347,12 @@ function renderDeepSearchStatus(tckCode, job) {
   );
   const etaText = job.status === "completed"
     ? "Bitti"
-    : job.status === "queued"
-      ? "Kuyrukta. Tahmini süre: " + formatDuration(job.estimated_seconds)
-      : "Tahmini kalan süre: " + formatDuration(job.estimated_seconds);
+    : job.status === "failed"
+      ? "Tekrar deneyebilirsiniz"
+      : job.status === "queued"
+        ? "Kuyrukta. Tahmini süre: " + formatDuration(job.estimated_seconds)
+        : "Tahmini kalan süre: " + formatDuration(job.estimated_seconds);
+  const errorText = job.status === "failed" && job.error ? String(job.error) : "";
 
   statusEl.innerHTML = `
     <div class="tck-deep-status-card">
@@ -365,6 +368,7 @@ function renderDeepSearchStatus(tckCode, job) {
         <span>${esc(String(job.matched_count || 0))} eşleşme</span>
       </div>
       <p>${esc(message)}</p>
+      ${errorText ? `<p class="tck-deep-error">${esc(errorText)}</p>` : ""}
       <code>${esc(job.id || "")}</code>
     </div>
   `;
@@ -383,6 +387,14 @@ function pollDeepSearchJob(tckCode, jobId) {
         clearInterval(deepSearchPollers.get(jobId));
         deepSearchPollers.delete(jobId);
         if (job.status === "completed") loadLegalReferences().then(() => renderList(allData));
+        if (job.status === "failed") {
+          const normalized = String(tckCode || "").replace(/^TCK\s*/i, "").replace(/\s+/g, "").trim().toUpperCase();
+          const btn = document.querySelector(`.tck-deep-search-btn[data-tck-code="${CSS.escape(normalized)}"]`);
+          if (btn) {
+            btn.disabled = false;
+            btn.textContent = "Tekrar dene";
+          }
+        }
       }
     } catch {
       clearInterval(deepSearchPollers.get(jobId));

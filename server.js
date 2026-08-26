@@ -153,6 +153,47 @@ function makeExcerpt(text, query, maxLength = 520) {
   return `${start > 0 ? "..." : ""}${excerpt}${start + maxLength < clean.length ? "..." : ""}`;
 }
 
+async function getTckTitleForSearch(tckCode) {
+  const normalized = normalizeTckCode(tckCode);
+  if (!normalized) return "";
+  const exact = await get("SELECT short_desc FROM tck_definitions WHERE code = ?", [normalized]);
+  if (exact?.short_desc) return exact.short_desc;
+  const root = rootTckCode(normalized);
+  const rootRow = await get("SELECT short_desc FROM tck_definitions WHERE code = ?", [root]);
+  return rootRow?.short_desc || "";
+}
+
+function buildDeepSearchQueries(query, tckCode, tckTitle) {
+  const normalized = normalizeTckCode(tckCode);
+  const root = rootTckCode(normalized);
+  return Array.from(new Set([
+    query,
+    normalized ? `TCK ${normalized}` : "",
+    root && root !== normalized ? `TCK ${root}` : "",
+    tckTitle ? `"${tckTitle}"` : "",
+    tckTitle || "",
+    root && tckTitle ? `TCK ${root} ${tckTitle}` : ""
+  ].map((item) => String(item || "").trim()).filter(Boolean)));
+}
+
+async function hfErrorText(response) {
+  try {
+    const payload = await response.clone().json();
+    return payload?.error || JSON.stringify(payload);
+  } catch {
+    try {
+      return await response.clone().text();
+    } catch {
+      return "";
+    }
+  }
+}
+
+function isTransientHfError(status, detail) {
+  const text = String(detail || "").toLowerCase();
+  return status >= 500 || text.includes("loading") || text.includes("rebuilt") || text.includes("corrupted");
+}
+
 async function upsertLegalReferenceFromHfRow(rowWrapper, query, tckCode) {
   const row = rowWrapper?.row || {};
   const text = row.text || "";
@@ -212,7 +253,9 @@ async function upsertLegalReferenceFromHfRow(rowWrapper, query, tckCode) {
 async function processDeepSearchJob(job) {
   const query = job.query || (job.tck_code ? `TCK ${job.tck_code}` : "");
   const tckCode = normalizeTckCode(job.tck_code || "");
-  const rootTckCode = tckCode.match(/^(\d+)/)?.[1] || "";
+  const rootCode = rootTckCode(tckCode);
+  const tckTitle = await getTckTitleForSearch(tckCode);
+  const queryCandidates = buildDeepSearchQueries(query, tckCode, tckTitle);
   let activeQuery = query;
   const startedAt = new Date().toISOString();
   await run(
@@ -227,16 +270,46 @@ async function processDeepSearchJob(job) {
   for (let page = 0; page < totalPages; page += 1) {
     const offset = page * DEEP_SEARCH_PAGE_SIZE;
     let response = await fetchHfSearchPage(activeQuery, offset, DEEP_SEARCH_PAGE_SIZE);
-    if (!response.ok && page === 0 && rootTckCode && activeQuery !== `TCK ${rootTckCode}`) {
-      activeQuery = `TCK ${rootTckCode}`;
+    let lastErrorDetail = "";
+    if (!response.ok) lastErrorDetail = await hfErrorText(response);
+
+    if (!response.ok && page === 0) {
+      let fallbackWorked = false;
+      for (const candidate of queryCandidates) {
+        if (candidate === activeQuery) continue;
+        activeQuery = candidate;
+        const fallbackMessage = tckTitle
+          ? `İlk sorgu yanıt vermedi. Alternatif sorgu deneniyor: ${activeQuery}`
+          : `İlk sorgu yanıt vermedi. Kök madde ile deneniyor: ${activeQuery}`;
+        await run(
+          "UPDATE deep_search_jobs SET progress_percent = ?, status_message = ? WHERE id = ?",
+          [5, fallbackMessage, job.id]
+        );
+        response = await fetchHfSearchPage(activeQuery, offset, DEEP_SEARCH_PAGE_SIZE);
+        if (response.ok) {
+          fallbackWorked = true;
+          break;
+        }
+        lastErrorDetail = await hfErrorText(response);
+      }
+      if (!fallbackWorked && rootCode && activeQuery !== `TCK ${rootCode}`) {
+        activeQuery = `TCK ${rootCode}`;
+      }
+    }
+
+    if (!response.ok && isTransientHfError(response.status, lastErrorDetail)) {
       await run(
-        "UPDATE deep_search_jobs SET status_message = ? WHERE id = ?",
-        [`İlk sorgu yanıt vermedi. Kök madde ile deneniyor: ${activeQuery}`, job.id]
+        "UPDATE deep_search_jobs SET progress_percent = ?, estimated_seconds = ?, status_message = ? WHERE id = ?",
+        [
+          8,
+          600,
+          "Hugging Face arama indeksi şu an hazırlanıyor veya geçici hata veriyor. Birkaç dakika sonra yeniden deneyebilirsiniz.",
+          job.id
+        ]
       );
-      response = await fetchHfSearchPage(activeQuery, offset, DEEP_SEARCH_PAGE_SIZE);
     }
     if (!response.ok) {
-      throw new Error(`Hugging Face search failed: ${response.status}`);
+      throw new Error(`Hugging Face arama servisi yanıt vermedi (${response.status}${lastErrorDetail ? `: ${lastErrorDetail}` : ""}).`);
     }
     const payload = await response.json();
     const rows = Array.isArray(payload.rows) ? payload.rows : [];
@@ -303,7 +376,16 @@ function fetchHfSearchPage(query, offset, length) {
   url.searchParams.set("query", query);
   url.searchParams.set("offset", String(offset));
   url.searchParams.set("length", String(length));
-  return fetch(url);
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 25000);
+  return fetch(url, { signal: controller.signal })
+    .catch((err) => {
+      if (err?.name === "AbortError") {
+        throw new Error("Hugging Face arama servisi zaman aşımına uğradı. Birkaç dakika sonra tekrar deneyin.");
+      }
+      throw err;
+    })
+    .finally(() => clearTimeout(timer));
 }
 
 async function runDeepSearchWorkerOnce() {
@@ -336,9 +418,12 @@ async function runDeepSearchWorkerOnce() {
           ]
         );
       } else {
+        const message = err.message && err.message.includes("Hugging Face")
+          ? err.message
+          : "Derin arama hata verdi.";
         await run(
-          "UPDATE deep_search_jobs SET status = ?, status_message = ?, error = ?, finished_at = ? WHERE id = ?",
-          ["failed", "Derin arama hata verdi.", err.message || String(err), new Date().toISOString(), running.id]
+          "UPDATE deep_search_jobs SET status = ?, progress_percent = ?, estimated_seconds = ?, status_message = ?, error = ?, finished_at = ? WHERE id = ?",
+          ["failed", Math.max(Number(running.progress_percent || 0), 8), 0, message, err.message || String(err), new Date().toISOString(), running.id]
         );
       }
     }
