@@ -634,13 +634,14 @@ async function processDeepSearchJob(job) {
   let activeQuery = query;
   const startedAt = new Date().toISOString();
   await run(
-    "UPDATE deep_search_jobs SET status = ?, progress_percent = ?, status_message = ?, started_at = ?, last_attempt_at = ?, error = ?, canonical_ref = ?, query_plan = ? WHERE id = ?",
+    "UPDATE deep_search_jobs SET status = ?, progress_percent = ?, status_message = ?, started_at = ?, last_attempt_at = ?, next_attempt_at = ?, error = ?, canonical_ref = ?, query_plan = ? WHERE id = ?",
     [
       "running",
       2,
       "Hugging Face arama indeksi mevzuat atfı varyasyonlarıyla sorgulanıyor.",
       startedAt,
       startedAt,
+      "",
       "",
       canonicalLegalRef(legalRef),
       JSON.stringify(queryCandidates),
@@ -745,13 +746,14 @@ async function processDeepSearchJob(job) {
   }
 
   await run(
-    "UPDATE deep_search_jobs SET status = ?, progress_percent = ?, estimated_seconds = ?, matched_count = ?, finished_at = ?, status_message = ? WHERE id = ?",
+    "UPDATE deep_search_jobs SET status = ?, progress_percent = ?, estimated_seconds = ?, matched_count = ?, finished_at = ?, next_attempt_at = ?, status_message = ? WHERE id = ?",
     [
       "completed",
       100,
       0,
       matchedCount,
       new Date().toISOString(),
+      "",
       `${matchedCount} karar indekse eklendi. İlk aşamada ${DEEP_SEARCH_MAX_PAGES} sayfa sınırı uygulanır.`,
       job.id
     ]
@@ -783,13 +785,15 @@ async function runDeepSearchWorkerOnce() {
   deepSearchWorkerRunning = true;
   try {
     const queuedJobs = await all(
-      "SELECT * FROM deep_search_jobs WHERE status = ? ORDER BY started_at ASC LIMIT 10",
-      ["queued"]
+      "SELECT * FROM deep_search_jobs WHERE status IN (?, ?) ORDER BY started_at ASC LIMIT 10",
+      ["queued", "waiting_external"]
     );
     const nowMs = Date.now();
     const job = queuedJobs.find((candidate) => {
       const retryCount = Number(candidate.retry_count || 0);
       if (retryCount >= DEEP_SEARCH_MAX_RETRIES) return true;
+      const nextAttempt = candidate.next_attempt_at ? Date.parse(candidate.next_attempt_at) : 0;
+      if (nextAttempt && nowMs < nextAttempt) return false;
       const lastAttempt = candidate.last_attempt_at ? Date.parse(candidate.last_attempt_at) : 0;
       return !lastAttempt || nowMs - lastAttempt >= DEEP_SEARCH_RETRY_SECONDS * 1000;
     });
@@ -803,11 +807,12 @@ async function runDeepSearchWorkerOnce() {
       const matchedCount = Number(running.matched_count || 0);
       if (matchedCount > 0) {
         await run(
-          "UPDATE deep_search_jobs SET status = ?, progress_percent = ?, estimated_seconds = ?, status_message = ?, error = ?, finished_at = ? WHERE id = ?",
+          "UPDATE deep_search_jobs SET status = ?, progress_percent = ?, estimated_seconds = ?, next_attempt_at = ?, status_message = ?, error = ?, finished_at = ? WHERE id = ?",
           [
             "completed",
             100,
             0,
+            "",
             `${matchedCount} karar indekse eklendi. Hugging Face sonraki sayfada yanıt vermedi; kayıtlı sonuçlar kullanılabilir.`,
             err.message || String(err),
             new Date().toISOString(),
@@ -818,14 +823,16 @@ async function runDeepSearchWorkerOnce() {
         const retryCount = Number(running.retry_count || 0) + 1;
         const canRetry = err.isTransient && retryCount < DEEP_SEARCH_MAX_RETRIES;
         if (canRetry) {
+          const nextAttemptAt = new Date(Date.now() + DEEP_SEARCH_RETRY_SECONDS * 1000).toISOString();
           await run(
-            "UPDATE deep_search_jobs SET status = ?, progress_percent = ?, estimated_seconds = ?, retry_count = ?, status_message = ?, error = ? WHERE id = ?",
+            "UPDATE deep_search_jobs SET status = ?, progress_percent = ?, estimated_seconds = ?, retry_count = ?, next_attempt_at = ?, status_message = ?, error = ? WHERE id = ?",
             [
-              "queued",
+              "waiting_external",
               Math.max(Number(running.progress_percent || 0), 8),
               DEEP_SEARCH_RETRY_SECONDS,
               retryCount,
-              "Hugging Face arama indeksi şu an yanıt vermiyor. İş kuyrukta tutuldu; otomatik olarak tekrar denenecek.",
+              nextAttemptAt,
+              `Hugging Face dataset arama indeksi hazır değil. Bu bizim kuyruk değil; dış servis bekleniyor. ${retryCount}/${DEEP_SEARCH_MAX_RETRIES} deneme yapıldı, otomatik tekrar denenecek.`,
               err.message || String(err),
               running.id
             ]
@@ -835,12 +842,13 @@ async function runDeepSearchWorkerOnce() {
             ? err.message
             : "Derin arama hata verdi.";
           await run(
-            "UPDATE deep_search_jobs SET status = ?, progress_percent = ?, estimated_seconds = ?, retry_count = ?, status_message = ?, error = ?, finished_at = ? WHERE id = ?",
+            "UPDATE deep_search_jobs SET status = ?, progress_percent = ?, estimated_seconds = ?, retry_count = ?, next_attempt_at = ?, status_message = ?, error = ?, finished_at = ? WHERE id = ?",
             [
               "failed",
               Math.max(Number(running.progress_percent || 0), 8),
               0,
               retryCount,
+              "",
               message,
               err.message || String(err),
               new Date().toISOString(),

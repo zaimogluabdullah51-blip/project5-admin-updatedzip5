@@ -407,6 +407,7 @@ async function init() {
   await ensureColumn("deep_search_jobs", "status_message", "TEXT");
   await ensureColumn("deep_search_jobs", "retry_count", "INTEGER");
   await ensureColumn("deep_search_jobs", "last_attempt_at", "TEXT");
+  await ensureColumn("deep_search_jobs", "next_attempt_at", "TEXT");
   await ensureColumn("deep_search_jobs", "law_no", "TEXT");
   await ensureColumn("deep_search_jobs", "law_code", "TEXT");
   await ensureColumn("deep_search_jobs", "article", "TEXT");

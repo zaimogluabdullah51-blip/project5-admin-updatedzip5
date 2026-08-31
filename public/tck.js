@@ -400,11 +400,23 @@ function statusLabel(status) {
   const map = {
     queued: "Kuyrukta",
     running: "Taranıyor",
+    waiting_external: "Dış indeks bekleniyor",
     completed: "Tamamlandı",
     failed: "Hata",
     cancelled: "İptal"
   };
   return map[status] || status || "Bilinmiyor";
+}
+
+function formatNextAttempt(value) {
+  if (!value) return "";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "";
+  const diffSeconds = Math.max(0, Math.round((date.getTime() - Date.now()) / 1000));
+  const clock = date.toLocaleTimeString("tr-TR", { hour: "2-digit", minute: "2-digit" });
+  if (!diffSeconds) return `${clock} civarı`;
+  if (diffSeconds < 60) return `${clock} (${diffSeconds} sn sonra)`;
+  return `${clock} (${Math.ceil(diffSeconds / 60)} dk sonra)`;
 }
 
 function renderDeepSearchStatusMarkup(job) {
@@ -414,13 +426,19 @@ function renderDeepSearchStatusMarkup(job) {
       ? "Kuyruğa alındı. Tarama birazdan başlayacak."
       : "Durum güncelleniyor."
   );
+  const retryText = Number(job.retry_count || 0)
+    ? `${Number(job.retry_count || 0)}. otomatik deneme`
+    : "İlk deneme";
+  const nextAttemptText = formatNextAttempt(job.next_attempt_at);
   const etaText = job.status === "completed"
     ? "Bitti"
     : job.status === "failed"
       ? "Tekrar deneyebilirsiniz"
-      : job.status === "queued"
-        ? "Kuyrukta. Tahmini süre: " + formatDuration(job.estimated_seconds)
-        : "Tahmini kalan süre: " + formatDuration(job.estimated_seconds);
+      : job.status === "waiting_external"
+        ? (nextAttemptText ? `Sonraki deneme: ${nextAttemptText}` : "Dış servis bekleniyor")
+        : job.status === "queued"
+          ? "Kuyrukta. Tahmini süre: " + formatDuration(job.estimated_seconds)
+          : "Tahmini kalan süre: " + formatDuration(job.estimated_seconds);
   const errorText = job.status === "failed" && job.error ? String(job.error) : "";
   const canonical = job.canonical_ref || "";
   const plan = Array.isArray(job.query_plan) ? job.query_plan.slice(0, 4).join(" → ") : "";
@@ -436,7 +454,7 @@ function renderDeepSearchStatusMarkup(job) {
       </div>
       <div class="tck-deep-status-meta">
         <span>${esc(etaText)}</span>
-        <span>${esc(String(job.matched_count || 0))} eşleşme</span>
+        <span>${esc(retryText)} · ${esc(String(job.matched_count || 0))} eşleşme</span>
       </div>
       <p>${esc(message)}</p>
       ${errorText ? `<p class="tck-deep-error">${esc(errorText)}</p>` : ""}
