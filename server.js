@@ -19,6 +19,8 @@ const HF_CONFIG = process.env.HF_DATASET_CONFIG || "all";
 const HF_SPLIT = process.env.HF_DATASET_SPLIT || "train";
 const DEEP_SEARCH_PAGE_SIZE = Math.min(Math.max(parseInt(process.env.DEEP_SEARCH_PAGE_SIZE, 10) || 25, 1), 100);
 const DEEP_SEARCH_MAX_PAGES = Math.min(Math.max(parseInt(process.env.DEEP_SEARCH_MAX_PAGES, 10) || 3, 1), 20);
+const DEEP_SEARCH_MAX_RETRIES = Math.min(Math.max(parseInt(process.env.DEEP_SEARCH_MAX_RETRIES, 10) || 8, 1), 50);
+const DEEP_SEARCH_RETRY_SECONDS = Math.min(Math.max(parseInt(process.env.DEEP_SEARCH_RETRY_SECONDS, 10) || 300, 30), 3600);
 const DEEP_SEARCH_WORKER_ENABLED = process.env.DEEP_SEARCH_WORKER_ENABLED !== "false";
 let deepSearchWorkerRunning = false;
 
@@ -127,7 +129,8 @@ function mapDeepSearchJob(row) {
     ...row,
     progress_percent: Number(row.progress_percent || 0),
     estimated_seconds: Number(row.estimated_seconds || 0),
-    matched_count: Number(row.matched_count || 0)
+    matched_count: Number(row.matched_count || 0),
+    retry_count: Number(row.retry_count || 0)
   };
 }
 
@@ -195,6 +198,14 @@ function isTransientHfError(status, detail) {
   return status >= 500 || text.includes("loading") || text.includes("rebuilt") || text.includes("corrupted");
 }
 
+class TransientDeepSearchError extends Error {
+  constructor(message) {
+    super(message);
+    this.name = "TransientDeepSearchError";
+    this.isTransient = true;
+  }
+}
+
 async function upsertLegalReferenceFromHfRow(rowWrapper, query, tckCode) {
   const row = rowWrapper?.row || {};
   const text = row.text || "";
@@ -260,8 +271,8 @@ async function processDeepSearchJob(job) {
   let activeQuery = query;
   const startedAt = new Date().toISOString();
   await run(
-    "UPDATE deep_search_jobs SET status = ?, progress_percent = ?, status_message = ?, started_at = ?, error = ? WHERE id = ?",
-    ["running", 2, "Hugging Face arama indeksi sorgulanıyor.", startedAt, "", job.id]
+    "UPDATE deep_search_jobs SET status = ?, progress_percent = ?, status_message = ?, started_at = ?, last_attempt_at = ?, error = ? WHERE id = ?",
+    ["running", 2, "Hugging Face arama indeksi sorgulanıyor.", startedAt, startedAt, "", job.id]
   );
 
   let matchedCount = 0;
@@ -310,7 +321,11 @@ async function processDeepSearchJob(job) {
       );
     }
     if (!response.ok) {
-      throw new Error(`Hugging Face arama servisi yanıt vermedi (${response.status}${lastErrorDetail ? `: ${lastErrorDetail}` : ""}).`);
+      const message = `Hugging Face arama servisi yanıt vermedi (${response.status}${lastErrorDetail ? `: ${lastErrorDetail}` : ""}).`;
+      if (isTransientHfError(response.status, lastErrorDetail)) {
+        throw new TransientDeepSearchError(message);
+      }
+      throw new Error(message);
     }
     const payload = await response.json();
     const rows = Array.isArray(payload.rows) ? payload.rows : [];
@@ -382,7 +397,7 @@ function fetchHfSearchPage(query, offset, length) {
   return fetch(url, { signal: controller.signal })
     .catch((err) => {
       if (err?.name === "AbortError") {
-        throw new Error("Hugging Face arama servisi zaman aşımına uğradı. Birkaç dakika sonra tekrar deneyin.");
+        throw new TransientDeepSearchError("Hugging Face arama servisi zaman aşımına uğradı. Dış indeks hazırlanıyor olabilir.");
       }
       throw err;
     })
@@ -393,10 +408,17 @@ async function runDeepSearchWorkerOnce() {
   if (!DEEP_SEARCH_WORKER_ENABLED || deepSearchWorkerRunning) return;
   deepSearchWorkerRunning = true;
   try {
-    const job = await get(
-      "SELECT * FROM deep_search_jobs WHERE status = ? ORDER BY started_at ASC LIMIT 1",
+    const queuedJobs = await all(
+      "SELECT * FROM deep_search_jobs WHERE status = ? ORDER BY started_at ASC LIMIT 10",
       ["queued"]
     );
+    const nowMs = Date.now();
+    const job = queuedJobs.find((candidate) => {
+      const retryCount = Number(candidate.retry_count || 0);
+      if (retryCount >= DEEP_SEARCH_MAX_RETRIES) return true;
+      const lastAttempt = candidate.last_attempt_at ? Date.parse(candidate.last_attempt_at) : 0;
+      return !lastAttempt || nowMs - lastAttempt >= DEEP_SEARCH_RETRY_SECONDS * 1000;
+    });
     if (job) {
       await processDeepSearchJob(job);
     }
@@ -419,13 +441,39 @@ async function runDeepSearchWorkerOnce() {
           ]
         );
       } else {
-        const message = err.message && err.message.includes("Hugging Face")
-          ? err.message
-          : "Derin arama hata verdi.";
-        await run(
-          "UPDATE deep_search_jobs SET status = ?, progress_percent = ?, estimated_seconds = ?, status_message = ?, error = ?, finished_at = ? WHERE id = ?",
-          ["failed", Math.max(Number(running.progress_percent || 0), 8), 0, message, err.message || String(err), new Date().toISOString(), running.id]
-        );
+        const retryCount = Number(running.retry_count || 0) + 1;
+        const canRetry = err.isTransient && retryCount < DEEP_SEARCH_MAX_RETRIES;
+        if (canRetry) {
+          await run(
+            "UPDATE deep_search_jobs SET status = ?, progress_percent = ?, estimated_seconds = ?, retry_count = ?, status_message = ?, error = ? WHERE id = ?",
+            [
+              "queued",
+              Math.max(Number(running.progress_percent || 0), 8),
+              DEEP_SEARCH_RETRY_SECONDS,
+              retryCount,
+              "Hugging Face arama indeksi şu an yanıt vermiyor. İş kuyrukta tutuldu; otomatik olarak tekrar denenecek.",
+              err.message || String(err),
+              running.id
+            ]
+          );
+        } else {
+          const message = err.message && err.message.includes("Hugging Face")
+            ? err.message
+            : "Derin arama hata verdi.";
+          await run(
+            "UPDATE deep_search_jobs SET status = ?, progress_percent = ?, estimated_seconds = ?, retry_count = ?, status_message = ?, error = ?, finished_at = ? WHERE id = ?",
+            [
+              "failed",
+              Math.max(Number(running.progress_percent || 0), 8),
+              0,
+              retryCount,
+              message,
+              err.message || String(err),
+              new Date().toISOString(),
+              running.id
+            ]
+          );
+        }
       }
     }
   } finally {
@@ -1162,8 +1210,8 @@ app.post("/api/deep-search-jobs", async (req, res) => {
     const estimatedSeconds = 1800;
     await run(
       `INSERT INTO deep_search_jobs
-        (id, query, tck_code, status, progress_percent, estimated_seconds, status_message, matched_count, started_at, finished_at, error)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        (id, query, tck_code, status, progress_percent, estimated_seconds, status_message, matched_count, started_at, finished_at, error, retry_count, last_attempt_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         id,
         query || (tckCode ? `TCK ${tckCode}` : ""),
@@ -1175,6 +1223,8 @@ app.post("/api/deep-search-jobs", async (req, res) => {
         0,
         startedAt,
         "",
+        "",
+        0,
         ""
       ]
     );
@@ -1187,6 +1237,7 @@ app.post("/api/deep-search-jobs", async (req, res) => {
       estimated_seconds: estimatedSeconds,
       status_message: statusMessage,
       matched_count: 0,
+      retry_count: 0,
       started_at: startedAt
     });
   } catch (err) {

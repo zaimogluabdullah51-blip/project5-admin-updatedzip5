@@ -329,7 +329,9 @@ async function init() {
       matched_count INTEGER,
       started_at TEXT,
       finished_at TEXT,
-      error TEXT
+      error TEXT,
+      retry_count INTEGER,
+      last_attempt_at TEXT
     )
   `);
 
@@ -403,6 +405,8 @@ async function init() {
   await ensureColumn("deep_search_jobs", "progress_percent", "INTEGER");
   await ensureColumn("deep_search_jobs", "estimated_seconds", "INTEGER");
   await ensureColumn("deep_search_jobs", "status_message", "TEXT");
+  await ensureColumn("deep_search_jobs", "retry_count", "INTEGER");
+  await ensureColumn("deep_search_jobs", "last_attempt_at", "TEXT");
   await run("CREATE INDEX IF NOT EXISTS idx_legal_references_year ON legal_references(year)");
   await run("CREATE INDEX IF NOT EXISTS idx_legal_references_date ON legal_references(karar_tarihi)");
   await run("CREATE INDEX IF NOT EXISTS idx_deep_search_jobs_status ON deep_search_jobs(status)");
