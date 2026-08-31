@@ -170,13 +170,19 @@ async function getTckTitleForSearch(tckCode) {
 function buildDeepSearchQueries(query, tckCode, tckTitle) {
   const normalized = normalizeTckCode(tckCode);
   const root = rootTckCode(normalized);
+  const title = String(tckTitle || "").trim();
   return Array.from(new Set([
     query,
     normalized ? `TCK ${normalized}` : "",
     root && root !== normalized ? `TCK ${root}` : "",
-    tckTitle ? `"${tckTitle}"` : "",
-    tckTitle || "",
-    root && tckTitle ? `TCK ${root} ${tckTitle}` : ""
+    root ? `TCK'nın ${root}. maddesi` : "",
+    root ? `TCK ${root}. madde` : "",
+    root ? `Türk Ceza Kanunu'nun ${root}. maddesi` : "",
+    root ? `5237 sayılı Türk Ceza Kanunu ${root}. madde` : "",
+    root ? `5237 sayılı Kanun ${root}. madde` : "",
+    title ? `${title}` : "",
+    root && title ? `${root}. madde ${title}` : "",
+    root && title ? `TCK ${root} ${title}` : ""
   ].map((item) => String(item || "").trim()).filter(Boolean)));
 }
 
@@ -1206,7 +1212,7 @@ app.post("/api/deep-search-jobs", async (req, res) => {
     }
     const id = crypto.randomUUID();
     const startedAt = new Date().toISOString();
-    const statusMessage = "Kuyruğa alındı. Hugging Face taraması birazdan başlayacak.";
+    const statusMessage = "Kuyruğa alındı. Önce TCK atıf formatları, sonra madde başlığı ile aranacak.";
     const estimatedSeconds = 1800;
     await run(
       `INSERT INTO deep_search_jobs
