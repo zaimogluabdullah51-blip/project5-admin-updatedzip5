@@ -24,6 +24,62 @@ const DEEP_SEARCH_RETRY_SECONDS = Math.min(Math.max(parseInt(process.env.DEEP_SE
 const DEEP_SEARCH_WORKER_ENABLED = process.env.DEEP_SEARCH_WORKER_ENABLED !== "false";
 let deepSearchWorkerRunning = false;
 
+const LAW_REGISTRY = {
+  TCK: {
+    law_no: "5237",
+    law_code: "TCK",
+    name: "Türk Ceza Kanunu",
+    aliases: ["TCK", "Türk Ceza Kanunu", "5237 sayılı TCK", "5237 sayılı Türk Ceza Kanunu", "5237 sayılı Kanun", "5237 sayılı Yasa"]
+  },
+  "765TCK": {
+    law_no: "765",
+    law_code: "765TCK",
+    name: "Mülga Türk Ceza Kanunu",
+    aliases: ["765 sayılı TCK", "765 sayılı Türk Ceza Kanunu", "765 sayılı Kanun", "765 sayılı Yasa"]
+  },
+  CMK: {
+    law_no: "5271",
+    law_code: "CMK",
+    name: "Ceza Muhakemesi Kanunu",
+    aliases: ["CMK", "Ceza Muhakemesi Kanunu", "5271 sayılı CMK", "5271 sayılı Ceza Muhakemesi Kanunu", "5271 sayılı Kanun", "5271 sayılı Yasa"]
+  },
+  INF: {
+    law_no: "5275",
+    law_code: "INF",
+    name: "Ceza ve Güvenlik Tedbirlerinin İnfazı Hakkında Kanun",
+    aliases: ["İnfaz Kanunu", "CGTİHK", "5275 sayılı Kanun", "5275 sayılı Yasa", "5275 sayılı İnfaz Kanunu"]
+  },
+  TMK: {
+    law_no: "3713",
+    law_code: "TMK",
+    name: "Terörle Mücadele Kanunu",
+    aliases: ["TMK", "Terörle Mücadele Kanunu", "3713 sayılı Kanun", "3713 sayılı Yasa", "3713 sayılı Terörle Mücadele Kanunu"]
+  },
+  SILAH: {
+    law_no: "6136",
+    law_code: "SILAH",
+    name: "Ateşli Silahlar ve Bıçaklar ile Diğer Aletler Hakkında Kanun",
+    aliases: ["6136", "6136 sayılı Kanun", "6136 sayılı Yasa", "Ateşli Silahlar Kanunu"]
+  },
+  KACAK: {
+    law_no: "5607",
+    law_code: "KACAK",
+    name: "Kaçakçılıkla Mücadele Kanunu",
+    aliases: ["5607", "5607 sayılı Kanun", "5607 sayılı Yasa", "Kaçakçılıkla Mücadele Kanunu"]
+  },
+  VUK: {
+    law_no: "213",
+    law_code: "VUK",
+    name: "Vergi Usul Kanunu",
+    aliases: ["VUK", "Vergi Usul Kanunu", "213 sayılı Kanun", "213 sayılı Yasa"]
+  }
+};
+
+const LAW_BY_NO = Object.values(LAW_REGISTRY).reduce((acc, law) => {
+  acc[law.law_no] = law;
+  return acc;
+}, {});
+
 function parseCookies(header) {
   if (!header) return {};
   return header.split(";").reduce((acc, part) => {
@@ -79,12 +135,16 @@ function parseJsonField(value, fallback) {
 }
 
 function normalizeTckCode(value) {
-  return String(value || "")
-    .trim()
-    .replace(/^TCK\s*/i, "")
-    .replace(/\/(\d+)\./g, "/$1-")
-    .replace(/\s+/g, "")
-    .toUpperCase();
+  const parsed = parseArticlePath(String(value || "").replace(/^TCK\s*/i, ""));
+  if (!parsed) {
+    return String(value || "")
+      .trim()
+      .replace(/^TCK\s*/i, "")
+      .replace(/\/(\d+)\./g, "/$1-")
+      .replace(/\s+/g, "")
+      .toUpperCase();
+  }
+  return formatArticlePath(parsed);
 }
 
 function rootTckCode(value) {
@@ -127,6 +187,7 @@ function mapDeepSearchJob(row) {
   if (!row) return null;
   return {
     ...row,
+    query_plan: parseJsonField(row.query_plan, []),
     progress_percent: Number(row.progress_percent || 0),
     estimated_seconds: Number(row.estimated_seconds || 0),
     matched_count: Number(row.matched_count || 0),
@@ -134,15 +195,264 @@ function mapDeepSearchJob(row) {
   };
 }
 
-function extractTckCodes(text) {
-  const codes = new Set();
-  const regex = /TCK\s*(\d{2,3})(?:\/([0-9a-zA-Z.-]+))?/gi;
-  let match;
-  while ((match = regex.exec(String(text || ""))) !== null) {
-    const base = match[1];
-    const suffix = match[2];
-    codes.add(suffix ? `${base}/${suffix}` : base);
+function escapeRegExp(value) {
+  return String(value || "").replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+function lawByNo(lawNo) {
+  const normalized = String(lawNo || "").trim();
+  if (LAW_BY_NO[normalized]) return LAW_BY_NO[normalized];
+  if (!normalized) return null;
+  return {
+    law_no: normalized,
+    law_code: normalized,
+    name: `${normalized} sayılı Kanun`,
+    aliases: [normalized, `${normalized} sayılı Kanun`, `${normalized} sayılı Yasa`]
+  };
+}
+
+function lawByCode(rawCode, lawNoHint = "") {
+  const token = String(rawCode || "")
+    .trim()
+    .replace(/[İI]NFAZ/i, "INF")
+    .replace(/CGTİHK|CGTIHK/i, "INF")
+    .toUpperCase();
+  if (lawNoHint && lawByNo(lawNoHint)?.law_code) return lawByNo(lawNoHint);
+  if (token === "TCK") return LAW_REGISTRY.TCK;
+  if (LAW_REGISTRY[token]) return LAW_REGISTRY[token];
+  return null;
+}
+
+function cleanArticleToken(value) {
+  return String(value || "")
+    .trim()
+    .replace(/[–—]/g, "-")
+    .replace(/[()"'“”‘’]/g, "")
+    .replace(/^(?:m\.?|madde)\s*/i, "")
+    .replace(/[,:;]+$/g, "")
+    .replace(/\s+/g, "")
+    .replace(/\/(\d+)\.(?=[A-Za-zÇĞİÖŞÜçğıöşü0-9])/g, "/$1-")
+    .replace(/(\d+)\.(?=[A-Za-zÇĞİÖŞÜçğıöşü])/g, "$1-")
+    .replace(/\.$/, "");
+}
+
+function parseArticlePath(value) {
+  const token = cleanArticleToken(value);
+  if (!token) return null;
+  const match = token.match(/^(\d{1,4})(?:\/(.+))?$/i);
+  if (!match) return null;
+  const article = match[1];
+  if (!article || Number(article) > 999) return null;
+  const suffix = String(match[2] || "").replace(/^[./-]+|[./-]+$/g, "");
+  let paragraph = "";
+  let subparagraph = "";
+  if (suffix) {
+    const paragraphMatch = suffix.match(/^(\d+)(?:[.\-/]?(.+))?$/i);
+    if (paragraphMatch) {
+      paragraph = paragraphMatch[1] || "";
+      subparagraph = String(paragraphMatch[2] || "").replace(/^[.\-/]+|[.\-/]+$/g, "");
+    } else {
+      subparagraph = suffix;
+    }
   }
+  return {
+    article,
+    paragraph,
+    subparagraph: subparagraph ? subparagraph.toUpperCase() : ""
+  };
+}
+
+function formatArticlePath(ref) {
+  if (!ref?.article) return "";
+  let out = String(ref.article);
+  if (ref.paragraph) out += `/${ref.paragraph}`;
+  if (ref.subparagraph) out += `-${String(ref.subparagraph).toUpperCase()}`;
+  return out;
+}
+
+function canonicalLegalRef(ref) {
+  if (!ref?.law_no || !ref?.law_code || !ref?.article) return "";
+  return [ref.law_no, ref.law_code, ref.article, ref.paragraph, ref.subparagraph]
+    .map((item) => String(item || "").trim().toUpperCase())
+    .filter(Boolean)
+    .join(":");
+}
+
+function labelLegalRef(ref) {
+  if (!ref?.law_code || !ref?.article) return "";
+  const code = ref.law_code === "765TCK" ? "765 TCK" : ref.law_code;
+  return `${code} ${formatArticlePath(ref)}`.trim();
+}
+
+function normalizeLegalRef(ref) {
+  if (!ref) return null;
+  const law = lawByNo(ref.law_no) || lawByCode(ref.law_code) || null;
+  const articleParts = parseArticlePath(formatArticlePath(ref) || ref.article);
+  if (!law || !articleParts?.article) return null;
+  return {
+    law_no: law.law_no,
+    law_code: law.law_code,
+    law_name: law.name,
+    article: articleParts.article,
+    paragraph: articleParts.paragraph || String(ref.paragraph || ""),
+    subparagraph: articleParts.subparagraph || String(ref.subparagraph || "").toUpperCase(),
+    raw_reference: ref.raw_reference || ""
+  };
+}
+
+function legalRefFromBody(body = {}) {
+  const lawNo = String(body.lawNo || body.law_no || "").trim();
+  const lawCode = String(body.lawCode || body.law_code || "").trim();
+  const article = String(body.article || "").trim();
+  if (!article && !lawNo && !lawCode) return null;
+  const law = lawByNo(lawNo) || lawByCode(lawCode) || lawByCode(lawCode, lawNo);
+  const parts = parseArticlePath([
+    article,
+    body.paragraph || body.fikra ? body.paragraph || body.fikra : "",
+    body.subparagraph || body.bent ? body.subparagraph || body.bent : ""
+  ].filter(Boolean).join("/"));
+  if (!law || !parts?.article) return null;
+  return normalizeLegalRef({ ...law, ...parts });
+}
+
+function parseLegalReferenceInput(value, options = {}) {
+  const input = String(value || "").trim();
+  if (!input) return null;
+
+  const canonical = input.match(/\b(\d{3,4}):([A-Za-z0-9ÇĞİÖŞÜçğıöşü]+):(\d{1,4})(?::([^:\s]+))?(?::([^:\s]+))?\b/u);
+  if (canonical) {
+    const law = lawByNo(canonical[1]) || lawByCode(canonical[2], canonical[1]);
+    return normalizeLegalRef({
+      ...(law || {}),
+      article: canonical[3],
+      paragraph: canonical[4] || "",
+      subparagraph: canonical[5] || "",
+      raw_reference: canonical[0]
+    });
+  }
+
+  const compactLaw = input.match(/\b(765|5237|5271|5275|3713|6136|5607|213)\/(\d{1,4}(?:\/[0-9A-Za-zÇĞİÖŞÜçğıöşü.-]+)?)\b/u);
+  if (compactLaw) {
+    const law = lawByNo(compactLaw[1]);
+    const parts = parseArticlePath(compactLaw[2]);
+    if (law && parts) return normalizeLegalRef({ ...law, ...parts, raw_reference: compactLaw[0] });
+  }
+
+  const numbered = input.match(/\b(765|5237|5271|5275|3713|6136|5607|213)\s*sayılı[\s\S]{0,90}?(\d{1,4}(?:\/[0-9A-Za-zÇĞİÖŞÜçğıöşü.-]+)?)\s*(?:\.?\s*(?:madde|maddesi|maddesinin|fıkra|uyarınca|kapsamında)|\b)/iu);
+  if (numbered) {
+    const law = lawByNo(numbered[1]);
+    const parts = parseArticlePath(numbered[2]);
+    if (law && parts) return normalizeLegalRef({ ...law, ...parts, raw_reference: numbered[0] });
+  }
+
+  const code = input.match(/\b(TCK|CMK|TMK|VUK|INF|İnfaz|CGTİHK|CGTIHK)\b[\s'’`A-Za-zÇĞİÖŞÜçğıöşü.]{0,30}?(\d{1,4}(?:\/[0-9A-Za-zÇĞİÖŞÜçğıöşü.-]+)?)\b/u);
+  if (code) {
+    const law = lawByCode(code[1]);
+    const parts = parseArticlePath(code[2]);
+    if (law && parts) return normalizeLegalRef({ ...law, ...parts, raw_reference: code[0] });
+  }
+
+  if (options.defaultLawCode) {
+    const partsOnly = input.match(/\b(\d{1,4}(?:\/[0-9A-Za-zÇĞİÖŞÜçğıöşü.-]+)?)\b/u);
+    const law = lawByCode(options.defaultLawCode);
+    const parts = partsOnly ? parseArticlePath(partsOnly[1]) : null;
+    if (law && parts) return normalizeLegalRef({ ...law, ...parts, raw_reference: partsOnly[0] });
+  }
+
+  return null;
+}
+
+function contextSnippet(text, index, length = 280) {
+  const clean = String(text || "").replace(/\s+/g, " ");
+  const start = Math.max(0, index - Math.round(length / 3));
+  return `${start > 0 ? "..." : ""}${clean.slice(start, start + length)}${start + length < clean.length ? "..." : ""}`;
+}
+
+function isPlausibleArticleToken(token, lawNo) {
+  const parts = parseArticlePath(token);
+  if (!parts?.article) return false;
+  const articleNumber = Number(parts.article);
+  if (!Number.isFinite(articleNumber) || articleNumber <= 0 || articleNumber > 999) return false;
+  if (String(parts.article) === String(lawNo)) return false;
+  if (articleNumber >= 1900 && articleNumber <= 2099) return false;
+  return true;
+}
+
+function extractArticleTokensFromContext(windowText, lawNo) {
+  const tokens = [];
+  const seen = new Set();
+  const articleRegex = /\b(\d{1,3}(?:\/[0-9]+(?:[.\-/]?[A-Za-zÇĞİÖŞÜçğıöşü](?:[-.]?\d+)?)?)?)\s*(?=(?:\.|,|;|\)|\s+ve|\s+ile|\s+(?:madde|maddesi|maddesinin|maddelerine|fıkra|uyarınca|gereğince|kapsamında)|$))/giu;
+  let match;
+  while ((match = articleRegex.exec(windowText)) !== null) {
+    const raw = match[1];
+    if (!isPlausibleArticleToken(raw, lawNo)) continue;
+    const normalized = formatArticlePath(parseArticlePath(raw));
+    if (!normalized || seen.has(normalized)) continue;
+    seen.add(normalized);
+    tokens.push({ raw, index: match.index });
+    if (tokens.length >= 10) break;
+  }
+  return tokens;
+}
+
+function addDetectedLegalRef(target, law, parts, rawReference, text, index) {
+  const ref = normalizeLegalRef({ ...law, ...parts, raw_reference: rawReference });
+  const canonical = canonicalLegalRef(ref);
+  if (!canonical || target.has(canonical)) return;
+  target.set(canonical, {
+    ...ref,
+    canonical,
+    label: labelLegalRef(ref),
+    context: contextSnippet(text, index)
+  });
+}
+
+function extractLegalReferences(text) {
+  const sourceText = String(text || "");
+  const refs = new Map();
+  if (!sourceText) return [];
+
+  const directCodeRegex = /\b(TCK|CMK|TMK|VUK|INF|İnfaz|CGTİHK|CGTIHK)\b[\s'’`A-Za-zÇĞİÖŞÜçğıöşü.]{0,30}?(\d{1,4}(?:\/[0-9A-Za-zÇĞİÖŞÜçğıöşü.-]+)?)\b/giu;
+  let match;
+  while ((match = directCodeRegex.exec(sourceText)) !== null) {
+    const law = lawByCode(match[1]);
+    const parts = parseArticlePath(match[2]);
+    if (law && parts) addDetectedLegalRef(refs, law, parts, match[0], sourceText, match.index);
+  }
+
+  for (const law of Object.values(LAW_REGISTRY)) {
+    const aliasPatterns = [
+      ...law.aliases.filter((alias) => !/^\d+$/.test(alias)).map(escapeRegExp),
+      `${escapeRegExp(law.law_no)}\\s*sayılı(?:\\s+[\\p{L}0-9'’().\\-]+){0,10}`
+    ];
+
+    for (const pattern of aliasPatterns) {
+      const aliasRegex = new RegExp(pattern, "giu");
+      let aliasMatch;
+      while ((aliasMatch = aliasRegex.exec(sourceText)) !== null) {
+        const windowText = sourceText.slice(aliasMatch.index, aliasMatch.index + 260);
+        const articleTokens = extractArticleTokensFromContext(windowText, law.law_no);
+        articleTokens.forEach((token) => {
+          const parts = parseArticlePath(token.raw);
+          if (parts) addDetectedLegalRef(refs, law, parts, token.raw, sourceText, aliasMatch.index + token.index);
+        });
+      }
+    }
+  }
+
+  return Array.from(refs.values());
+}
+
+function extractTckCodes(text) {
+  const refs = extractLegalReferences(text);
+  const codes = new Set();
+  refs
+    .filter((ref) => ref.law_no === "5237" && ref.law_code === "TCK")
+    .forEach((ref) => {
+      const full = formatArticlePath(ref);
+      if (full) codes.add(full);
+      if (ref.article) codes.add(ref.article);
+    });
   return Array.from(codes);
 }
 
@@ -167,22 +477,36 @@ async function getTckTitleForSearch(tckCode) {
   return rootRow?.short_desc || "";
 }
 
-function buildDeepSearchQueries(query, tckCode, tckTitle) {
-  const normalized = normalizeTckCode(tckCode);
-  const root = rootTckCode(normalized);
+function buildDeepSearchQueries(query, legalRef, tckTitle) {
+  const ref = normalizeLegalRef(legalRef);
+  if (!ref) return Array.from(new Set([String(query || "").trim()].filter(Boolean)));
+  const law = lawByNo(ref.law_no) || lawByCode(ref.law_code) || ref;
+  const pathValue = formatArticlePath(ref);
+  const article = ref.article;
+  const paragraph = ref.paragraph;
+  const subparagraph = ref.subparagraph;
+  const paragraphDot = paragraph ? `${article}. maddesinin ${paragraph}. fıkrası` : "";
+  const paragraphSlash = paragraph ? `${article}/${paragraph}` : "";
+  const dottedSub = paragraph && subparagraph ? `${article}/${paragraph}.${String(subparagraph).toLowerCase()}` : "";
   const title = String(tckTitle || "").trim();
   return Array.from(new Set([
     query,
-    normalized ? `TCK ${normalized}` : "",
-    root && root !== normalized ? `TCK ${root}` : "",
-    root ? `TCK'nın ${root}. maddesi` : "",
-    root ? `TCK ${root}. madde` : "",
-    root ? `Türk Ceza Kanunu'nun ${root}. maddesi` : "",
-    root ? `5237 sayılı Türk Ceza Kanunu ${root}. madde` : "",
-    root ? `5237 sayılı Kanun ${root}. madde` : "",
+    labelLegalRef(ref),
+    `${law.law_no} sayılı ${law.law_code} ${pathValue}`,
+    `${law.law_no} sayılı ${law.name} ${article}. madde`,
+    `${law.law_no} sayılı Kanun ${pathValue}`,
+    `${law.law_no} sayılı Yasa ${pathValue}`,
+    `${law.law_code}'nın ${article}. maddesi`,
+    `${law.law_code} ${article}. madde`,
+    `${law.name}'nun ${article}. maddesi`,
+    paragraphSlash ? `${law.law_code} ${paragraphSlash}` : "",
+    paragraphDot ? `${law.law_code}'nın ${paragraphDot}` : "",
+    paragraphDot ? `${law.law_no} sayılı Kanunun ${paragraphDot}` : "",
+    dottedSub ? `${law.law_code} ${dottedSub}` : "",
+    dottedSub ? `${law.law_no} sayılı Kanun ${dottedSub}` : "",
     title ? `${title}` : "",
-    root && title ? `${root}. madde ${title}` : "",
-    root && title ? `TCK ${root} ${title}` : ""
+    article && title ? `${article}. madde ${title}` : "",
+    article && title ? `${law.law_code} ${article} ${title}` : ""
   ].map((item) => String(item || "").trim()).filter(Boolean)));
 }
 
@@ -212,15 +536,44 @@ class TransientDeepSearchError extends Error {
   }
 }
 
-async function upsertLegalReferenceFromHfRow(rowWrapper, query, tckCode) {
+function legalRefForJob(job) {
+  const fromStructured = normalizeLegalRef({
+    law_no: job.law_no,
+    law_code: job.law_code,
+    article: job.article,
+    paragraph: job.paragraph,
+    subparagraph: job.subparagraph
+  });
+  if (fromStructured) return fromStructured;
+  const fromCanonical = parseLegalReferenceInput(job.canonical_ref || "");
+  if (fromCanonical) return fromCanonical;
+  if (job.tck_code) return parseLegalReferenceInput(`TCK ${job.tck_code}`, { defaultLawCode: "TCK" });
+  return parseLegalReferenceInput(job.query || "");
+}
+
+async function upsertLegalReferenceFromHfRow(rowWrapper, query, legalRef) {
   const row = rowWrapper?.row || {};
   const text = row.text || "";
   const hfId = row.id || `${row.source || "hf"}:${row.document_id || rowWrapper?.row_idx || crypto.randomUUID()}`;
-  const detectedCodes = Array.from(new Set([
-    ...extractTckCodes(text),
-    ...(tckCode ? [tckCode] : [])
-  ].map(normalizeTckCode).filter(Boolean)));
-  const lawRefs = detectedCodes.map((code) => `TCK ${code}`);
+  const requestedRef = normalizeLegalRef(legalRef);
+  const detectedRefs = extractLegalReferences(text);
+  if (requestedRef) detectedRefs.push({ ...requestedRef, canonical: canonicalLegalRef(requestedRef), label: labelLegalRef(requestedRef) });
+
+  const lawRefStrings = new Set();
+  const detectedCodes = new Set();
+  detectedRefs.forEach((ref) => {
+    const normalized = normalizeLegalRef(ref);
+    const canonical = canonicalLegalRef(normalized);
+    const label = labelLegalRef(normalized);
+    if (canonical) lawRefStrings.add(canonical);
+    if (label) lawRefStrings.add(label);
+    if (ref.raw_reference) lawRefStrings.add(String(ref.raw_reference));
+    if (normalized?.law_no === "5237" && normalized?.law_code === "TCK") {
+      const pathValue = formatArticlePath(normalized);
+      if (pathValue) detectedCodes.add(pathValue);
+      if (normalized.article) detectedCodes.add(normalized.article);
+    }
+  });
   const now = new Date().toISOString();
 
   await run(
@@ -257,9 +610,9 @@ async function upsertLegalReferenceFromHfRow(rowWrapper, query, tckCode) {
       Number(row.text_len || String(text).length || 0),
       Number(row.masked_count || 0),
       row.raw_sha256 || "",
-      JSON.stringify(lawRefs),
-      JSON.stringify(detectedCodes),
-      makeExcerpt(text, query || tckCode),
+      JSON.stringify(Array.from(lawRefStrings)),
+      JSON.stringify(Array.from(detectedCodes)),
+      makeExcerpt(text, query || labelLegalRef(requestedRef)),
       "deep_search",
       now
     ]
@@ -269,16 +622,30 @@ async function upsertLegalReferenceFromHfRow(rowWrapper, query, tckCode) {
 }
 
 async function processDeepSearchJob(job) {
-  const query = job.query || (job.tck_code ? `TCK ${job.tck_code}` : "");
-  const tckCode = normalizeTckCode(job.tck_code || "");
-  const rootCode = rootTckCode(tckCode);
-  const tckTitle = await getTckTitleForSearch(tckCode);
-  const queryCandidates = buildDeepSearchQueries(query, tckCode, tckTitle);
+  const legalRef = legalRefForJob(job);
+  const tckCode = legalRef?.law_no === "5237" && legalRef?.law_code === "TCK"
+    ? formatArticlePath(legalRef)
+    : normalizeTckCode(job.tck_code || "");
+  const rootCode = tckCode ? rootTckCode(tckCode) : legalRef?.article || "";
+  const query = job.query || (legalRef ? labelLegalRef(legalRef) : "");
+  const tckTitle = tckCode ? await getTckTitleForSearch(tckCode) : "";
+  const storedPlan = parseJsonField(job.query_plan, []);
+  const queryCandidates = storedPlan.length ? storedPlan : buildDeepSearchQueries(query, legalRef, tckTitle);
   let activeQuery = query;
   const startedAt = new Date().toISOString();
   await run(
-    "UPDATE deep_search_jobs SET status = ?, progress_percent = ?, status_message = ?, started_at = ?, last_attempt_at = ?, error = ? WHERE id = ?",
-    ["running", 2, "Hugging Face arama indeksi sorgulanıyor.", startedAt, startedAt, "", job.id]
+    "UPDATE deep_search_jobs SET status = ?, progress_percent = ?, status_message = ?, started_at = ?, last_attempt_at = ?, error = ?, canonical_ref = ?, query_plan = ? WHERE id = ?",
+    [
+      "running",
+      2,
+      "Hugging Face arama indeksi mevzuat atfı varyasyonlarıyla sorgulanıyor.",
+      startedAt,
+      startedAt,
+      "",
+      canonicalLegalRef(legalRef),
+      JSON.stringify(queryCandidates),
+      job.id
+    ]
   );
 
   let matchedCount = 0;
@@ -298,7 +665,7 @@ async function processDeepSearchJob(job) {
         activeQuery = candidate;
         const fallbackMessage = tckTitle
           ? `İlk sorgu yanıt vermedi. Alternatif sorgu deneniyor: ${activeQuery}`
-          : `İlk sorgu yanıt vermedi. Kök madde ile deneniyor: ${activeQuery}`;
+          : `İlk sorgu yanıt vermedi. Alternatif mevzuat atfı deneniyor: ${activeQuery}`;
         await run(
           "UPDATE deep_search_jobs SET progress_percent = ?, status_message = ? WHERE id = ?",
           [5, fallbackMessage, job.id]
@@ -310,8 +677,9 @@ async function processDeepSearchJob(job) {
         }
         lastErrorDetail = await hfErrorText(response);
       }
-      if (!fallbackWorked && rootCode && activeQuery !== `TCK ${rootCode}`) {
-        activeQuery = `TCK ${rootCode}`;
+      const rootFallback = legalRef?.law_code && rootCode ? `${legalRef.law_code} ${rootCode}` : "";
+      if (!fallbackWorked && rootFallback && activeQuery !== rootFallback) {
+        activeQuery = rootFallback;
       }
     }
 
@@ -342,7 +710,7 @@ async function processDeepSearchJob(job) {
     }
 
     for (const resultRow of rows) {
-      const ref = await upsertLegalReferenceFromHfRow(resultRow, activeQuery, tckCode);
+      const ref = await upsertLegalReferenceFromHfRow(resultRow, activeQuery, legalRef);
       if (!ref?.id) continue;
       matchedCount += 1;
       await run(
@@ -353,7 +721,7 @@ async function processDeepSearchJob(job) {
           crypto.randomUUID(),
           job.id,
           ref.id,
-          JSON.stringify([activeQuery, query, tckCode].filter(Boolean)),
+          JSON.stringify([activeQuery, query, canonicalLegalRef(legalRef), labelLegalRef(legalRef), tckCode].filter(Boolean)),
           0,
           makeExcerpt(resultRow?.row?.text || "", activeQuery || tckCode, 360)
         ]
@@ -1172,14 +1540,25 @@ app.delete("/api/tck-definitions/:code", requireAuthApi, async (req, res) => {
 app.get("/api/legal-references", async (req, res) => {
   try {
     const tckCode = normalizeTckCode(req.query.tck || req.query.tckCode || "");
+    const legalRef = legalRefFromBody(req.query)
+      || parseLegalReferenceInput(req.query.legalRef || req.query.reference || "", { defaultLawCode: tckCode ? "TCK" : "" })
+      || (tckCode ? parseLegalReferenceInput(`TCK ${tckCode}`, { defaultLawCode: "TCK" }) : null);
     const query = String(req.query.q || "").trim();
     const limit = Math.min(Math.max(parseInt(req.query.limit, 10) || 6, 1), 250);
     const params = [];
     const where = [];
 
-    if (tckCode) {
-      where.push("(detected_tck_codes LIKE ? OR detected_law_refs LIKE ?)");
-      params.push(likeNeedle(tckCode), likeNeedle(`TCK ${tckCode}`));
+    if (legalRef) {
+      const needles = [
+        canonicalLegalRef(legalRef),
+        labelLegalRef(legalRef),
+        `${legalRef.law_no}:${legalRef.law_code}:${legalRef.article}`,
+        `${legalRef.law_code} ${legalRef.article}`,
+        legalRef.law_no === "5237" && legalRef.law_code === "TCK" ? formatArticlePath(legalRef) : ""
+      ].filter(Boolean);
+      where.push(`(${needles.map(() => "detected_law_refs LIKE ?").join(" OR ")}${tckCode ? " OR detected_tck_codes LIKE ?" : ""})`);
+      params.push(...needles.map(likeNeedle));
+      if (tckCode) params.push(likeNeedle(tckCode));
     }
 
     if (query) {
@@ -1206,22 +1585,40 @@ app.get("/api/legal-references", async (req, res) => {
 app.post("/api/deep-search-jobs", async (req, res) => {
   try {
     const query = String(req.body?.query || "").trim();
-    const tckCode = normalizeTckCode(req.body?.tckCode || "");
-    if (!query && !tckCode) {
-      return res.status(400).json({ error: "Arama sorgusu veya TCK kodu gerekli." });
+    const tckCodeInput = normalizeTckCode(req.body?.tckCode || "");
+    const legalRef = legalRefFromBody(req.body)
+      || parseLegalReferenceInput(req.body?.legalRef || req.body?.reference || query, { defaultLawCode: tckCodeInput ? "TCK" : "" })
+      || (tckCodeInput ? parseLegalReferenceInput(`TCK ${tckCodeInput}`, { defaultLawCode: "TCK" }) : null);
+    const tckCode = legalRef?.law_no === "5237" && legalRef?.law_code === "TCK"
+      ? formatArticlePath(legalRef)
+      : tckCodeInput;
+    const jobQuery = query || (legalRef ? labelLegalRef(legalRef) : (tckCode ? `TCK ${tckCode}` : ""));
+    if (!jobQuery && !legalRef) {
+      return res.status(400).json({ error: "Arama sorgusu veya mevzuat atfı gerekli." });
     }
     const id = crypto.randomUUID();
     const startedAt = new Date().toISOString();
-    const statusMessage = "Kuyruğa alındı. Önce TCK atıf formatları, sonra madde başlığı ile aranacak.";
+    const tckTitle = tckCode ? await getTckTitleForSearch(tckCode) : "";
+    const queryPlan = buildDeepSearchQueries(jobQuery, legalRef, tckTitle);
+    const statusMessage = legalRef
+      ? "Kuyruğa alındı. Önce kesin mevzuat atfı, sonra alias ve yapısal varyasyonlar aranacak."
+      : "Kuyruğa alındı. Serbest metin sorgusu Hugging Face arşivinde aranacak.";
     const estimatedSeconds = 1800;
     await run(
       `INSERT INTO deep_search_jobs
-        (id, query, tck_code, status, progress_percent, estimated_seconds, status_message, matched_count, started_at, finished_at, error, retry_count, last_attempt_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        (id, query, tck_code, law_no, law_code, article, paragraph, subparagraph, canonical_ref, query_plan, status, progress_percent, estimated_seconds, status_message, matched_count, started_at, finished_at, error, retry_count, last_attempt_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         id,
-        query || (tckCode ? `TCK ${tckCode}` : ""),
+        jobQuery,
         tckCode,
+        legalRef?.law_no || "",
+        legalRef?.law_code || "",
+        legalRef?.article || "",
+        legalRef?.paragraph || "",
+        legalRef?.subparagraph || "",
+        canonicalLegalRef(legalRef),
+        JSON.stringify(queryPlan),
         "queued",
         0,
         estimatedSeconds,
@@ -1236,8 +1633,15 @@ app.post("/api/deep-search-jobs", async (req, res) => {
     );
     res.status(202).json({
       id,
-      query: query || (tckCode ? `TCK ${tckCode}` : ""),
+      query: jobQuery,
       tck_code: tckCode,
+      law_no: legalRef?.law_no || "",
+      law_code: legalRef?.law_code || "",
+      article: legalRef?.article || "",
+      paragraph: legalRef?.paragraph || "",
+      subparagraph: legalRef?.subparagraph || "",
+      canonical_ref: canonicalLegalRef(legalRef),
+      query_plan: queryPlan,
       status: "queued",
       progress_percent: 0,
       estimated_seconds: estimatedSeconds,

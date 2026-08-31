@@ -346,8 +346,8 @@ function renderLegalReferences(code) {
           <h4>İlgili İçtihatlar</h4>
           <p>${refs.length ? `${refs.length} yapılandırılmış karar kaydı gösteriliyor.` : "Bu madde için kayıtlı içtihat yok."}</p>
         </div>
-        <button type="button" class="tck-deep-search-btn" data-tck-code="${esc(normalized)}">
-          Derin arama başlat
+        <button type="button" class="tck-deep-search-btn" data-tck-code="${esc(normalized)}" data-legal-ref="${esc(`TCK ${normalized}`)}">
+          Mevzuat içtihadı ara
         </button>
       </div>
       <div class="tck-deep-search-status" data-deep-status-for="${esc(normalized)}"></div>
@@ -364,13 +364,14 @@ function bindDeepSearchButtons() {
   document.querySelectorAll(".tck-deep-search-btn").forEach((btn) => {
     btn.addEventListener("click", async () => {
       const tckCode = btn.getAttribute("data-tck-code") || "";
+      const legalRef = btn.getAttribute("data-legal-ref") || `TCK ${tckCode}`;
       btn.disabled = true;
       btn.textContent = "Kuyruğa alınıyor...";
       try {
         const res = await fetch("/api/deep-search-jobs", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ tckCode, query: `TCK ${tckCode}` })
+          body: JSON.stringify({ tckCode, legalRef, query: legalRef })
         });
         if (!res.ok) throw new Error("job error");
         const job = await res.json();
@@ -406,10 +407,7 @@ function statusLabel(status) {
   return map[status] || status || "Bilinmiyor";
 }
 
-function renderDeepSearchStatus(tckCode, job) {
-  const normalized = String(tckCode || "").replace(/^TCK\s*/i, "").replace(/\s+/g, "").trim().toUpperCase();
-  const statusEl = document.querySelector(`.tck-deep-search-status[data-deep-status-for="${CSS.escape(normalized)}"]`);
-  if (!statusEl || !job) return;
+function renderDeepSearchStatusMarkup(job) {
   const progress = Math.max(0, Math.min(100, Number(job.progress_percent || 0)));
   const message = job.status_message || (
     job.status === "queued"
@@ -424,8 +422,10 @@ function renderDeepSearchStatus(tckCode, job) {
         ? "Kuyrukta. Tahmini süre: " + formatDuration(job.estimated_seconds)
         : "Tahmini kalan süre: " + formatDuration(job.estimated_seconds);
   const errorText = job.status === "failed" && job.error ? String(job.error) : "";
+  const canonical = job.canonical_ref || "";
+  const plan = Array.isArray(job.query_plan) ? job.query_plan.slice(0, 4).join(" → ") : "";
 
-  statusEl.innerHTML = `
+  return `
     <div class="tck-deep-status-card">
       <div class="tck-deep-status-top">
         <strong>${esc(statusLabel(job.status))}</strong>
@@ -440,9 +440,20 @@ function renderDeepSearchStatus(tckCode, job) {
       </div>
       <p>${esc(message)}</p>
       ${errorText ? `<p class="tck-deep-error">${esc(errorText)}</p>` : ""}
+      ${canonical ? `<code>${esc(canonical)}</code>` : ""}
+      ${plan ? `<p>${esc(`Arama sırası: ${plan}`)}</p>` : ""}
       <code>${esc(job.id || "")}</code>
     </div>
   `;
+}
+
+function renderDeepSearchStatus(tckCode, job) {
+  const normalized = String(tckCode || "").replace(/^TCK\s*/i, "").replace(/\s+/g, "").trim().toUpperCase();
+  const statusEl = tckCode === "__legal_reference__"
+    ? document.getElementById("legal-reference-status")
+    : document.querySelector(`.tck-deep-search-status[data-deep-status-for="${CSS.escape(normalized)}"]`);
+  if (!statusEl || !job) return;
+  statusEl.innerHTML = renderDeepSearchStatusMarkup(job);
 }
 
 function pollDeepSearchJob(tckCode, jobId) {
@@ -459,6 +470,14 @@ function pollDeepSearchJob(tckCode, jobId) {
         deepSearchPollers.delete(jobId);
         if (job.status === "completed") loadLegalReferences().then(() => renderList(allData));
         if (job.status === "failed") {
+          if (tckCode === "__legal_reference__") {
+            const submit = document.querySelector("#legal-reference-form button");
+            if (submit) {
+              submit.disabled = false;
+              submit.textContent = "Tekrar dene";
+            }
+            return;
+          }
           const normalized = String(tckCode || "").replace(/^TCK\s*/i, "").replace(/\s+/g, "").trim().toUpperCase();
           const btn = document.querySelector(`.tck-deep-search-btn[data-tck-code="${CSS.escape(normalized)}"]`);
           if (btn) {
@@ -474,6 +493,45 @@ function pollDeepSearchJob(tckCode, jobId) {
   };
   const interval = setInterval(tick, 5000);
   deepSearchPollers.set(jobId, interval);
+}
+
+function bindLegalReferenceForm() {
+  const form = document.getElementById("legal-reference-form");
+  const input = document.getElementById("legal-reference-input");
+  const status = document.getElementById("legal-reference-status");
+  if (!form || !input || form.dataset.bound === "true") return;
+  form.dataset.bound = "true";
+  form.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    const legalRef = input.value.trim();
+    if (!legalRef) {
+      if (status) status.innerHTML = '<div class="tck-empty" style="padding:12px 0;">Önce bir mevzuat atfı yazın.</div>';
+      return;
+    }
+    const submit = form.querySelector("button");
+    if (submit) {
+      submit.disabled = true;
+      submit.textContent = "Kuyruğa alınıyor...";
+    }
+    try {
+      const res = await fetch("/api/deep-search-jobs", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ legalRef, query: legalRef })
+      });
+      if (!res.ok) throw new Error("job error");
+      const job = await res.json();
+      if (submit) submit.textContent = "Durum aşağıda";
+      renderDeepSearchStatus("__legal_reference__", job);
+      pollDeepSearchJob("__legal_reference__", job.id);
+    } catch {
+      if (submit) {
+        submit.disabled = false;
+        submit.textContent = "Tekrar dene";
+      }
+      if (status) status.innerHTML = '<div class="tck-empty" style="padding:12px 0;">Arama başlatılamadı. Birazdan tekrar deneyin.</div>';
+    }
+  });
 }
 
 function getDescription(article) {
@@ -627,4 +685,5 @@ document.getElementById("tck-search").addEventListener("input", (e) => {
   renderList(filtered);
 });
 
+bindLegalReferenceForm();
 loadTCK();

@@ -3,19 +3,19 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>TCK Madde Analizi · CourtCase Clarity</title>
-    <meta name="description" content="Türk Ceza Kanunu maddelerine göre yapılandırılmış suçlama, delil, savunma ve hüküm bilgileri. Her madde için profil bazlı detaylı analiz." />
+    <title>Mevzuat Atfı Analizi · CourtCase Clarity</title>
+    <meta name="description" content="TCK, CMK ve özel ceza kanunlarına göre yapılandırılmış suçlama, delil, savunma ve içtihat bilgileri. Her mevzuat atfı için profil bazlı detaylı analiz." />
     <link rel="canonical" href="https://www.davatakibi.com/tck.html" />
     <meta property="og:type" content="website" />
-    <meta property="og:title" content="TCK Madde Analizi · CourtCase Clarity" />
-    <meta property="og:description" content="Türk Ceza Kanunu maddelerine göre yapılandırılmış suçlama, delil, savunma ve hüküm bilgileri." />
+    <meta property="og:title" content="Mevzuat Atfı Analizi · CourtCase Clarity" />
+    <meta property="og:description" content="TCK, CMK ve özel ceza kanunlarına göre yapılandırılmış suçlama, delil, savunma ve içtihat bilgileri." />
     <meta property="og:url" content="https://www.davatakibi.com/tck.html" />
     <meta property="og:site_name" content="CourtCase Clarity" />
     <meta property="og:locale" content="tr_TR" />
     <meta name="twitter:card" content="summary" />
     <meta name="twitter:site" content="@Istanbul_Dava" />
-    <meta name="twitter:title" content="TCK Madde Analizi · CourtCase Clarity" />
-    <meta name="twitter:description" content="Türk Ceza Kanunu maddelerine göre yapılandırılmış suçlama, delil, savunma ve hüküm bilgileri." />
+    <meta name="twitter:title" content="Mevzuat Atfı Analizi · CourtCase Clarity" />
+    <meta name="twitter:description" content="TCK, CMK ve özel ceza kanunlarına göre yapılandırılmış suçlama, delil, savunma ve içtihat bilgileri." />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <link rel="stylesheet" href="/styles.css" />
     <link rel="stylesheet" href="/tck.css" />
@@ -44,15 +44,25 @@
       </div>
       <div class="tck-hero">
         <p class="eyebrow">CourtCase Clarity</p>
-        <h1>TCK Madde Analizi</h1>
-        <p class="subhead">Türk Ceza Kanunu maddelerine göre yapılandırılmış suçlama, delil, savunma ve hüküm bilgileri.</p>
+        <h1>Mevzuat Atfı Analizi</h1>
+        <p class="subhead">TCK ana gövde olarak durur; CMK, TMK, 6136, 5607 ve benzeri kanun atıfları aynı derin arama mantığıyla çözümlenir.</p>
       </div>
     </header>
 
     <main class="tck-main">
       <div class="tck-search-bar">
-        <input id="tck-search" type="search" placeholder="TCK maddesi ara (örn: 314, 220)" />
+        <input id="tck-search" type="search" placeholder="TCK maddesi ara (örn: 314, 220, 235/2)" />
       </div>
+
+      <form id="legal-reference-form" class="legal-reference-form">
+        <div>
+          <label for="legal-reference-input">Mevzuat atfı derin arama</label>
+          <p>TCK dışı atıflar için: CMK 231, 3713/5, 6136 sayılı Kanun 13, VUK 359.</p>
+        </div>
+        <input id="legal-reference-input" type="search" placeholder="Örn: CMK 231 veya 3713/5" />
+        <button type="submit">Derin arama başlat</button>
+      </form>
+      <div id="legal-reference-status" class="tck-deep-search-status"></div>
 
       <div id="tck-list" class="tck-list">
         <div class="tck-loading">Yükleniyor...</div>

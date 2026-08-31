@@ -34,6 +34,57 @@
   font-size: 1rem;
 }
 
+.legal-reference-form {
+  display: grid;
+  grid-template-columns: minmax(220px, 1fr) minmax(220px, 340px) auto;
+  gap: 12px;
+  align-items: end;
+  margin: -8px 0 28px;
+  padding: 14px;
+  border: 1px solid rgba(148, 163, 184, 0.18);
+  border-radius: 18px;
+  background: rgba(15, 23, 42, 0.48);
+  box-shadow: 0 18px 50px rgba(0, 0, 0, 0.18);
+}
+
+.legal-reference-form label {
+  display: block;
+  color: var(--text);
+  font-weight: 800;
+  letter-spacing: -0.01em;
+  margin-bottom: 4px;
+}
+
+.legal-reference-form p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.8rem;
+  line-height: 1.45;
+}
+
+.legal-reference-form input {
+  width: 100%;
+  padding: 11px 14px;
+}
+
+.legal-reference-form button {
+  border: 1px solid rgba(139, 30, 30, 0.4);
+  background: #8b1e1e;
+  color: #fff;
+  border-radius: 999px;
+  padding: 11px 14px;
+  font: inherit;
+  font-size: 0.82rem;
+  font-weight: 800;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.legal-reference-form button:disabled {
+  cursor: default;
+  opacity: 0.7;
+}
+
 .tck-list {
   display: grid;
   gap: 20px;
@@ -845,6 +896,14 @@
 }
 
 @media (max-width: 700px) {
+  .legal-reference-form {
+    grid-template-columns: 1fr;
+  }
+
+  .legal-reference-form button {
+    width: 100%;
+  }
+
   .tck-detail-grid {
     grid-template-columns: 1fr;
   }

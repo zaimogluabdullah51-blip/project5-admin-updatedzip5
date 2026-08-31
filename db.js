@@ -407,6 +407,13 @@ async function init() {
   await ensureColumn("deep_search_jobs", "status_message", "TEXT");
   await ensureColumn("deep_search_jobs", "retry_count", "INTEGER");
   await ensureColumn("deep_search_jobs", "last_attempt_at", "TEXT");
+  await ensureColumn("deep_search_jobs", "law_no", "TEXT");
+  await ensureColumn("deep_search_jobs", "law_code", "TEXT");
+  await ensureColumn("deep_search_jobs", "article", "TEXT");
+  await ensureColumn("deep_search_jobs", "paragraph", "TEXT");
+  await ensureColumn("deep_search_jobs", "subparagraph", "TEXT");
+  await ensureColumn("deep_search_jobs", "canonical_ref", "TEXT");
+  await ensureColumn("deep_search_jobs", "query_plan", "TEXT");
   await run("CREATE INDEX IF NOT EXISTS idx_legal_references_year ON legal_references(year)");
   await run("CREATE INDEX IF NOT EXISTS idx_legal_references_date ON legal_references(karar_tarihi)");
   await run("CREATE INDEX IF NOT EXISTS idx_deep_search_jobs_status ON deep_search_jobs(status)");
