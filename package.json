@@ -9,7 +9,8 @@
     "build": "vite build",
     "start": "node server.js",
     "preview": "vite preview",
-    "push:main": "git add . && git commit -m \"update\" || true && git push origin main"
+    "push:main": "git add . && git commit -m \"update\" || true && git push origin main",
+    "index:hf": "node scripts/run-legal-indexer.mjs"
   },
   "dependencies": {
     "express": "^4.22.1",

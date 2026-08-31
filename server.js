@@ -17,6 +17,9 @@ const AUTH_SECRET = process.env.AUTH_SECRET || "change-this-secret";
 const HF_DATASET = "hamzabagirsakci/turkish-court-decisions";
 const HF_CONFIG = process.env.HF_DATASET_CONFIG || "all";
 const HF_SPLIT = process.env.HF_DATASET_SPLIT || "train";
+const SUPABASE_URL = (process.env.SUPABASE_URL || "").replace(/\/+$/, "");
+const SUPABASE_READ_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY || "";
+const SUPABASE_WRITE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || "";
 const DEEP_SEARCH_PAGE_SIZE = Math.min(Math.max(parseInt(process.env.DEEP_SEARCH_PAGE_SIZE, 10) || 25, 1), 100);
 const DEEP_SEARCH_MAX_PAGES = Math.min(Math.max(parseInt(process.env.DEEP_SEARCH_MAX_PAGES, 10) || 3, 1), 20);
 const DEEP_SEARCH_MAX_RETRIES = Math.min(Math.max(parseInt(process.env.DEEP_SEARCH_MAX_RETRIES, 10) || 1, 1), 50);
@@ -183,6 +186,113 @@ function likeNeedle(value) {
   return `%${String(value || "").replace(/[%_]/g, "").trim()}%`;
 }
 
+function isSupabaseReadEnabled() {
+  return Boolean(SUPABASE_URL && SUPABASE_READ_KEY);
+}
+
+function isSupabaseWriteEnabled() {
+  return Boolean(SUPABASE_URL && SUPABASE_WRITE_KEY);
+}
+
+async function supabaseRest(pathname, options = {}) {
+  const write = options.write === true;
+  const key = write ? SUPABASE_WRITE_KEY : SUPABASE_READ_KEY;
+  if (!SUPABASE_URL || !key) throw new Error("Supabase environment variables are not configured.");
+  const headers = {
+    apikey: key,
+    Authorization: `Bearer ${key}`,
+    "Content-Type": "application/json",
+    ...(options.headers || {})
+  };
+  const url = `${SUPABASE_URL}/rest/v1${pathname}`;
+  const response = await fetch(url, {
+    method: options.method || "GET",
+    headers,
+    body: options.body ? JSON.stringify(options.body) : undefined
+  });
+  if (!response.ok) {
+    const detail = await response.text().catch(() => "");
+    throw new Error(`Supabase request failed (${response.status}): ${detail}`);
+  }
+  if (response.status === 204) return null;
+  const text = await response.text();
+  return text ? JSON.parse(text) : null;
+}
+
+function postgrestSearchText(value) {
+  return String(value || "").replace(/[(),*]/g, " ").replace(/\s+/g, " ").trim();
+}
+
+function supabaseLegalRefOrFilter(legalRef) {
+  const canonical = canonicalLegalRef(legalRef);
+  if (!canonical) return "";
+  return `(canonical_ref.eq.${canonical},canonical_ref.like.${canonical}:*)`;
+}
+
+function mapSupabaseCitation(row) {
+  const decision = row.court_decisions || {};
+  const ref = normalizeLegalRef(row);
+  const tckCode = ref?.law_no === "5237" && ref?.law_code === "TCK" ? formatArticlePath(ref) : "";
+  return {
+    id: row.id,
+    hf_id: row.hf_id || decision.hf_id || "",
+    source: decision.source || "",
+    document_id: decision.document_id || "",
+    court: decision.court || "",
+    esas_no: decision.esas_no || "",
+    karar_no: decision.karar_no || "",
+    karar_tarihi: decision.karar_tarihi || "",
+    year: Number(decision.year || 0),
+    month: Number(decision.month || 0),
+    text_len: Number(decision.text_len || 0),
+    masked_count: Number(decision.masked_count || 0),
+    raw_sha256: decision.raw_sha256 || "",
+    detected_law_refs: Array.from(new Set([
+      row.canonical_ref,
+      labelLegalRef(ref),
+      row.raw_reference
+    ].filter(Boolean))),
+    detected_tck_codes: tckCode ? Array.from(new Set([tckCode, ref.article].filter(Boolean))) : [],
+    short_preview: row.context || decision.short_preview || "",
+    indexed_level: "supabase_legal_citation",
+    created_at: row.created_at || decision.created_at || ""
+  };
+}
+
+async function fetchSupabaseLegalReferences({ legalRef, query, limit }) {
+  if (!isSupabaseReadEnabled()) return [];
+  const params = new URLSearchParams();
+  params.set(
+    "select",
+    "id,hf_id,law_no,law_code,law_name,article,paragraph,subparagraph,canonical_ref,raw_reference,context,position,created_at,court_decisions(id,hf_id,source,document_id,court,esas_no,karar_no,karar_tarihi,year,month,text_len,masked_count,raw_sha256,short_preview,created_at)"
+  );
+  params.set("limit", String(Math.min(Math.max(Number(limit) || 6, 1), 250)));
+  params.set("order", "created_at.desc");
+
+  if (legalRef) {
+    const filter = supabaseLegalRefOrFilter(legalRef);
+    if (filter) params.set("or", filter);
+  } else if (query) {
+    const q = postgrestSearchText(query);
+    if (q) params.set("or", `(context.ilike.*${q}*,raw_reference.ilike.*${q}*,canonical_ref.ilike.*${q}*)`);
+  }
+
+  const rows = await supabaseRest(`/legal_citations?${params.toString()}`);
+  return Array.isArray(rows) ? rows.map(mapSupabaseCitation) : [];
+}
+
+function mergeLegalReferences(primary, secondary, limit) {
+  const seen = new Set();
+  const merged = [];
+  [...(primary || []), ...(secondary || [])].forEach((row) => {
+    const key = row.hf_id || row.id;
+    if (!key || seen.has(key)) return;
+    seen.add(key);
+    merged.push(row);
+  });
+  return merged.slice(0, limit);
+}
+
 function mapDeepSearchJob(row) {
   if (!row) return null;
   return {
@@ -220,6 +330,19 @@ function lawByCode(rawCode, lawNoHint = "") {
   if (lawNoHint && lawByNo(lawNoHint)?.law_code) return lawByNo(lawNoHint);
   if (token === "TCK") return LAW_REGISTRY.TCK;
   if (LAW_REGISTRY[token]) return LAW_REGISTRY[token];
+  return null;
+}
+
+function lawByTextMarker(marker, lawNoHint = "") {
+  const text = String(marker || "").toLocaleUpperCase("tr-TR");
+  if (lawNoHint) return lawByNo(lawNoHint);
+  if (text.includes("TÜRK CEZA") || /\bTCK\b/.test(text)) return LAW_REGISTRY.TCK;
+  if (text.includes("CEZA MUHAKEMES") || /\bCMK\b/.test(text)) return LAW_REGISTRY.CMK;
+  if (text.includes("TERÖRLE MÜCADELE") || /\bTMK\b/.test(text)) return LAW_REGISTRY.TMK;
+  if (text.includes("İNFAZ") || text.includes("GÜVENLİK TEDBİRLER")) return LAW_REGISTRY.INF;
+  if (text.includes("VERGİ USUL") || /\bVUK\b/.test(text)) return LAW_REGISTRY.VUK;
+  if (text.includes("ATEŞLİ SİLAH")) return LAW_REGISTRY.SILAH;
+  if (text.includes("KAÇAKÇILIK")) return LAW_REGISTRY.KACAK;
   return null;
 }
 
@@ -403,6 +526,7 @@ function addDetectedLegalRef(target, law, parts, rawReference, text, index) {
     ...ref,
     canonical,
     label: labelLegalRef(ref),
+    position: Math.max(0, Number(index || 0)),
     context: contextSnippet(text, index)
   });
 }
@@ -417,6 +541,14 @@ function extractLegalReferences(text) {
   while ((match = directCodeRegex.exec(sourceText)) !== null) {
     const law = lawByCode(match[1]);
     const parts = parseArticlePath(match[2]);
+    if (law && parts) addDetectedLegalRef(refs, law, parts, match[0], sourceText, match.index);
+  }
+
+  const bracketLawRegex = /\b(?:(765|5237|5271|5275|3713|6136|5607|213)\s*S\.?\s*)?([A-ZÇĞİÖŞÜÜa-zçğıöşü\s]+?(?:KANUNU|YASA|TCK|CMK|TMK|VUK))(?:\s*\((765|5237|MÜLGA|MULGA)\))?\s*\[\s*Madde\s+(\d{1,4}(?:\/[0-9A-Za-zÇĞİÖŞÜçğıöşü.-]+)?)\s*\]/giu;
+  while ((match = bracketLawRegex.exec(sourceText)) !== null) {
+    const hintedNo = /^\d+$/.test(match[3] || "") ? match[3] : match[1];
+    const law = lawByTextMarker(match[2], hintedNo);
+    const parts = parseArticlePath(match[4]);
     if (law && parts) addDetectedLegalRef(refs, law, parts, match[0], sourceText, match.index);
   }
 
@@ -621,6 +753,140 @@ async function upsertLegalReferenceFromHfRow(rowWrapper, query, legalRef) {
   return await get("SELECT id FROM legal_references WHERE hf_id = ?", [hfId]);
 }
 
+function legalRefMatchesTarget(ref, targetRef) {
+  const canonical = canonicalLegalRef(ref);
+  const target = canonicalLegalRef(targetRef);
+  if (!canonical || !target) return false;
+  return canonical === target || canonical.startsWith(`${target}:`);
+}
+
+async function fetchHfRowsPage(config, offset, length) {
+  const url = new URL("https://datasets-server.huggingface.co/rows");
+  url.searchParams.set("dataset", HF_DATASET);
+  url.searchParams.set("config", config || HF_CONFIG);
+  url.searchParams.set("split", HF_SPLIT);
+  url.searchParams.set("offset", String(offset || 0));
+  url.searchParams.set("length", String(length || 100));
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 25000);
+  return fetch(url, { signal: controller.signal })
+    .catch((err) => {
+      if (err?.name === "AbortError") {
+        throw new TransientDeepSearchError("Hugging Face rows servisi zaman aşımına uğradı.");
+      }
+      throw err;
+    })
+    .finally(() => clearTimeout(timer));
+}
+
+async function upsertSupabaseDecisionAndCitations(rowWrapper, citations, query = "") {
+  if (!isSupabaseWriteEnabled()) {
+    throw new Error("Supabase write key is not configured.");
+  }
+  const row = rowWrapper?.row || {};
+  const text = row.text || "";
+  const hfId = row.id || `${row.source || "hf"}:${row.document_id || rowWrapper?.row_idx || crypto.randomUUID()}`;
+  const decisionPayload = {
+    hf_id: hfId,
+    source: row.source || "",
+    document_id: row.document_id || "",
+    court: row.court || "",
+    esas_no: row.esas_no || "",
+    karar_no: row.karar_no || "",
+    karar_tarihi: row.karar_tarihi || null,
+    year: Number(row.year || 0) || null,
+    month: Number(row.month || 0) || null,
+    text_len: Number(row.text_len || String(text).length || 0) || null,
+    masked_count: Number(row.masked_count || 0) || 0,
+    raw_sha256: row.raw_sha256 || "",
+    short_preview: makeExcerpt(text, query || hfId, 520),
+    indexed_at: new Date().toISOString()
+  };
+  const decisionRows = await supabaseRest("/court_decisions?on_conflict=hf_id", {
+    method: "POST",
+    write: true,
+    headers: { Prefer: "resolution=merge-duplicates,return=representation" },
+    body: [decisionPayload]
+  });
+  const decision = Array.isArray(decisionRows) ? decisionRows[0] : null;
+  if (!decision?.id) return { decisions_indexed: 0, citations_indexed: 0 };
+
+  const seen = new Set();
+  const citationPayload = citations
+    .map((citation, idx) => {
+      const ref = normalizeLegalRef(citation);
+      const canonical = canonicalLegalRef(ref);
+      if (!canonical) return null;
+      const rawReference = String(citation.raw_reference || labelLegalRef(ref) || canonical);
+      const key = `${canonical}|${rawReference}`;
+      if (seen.has(key)) return null;
+      seen.add(key);
+      return {
+        decision_id: decision.id,
+        hf_id: hfId,
+        law_no: ref.law_no,
+        law_code: ref.law_code,
+        law_name: ref.law_name || lawByNo(ref.law_no)?.name || "",
+        article: ref.article,
+        paragraph: ref.paragraph || "",
+        subparagraph: ref.subparagraph || "",
+        canonical_ref: canonical,
+        raw_reference: rawReference,
+        context: citation.context || makeExcerpt(text, rawReference, 360),
+        position: Number(citation.position || idx) || 0
+      };
+    })
+    .filter(Boolean);
+
+  if (!citationPayload.length) return { decisions_indexed: 1, citations_indexed: 0 };
+
+  const conflict = new URLSearchParams({ on_conflict: "decision_id,canonical_ref,raw_reference" });
+  await supabaseRest(`/legal_citations?${conflict.toString()}`, {
+    method: "POST",
+    write: true,
+    headers: { Prefer: "resolution=ignore-duplicates,return=minimal" },
+    body: citationPayload
+  });
+  return { decisions_indexed: 1, citations_indexed: citationPayload.length };
+}
+
+async function scanHfRowsBatch({ config = "yargitay", offset = 0, length = 100, targetRef = null, query = "" }) {
+  const response = await fetchHfRowsPage(config, offset, length);
+  if (!response.ok) {
+    const detail = await hfErrorText(response);
+    throw new Error(`Hugging Face rows servisi yanıt vermedi (${response.status}${detail ? `: ${detail}` : ""}).`);
+  }
+  const payload = await response.json();
+  const rows = Array.isArray(payload.rows) ? payload.rows : [];
+  let decisionsIndexed = 0;
+  let citationsIndexed = 0;
+  let rowsWithCitations = 0;
+  let rowsMatchedTarget = 0;
+
+  for (const rowWrapper of rows) {
+    const citations = extractLegalReferences(rowWrapper?.row?.text || "");
+    if (!citations.length) continue;
+    rowsWithCitations += 1;
+    const matchesTarget = targetRef ? citations.some((citation) => legalRefMatchesTarget(citation, targetRef)) : true;
+    if (!matchesTarget) continue;
+    rowsMatchedTarget += 1;
+    const stored = await upsertSupabaseDecisionAndCitations(rowWrapper, citations, query);
+    decisionsIndexed += stored.decisions_indexed;
+    citationsIndexed += stored.citations_indexed;
+  }
+
+  return {
+    config,
+    offset,
+    next_offset: offset + rows.length,
+    rows_scanned: rows.length,
+    rows_with_citations: rowsWithCitations,
+    rows_matched_target: rowsMatchedTarget,
+    decisions_indexed: decisionsIndexed,
+    citations_indexed: citationsIndexed
+  };
+}
+
 async function processDeepSearchJob(job) {
   const legalRef = legalRefForJob(job);
   const tckCode = legalRef?.law_no === "5237" && legalRef?.law_code === "TCK"
@@ -633,6 +899,35 @@ async function processDeepSearchJob(job) {
   const queryCandidates = storedPlan.length ? storedPlan : buildDeepSearchQueries(query, legalRef, tckTitle);
   let activeQuery = query;
   const startedAt = new Date().toISOString();
+
+  if (legalRef && isSupabaseReadEnabled()) {
+    try {
+      const indexed = await fetchSupabaseLegalReferences({ legalRef, query, limit: 250 });
+      if (indexed.length) {
+        await run(
+          "UPDATE deep_search_jobs SET status = ?, progress_percent = ?, estimated_seconds = ?, matched_count = ?, started_at = ?, finished_at = ?, next_attempt_at = ?, status_message = ?, canonical_ref = ?, query_plan = ?, error = ? WHERE id = ?",
+          [
+            "completed",
+            100,
+            0,
+            indexed.length,
+            startedAt,
+            new Date().toISOString(),
+            "",
+            `${indexed.length} karar yerel mevzuat indeksinden bulundu. Hugging Face canlı aramasına gerek kalmadı.`,
+            canonicalLegalRef(legalRef),
+            JSON.stringify(queryCandidates),
+            "",
+            job.id
+          ]
+        );
+        return;
+      }
+    } catch (err) {
+      console.warn("Supabase indexed lookup before deep search failed:", err.message);
+    }
+  }
+
   await run(
     "UPDATE deep_search_jobs SET status = ?, progress_percent = ?, status_message = ?, started_at = ?, last_attempt_at = ?, next_attempt_at = ?, error = ?, canonical_ref = ?, query_plan = ? WHERE id = ?",
     [
@@ -1544,6 +1839,68 @@ app.delete("/api/tck-definitions/:code", requireAuthApi, async (req, res) => {
   }
 });
 
+app.post("/api/legal-index/scan-batch", requireAuthApi, async (req, res) => {
+  try {
+    if (!isSupabaseWriteEnabled()) {
+      return res.status(400).json({
+        error: "Supabase yazma anahtarı yok. Render Environment bölümüne SUPABASE_URL ve SUPABASE_SERVICE_ROLE_KEY eklenmeli."
+      });
+    }
+    const config = String(req.body?.config || "yargitay").trim();
+    const offset = Math.max(0, parseInt(req.body?.offset, 10) || 0);
+    const length = Math.min(Math.max(parseInt(req.body?.length, 10) || 100, 1), 100);
+    const query = String(req.body?.query || req.body?.legalRef || "").trim();
+    const targetRef = parseLegalReferenceInput(req.body?.legalRef || query || "", { defaultLawCode: "TCK" });
+    const runId = crypto.randomUUID();
+    const startedAt = new Date().toISOString();
+    await run(
+      `INSERT INTO deep_search_jobs
+        (id, query, tck_code, law_no, law_code, article, paragraph, subparagraph, canonical_ref, query_plan, status, progress_percent, estimated_seconds, status_message, matched_count, started_at, finished_at, error, retry_count, last_attempt_at, next_attempt_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [
+        runId,
+        query || (targetRef ? labelLegalRef(targetRef) : `HF rows ${config}`),
+        targetRef?.law_no === "5237" && targetRef?.law_code === "TCK" ? formatArticlePath(targetRef) : "",
+        targetRef?.law_no || "",
+        targetRef?.law_code || "",
+        targetRef?.article || "",
+        targetRef?.paragraph || "",
+        targetRef?.subparagraph || "",
+        canonicalLegalRef(targetRef),
+        JSON.stringify(targetRef ? buildDeepSearchQueries(query || labelLegalRef(targetRef), targetRef, "") : []),
+        "running",
+        5,
+        60,
+        `${config} kaynağında ${offset}-${offset + length} arası satırlar mevzuat atfı için taranıyor.`,
+        0,
+        startedAt,
+        "",
+        "",
+        0,
+        startedAt,
+        ""
+      ]
+    );
+    const result = await scanHfRowsBatch({ config, offset, length, targetRef, query });
+    await run(
+      "UPDATE deep_search_jobs SET status = ?, progress_percent = ?, estimated_seconds = ?, matched_count = ?, status_message = ?, finished_at = ? WHERE id = ?",
+      [
+        "completed",
+        100,
+        0,
+        result.decisions_indexed,
+        `${result.rows_scanned} karar satırı tarandı; ${result.decisions_indexed} karar ve ${result.citations_indexed} mevzuat atfı Supabase indeksine yazıldı.`,
+        new Date().toISOString(),
+        runId
+      ]
+    );
+    res.json({ id: runId, ...result });
+  } catch (err) {
+    console.error("Legal index batch error:", err);
+    res.status(500).json({ error: err.message || "Mevzuat indeksi batch taraması yapılamadı." });
+  }
+});
+
 app.get("/api/legal-references", async (req, res) => {
   try {
     const tckCode = normalizeTckCode(req.query.tck || req.query.tckCode || "");
@@ -1554,6 +1911,13 @@ app.get("/api/legal-references", async (req, res) => {
     const limit = Math.min(Math.max(parseInt(req.query.limit, 10) || 6, 1), 250);
     const params = [];
     const where = [];
+    let supabaseRows = [];
+
+    try {
+      supabaseRows = await fetchSupabaseLegalReferences({ legalRef, query, limit });
+    } catch (err) {
+      console.warn("Supabase legal reference lookup skipped:", err.message);
+    }
 
     if (legalRef) {
       const needles = [
@@ -1582,7 +1946,7 @@ app.get("/api/legal-references", async (req, res) => {
       LIMIT ?
     `;
     const rows = await all(sql, [...params, limit]);
-    res.json(rows.map(mapLegalReference));
+    res.json(mergeLegalReferences(supabaseRows, rows.map(mapLegalReference), limit));
   } catch (err) {
     console.error("Legal references error:", err);
     res.status(500).json({ error: "İçtihat kayıtları yüklenemedi." });
