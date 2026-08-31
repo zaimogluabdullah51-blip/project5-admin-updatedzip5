@@ -401,6 +401,7 @@ function statusLabel(status) {
     queued: "Kuyrukta",
     running: "Taranıyor",
     waiting_external: "Dış indeks bekleniyor",
+    source_unavailable: "Dış kaynak hazır değil",
     completed: "Tamamlandı",
     failed: "Hata",
     cancelled: "İptal"
@@ -432,14 +433,14 @@ function renderDeepSearchStatusMarkup(job) {
   const nextAttemptText = formatNextAttempt(job.next_attempt_at);
   const etaText = job.status === "completed"
     ? "Bitti"
-    : job.status === "failed"
+    : job.status === "failed" || job.status === "source_unavailable"
       ? "Tekrar deneyebilirsiniz"
       : job.status === "waiting_external"
         ? (nextAttemptText ? `Sonraki deneme: ${nextAttemptText}` : "Dış servis bekleniyor")
         : job.status === "queued"
           ? "Kuyrukta. Tahmini süre: " + formatDuration(job.estimated_seconds)
           : "Tahmini kalan süre: " + formatDuration(job.estimated_seconds);
-  const errorText = job.status === "failed" && job.error ? String(job.error) : "";
+  const errorText = (job.status === "failed" || job.status === "source_unavailable") && job.error ? String(job.error) : "";
   const canonical = job.canonical_ref || "";
   const plan = Array.isArray(job.query_plan) ? job.query_plan.slice(0, 4).join(" → ") : "";
 
@@ -483,16 +484,16 @@ function pollDeepSearchJob(tckCode, jobId) {
       if (!res.ok) throw new Error("status error");
       const job = await res.json();
       renderDeepSearchStatus(tckCode, job);
-      if (["completed", "failed", "cancelled"].includes(job.status)) {
+      if (["completed", "failed", "source_unavailable", "cancelled"].includes(job.status)) {
         clearInterval(deepSearchPollers.get(jobId));
         deepSearchPollers.delete(jobId);
         if (job.status === "completed") loadLegalReferences().then(() => renderList(allData));
-        if (job.status === "failed") {
+        if (job.status === "failed" || job.status === "source_unavailable") {
           if (tckCode === "__legal_reference__") {
             const submit = document.querySelector("#legal-reference-form button");
             if (submit) {
               submit.disabled = false;
-              submit.textContent = "Tekrar dene";
+              submit.textContent = job.status === "source_unavailable" ? "Daha sonra tekrar dene" : "Tekrar dene";
             }
             return;
           }
@@ -500,7 +501,7 @@ function pollDeepSearchJob(tckCode, jobId) {
           const btn = document.querySelector(`.tck-deep-search-btn[data-tck-code="${CSS.escape(normalized)}"]`);
           if (btn) {
             btn.disabled = false;
-            btn.textContent = "Tekrar dene";
+            btn.textContent = job.status === "source_unavailable" ? "Daha sonra tekrar dene" : "Tekrar dene";
           }
         }
       }

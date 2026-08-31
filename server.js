@@ -19,7 +19,7 @@ const HF_CONFIG = process.env.HF_DATASET_CONFIG || "all";
 const HF_SPLIT = process.env.HF_DATASET_SPLIT || "train";
 const DEEP_SEARCH_PAGE_SIZE = Math.min(Math.max(parseInt(process.env.DEEP_SEARCH_PAGE_SIZE, 10) || 25, 1), 100);
 const DEEP_SEARCH_MAX_PAGES = Math.min(Math.max(parseInt(process.env.DEEP_SEARCH_MAX_PAGES, 10) || 3, 1), 20);
-const DEEP_SEARCH_MAX_RETRIES = Math.min(Math.max(parseInt(process.env.DEEP_SEARCH_MAX_RETRIES, 10) || 8, 1), 50);
+const DEEP_SEARCH_MAX_RETRIES = Math.min(Math.max(parseInt(process.env.DEEP_SEARCH_MAX_RETRIES, 10) || 1, 1), 50);
 const DEEP_SEARCH_RETRY_SECONDS = Math.min(Math.max(parseInt(process.env.DEEP_SEARCH_RETRY_SECONDS, 10) || 300, 30), 3600);
 const DEEP_SEARCH_WORKER_ENABLED = process.env.DEEP_SEARCH_WORKER_ENABLED !== "false";
 let deepSearchWorkerRunning = false;
@@ -785,8 +785,8 @@ async function runDeepSearchWorkerOnce() {
   deepSearchWorkerRunning = true;
   try {
     const queuedJobs = await all(
-      "SELECT * FROM deep_search_jobs WHERE status IN (?, ?) ORDER BY started_at ASC LIMIT 10",
-      ["queued", "waiting_external"]
+      "SELECT * FROM deep_search_jobs WHERE status = ? ORDER BY started_at ASC LIMIT 10",
+      ["queued"]
     );
     const nowMs = Date.now();
     const job = queuedJobs.find((candidate) => {
@@ -821,19 +821,18 @@ async function runDeepSearchWorkerOnce() {
         );
       } else {
         const retryCount = Number(running.retry_count || 0) + 1;
-        const canRetry = err.isTransient && retryCount < DEEP_SEARCH_MAX_RETRIES;
-        if (canRetry) {
-          const nextAttemptAt = new Date(Date.now() + DEEP_SEARCH_RETRY_SECONDS * 1000).toISOString();
+        if (err.isTransient) {
           await run(
-            "UPDATE deep_search_jobs SET status = ?, progress_percent = ?, estimated_seconds = ?, retry_count = ?, next_attempt_at = ?, status_message = ?, error = ? WHERE id = ?",
+            "UPDATE deep_search_jobs SET status = ?, progress_percent = ?, estimated_seconds = ?, retry_count = ?, next_attempt_at = ?, status_message = ?, error = ?, finished_at = ? WHERE id = ?",
             [
-              "waiting_external",
+              "source_unavailable",
               Math.max(Number(running.progress_percent || 0), 8),
-              DEEP_SEARCH_RETRY_SECONDS,
+              0,
               retryCount,
-              nextAttemptAt,
-              `Hugging Face dataset arama indeksi hazır değil. Bu bizim kuyruk değil; dış servis bekleniyor. ${retryCount}/${DEEP_SEARCH_MAX_RETRIES} deneme yapıldı, otomatik tekrar denenecek.`,
+              "",
+              "Hugging Face dataset arama indeksi şu an sorgu kabul etmiyor. Bu arama dış kaynağa bağlı olduğu için bekletilmedi; daha sonra tekrar deneyebilir veya yerel indeks kurulabilir.",
               err.message || String(err),
+              new Date().toISOString(),
               running.id
             ]
           );
@@ -1609,9 +1608,9 @@ app.post("/api/deep-search-jobs", async (req, res) => {
     const tckTitle = tckCode ? await getTckTitleForSearch(tckCode) : "";
     const queryPlan = buildDeepSearchQueries(jobQuery, legalRef, tckTitle);
     const statusMessage = legalRef
-      ? "Kuyruğa alındı. Önce kesin mevzuat atfı, sonra alias ve yapısal varyasyonlar aranacak."
-      : "Kuyruğa alındı. Serbest metin sorgusu Hugging Face arşivinde aranacak.";
-    const estimatedSeconds = 1800;
+      ? "Kuyruğa alındı. Dış indeks hazırsa kesin mevzuat atfı, alias ve yapısal varyasyonlar aranacak."
+      : "Kuyruğa alındı. Dış indeks hazırsa serbest metin sorgusu Hugging Face arşivinde aranacak.";
+    const estimatedSeconds = 180;
     await run(
       `INSERT INTO deep_search_jobs
         (id, query, tck_code, law_no, law_code, article, paragraph, subparagraph, canonical_ref, query_plan, status, progress_percent, estimated_seconds, status_message, matched_count, started_at, finished_at, error, retry_count, last_attempt_at)

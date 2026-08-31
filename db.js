@@ -415,6 +415,15 @@ async function init() {
   await ensureColumn("deep_search_jobs", "subparagraph", "TEXT");
   await ensureColumn("deep_search_jobs", "canonical_ref", "TEXT");
   await ensureColumn("deep_search_jobs", "query_plan", "TEXT");
+  await run(`
+    UPDATE deep_search_jobs
+    SET status = 'source_unavailable',
+        estimated_seconds = 0,
+        next_attempt_at = '',
+        finished_at = COALESCE(NULLIF(finished_at, ''), datetime('now')),
+        status_message = 'Hugging Face dataset arama indeksi şu an sorgu kabul etmiyor. Bu arama dış kaynağa bağlı olduğu için bekletilmedi; daha sonra tekrar deneyebilir veya yerel indeks kurulabilir.'
+    WHERE status = 'waiting_external'
+  `);
   await run("CREATE INDEX IF NOT EXISTS idx_legal_references_year ON legal_references(year)");
   await run("CREATE INDEX IF NOT EXISTS idx_legal_references_date ON legal_references(karar_tarihi)");
   await run("CREATE INDEX IF NOT EXISTS idx_deep_search_jobs_status ON deep_search_jobs(status)");
