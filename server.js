@@ -226,7 +226,7 @@ function postgrestSearchText(value) {
 function supabaseLegalRefOrFilter(legalRef) {
   const canonical = canonicalLegalRef(legalRef);
   if (!canonical) return "";
-  return `(canonical_ref.eq.${canonical},canonical_ref.like.${canonical}:*)`;
+  return `(canonical_ref.ilike.*${canonical}*,raw_reference.ilike.*${labelLegalRef(legalRef)}*)`;
 }
 
 function mapSupabaseCitation(row) {
@@ -278,7 +278,16 @@ async function fetchSupabaseLegalReferences({ legalRef, query, limit }) {
   }
 
   const rows = await supabaseRest(`/legal_citations?${params.toString()}`);
-  return Array.isArray(rows) ? rows.map(mapSupabaseCitation) : [];
+  const mapped = Array.isArray(rows) ? rows.map(mapSupabaseCitation) : [];
+  if (!legalRef) return mapped;
+  const canonical = canonicalLegalRef(legalRef);
+  return mapped.filter((row) => {
+    const refs = Array.isArray(row.detected_law_refs) ? row.detected_law_refs : [];
+    return refs.some((item) => {
+      const value = String(item || "").toUpperCase();
+      return value === canonical || value.startsWith(`${canonical}:`) || value.includes(canonical);
+    });
+  });
 }
 
 function mergeLegalReferences(primary, secondary, limit) {
