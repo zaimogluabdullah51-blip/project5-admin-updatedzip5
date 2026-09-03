@@ -948,17 +948,21 @@ async function processDeepSearchJob(job) {
     try {
       const indexed = await fetchSupabaseLegalReferences({ legalRef, query, limit: 250 });
       if (indexed.length) {
+        const uniqueDecisionCount = new Set(indexed.map((row) => row.hf_id || row.document_id || row.id).filter(Boolean)).size || indexed.length;
+        const indexedMessage = indexed.length === uniqueDecisionCount
+          ? `${uniqueDecisionCount} karar yerel mevzuat indeksinden bulundu. Hugging Face canlı aramasına gerek kalmadı.`
+          : `${uniqueDecisionCount} karar (${indexed.length} mevzuat atfı) yerel mevzuat indeksinden bulundu. Hugging Face canlı aramasına gerek kalmadı.`;
         await run(
           "UPDATE deep_search_jobs SET status = ?, progress_percent = ?, estimated_seconds = ?, matched_count = ?, started_at = ?, finished_at = ?, next_attempt_at = ?, status_message = ?, canonical_ref = ?, query_plan = ?, error = ? WHERE id = ?",
           [
             "completed",
             100,
             0,
-            indexed.length,
+            uniqueDecisionCount,
             startedAt,
             new Date().toISOString(),
             "",
-            `${indexed.length} karar yerel mevzuat indeksinden bulundu. Hugging Face canlı aramasına gerek kalmadı.`,
+            indexedMessage,
             canonicalLegalRef(legalRef),
             JSON.stringify(queryCandidates),
             "",
