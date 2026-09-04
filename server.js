@@ -1008,6 +1008,105 @@ async function upsertSupabaseDecisionAndCitations(rowWrapper, citations, query =
   return { decisions_indexed: 1, citations_indexed: citationPayload.length };
 }
 
+async function upsertSupabaseDecisionCitationBatch(rowCitationPairs, query = "") {
+  if (!isSupabaseWriteEnabled()) {
+    throw new Error("Supabase write key is not configured.");
+  }
+
+  const pairs = (rowCitationPairs || [])
+    .map((pair) => ({
+      rowWrapper: pair.rowWrapper,
+      row: pair.rowWrapper?.row || {},
+      citations: Array.isArray(pair.citations) ? pair.citations : []
+    }))
+    .filter((pair) => pair.citations.length);
+
+  if (!pairs.length) return { decisions_indexed: 0, citations_indexed: 0 };
+
+  const decisionPayload = pairs.map(({ rowWrapper, row }) => {
+    const text = row.text || "";
+    const hfId = row.id || `${row.source || "hf"}:${row.document_id || rowWrapper?.row_idx || crypto.randomUUID()}`;
+    return {
+      hf_id: hfId,
+      source: row.source || "",
+      document_id: row.document_id || "",
+      court: row.court || "",
+      esas_no: row.esas_no || "",
+      karar_no: row.karar_no || "",
+      karar_tarihi: row.karar_tarihi || null,
+      year: Number(row.year || 0) || null,
+      month: Number(row.month || 0) || null,
+      text_len: Number(row.text_len || String(text).length || 0) || null,
+      masked_count: Number(row.masked_count || 0) || 0,
+      raw_sha256: row.raw_sha256 || "",
+      short_preview: makeExcerpt(text, query || hfId, 520),
+      indexed_at: new Date().toISOString()
+    };
+  });
+
+  const decisionRows = await supabaseRest("/court_decisions?on_conflict=hf_id", {
+    method: "POST",
+    write: true,
+    headers: { Prefer: "resolution=merge-duplicates,return=representation" },
+    body: decisionPayload
+  });
+
+  const decisionIdByHfId = new Map(
+    (Array.isArray(decisionRows) ? decisionRows : [])
+      .filter((decision) => decision?.hf_id && decision?.id)
+      .map((decision) => [decision.hf_id, decision.id])
+  );
+
+  const seen = new Set();
+  const citationPayload = [];
+
+  for (const { rowWrapper, row, citations } of pairs) {
+    const text = row.text || "";
+    const hfId = row.id || `${row.source || "hf"}:${row.document_id || rowWrapper?.row_idx || ""}`;
+    const decisionId = decisionIdByHfId.get(hfId);
+    if (!decisionId) continue;
+
+    citations.forEach((citation, idx) => {
+      const ref = normalizeLegalRef(citation);
+      const canonical = canonicalLegalRef(ref);
+      if (!canonical) return;
+      const rawReference = String(citation.raw_reference || labelLegalRef(ref) || canonical);
+      const key = `${decisionId}|${canonical}|${rawReference}`;
+      if (seen.has(key)) return;
+      seen.add(key);
+      citationPayload.push({
+        decision_id: decisionId,
+        hf_id: hfId,
+        law_no: ref.law_no,
+        law_code: ref.law_code,
+        law_name: ref.law_name || lawByNo(ref.law_no)?.name || "",
+        article: ref.article,
+        paragraph: ref.paragraph || "",
+        subparagraph: ref.subparagraph || "",
+        canonical_ref: canonical,
+        raw_reference: rawReference,
+        context: citation.context || makeExcerpt(text, rawReference, 360),
+        position: Number(citation.position || idx) || 0
+      });
+    });
+  }
+
+  if (citationPayload.length) {
+    const conflict = new URLSearchParams({ on_conflict: "decision_id,canonical_ref,raw_reference" });
+    await supabaseRest(`/legal_citations?${conflict.toString()}`, {
+      method: "POST",
+      write: true,
+      headers: { Prefer: "resolution=ignore-duplicates,return=minimal" },
+      body: citationPayload
+    });
+  }
+
+  return {
+    decisions_indexed: decisionIdByHfId.size,
+    citations_indexed: citationPayload.length
+  };
+}
+
 async function scanHfRowsBatch({ config = "yargitay", offset = 0, length = 100, targetRef = null, query = "", dryRun = false }) {
   const response = await fetchHfRowsPage(config, offset, length);
   if (!response.ok) {
@@ -1021,6 +1120,7 @@ async function scanHfRowsBatch({ config = "yargitay", offset = 0, length = 100, 
   let rowsWithCitations = 0;
   let rowsMatchedTarget = 0;
   const matchedPreview = [];
+  const rowsToStore = [];
 
   for (const rowWrapper of rows) {
     const row = rowWrapper?.row || {};
@@ -1047,7 +1147,11 @@ async function scanHfRowsBatch({ config = "yargitay", offset = 0, length = 100, 
       });
       continue;
     }
-    const stored = await upsertSupabaseDecisionAndCitations(rowWrapper, citations, query);
+    rowsToStore.push({ rowWrapper, citations });
+  }
+
+  if (!dryRun && rowsToStore.length) {
+    const stored = await upsertSupabaseDecisionCitationBatch(rowsToStore, query);
     decisionsIndexed += stored.decisions_indexed;
     citationsIndexed += stored.citations_indexed;
   }
