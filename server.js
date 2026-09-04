@@ -685,8 +685,9 @@ function legalReferenceContextFromText(text, ref, rawReference = "") {
   return makeExcerpt(sourceText, labelLegalRef(normalized) || rawReference || law.name, 360);
 }
 
-function extractLegalReferencesFromHfTags(row, text) {
+function extractLegalReferencesFromHfTags(row, text, options = {}) {
   const tags = Array.isArray(row?.mevzuat_atif) ? row.mevzuat_atif : [];
+  const withContext = options.withContext !== false;
   return tags
     .map((tag, idx) => {
       const ref = parseHfMevzuatAtifTag(tag);
@@ -696,7 +697,7 @@ function extractLegalReferencesFromHfTags(row, text) {
         ...normalized,
         raw_reference: String(tag || "").trim(),
         position: idx,
-        context: legalReferenceContextFromText(text, normalized, tag)
+        context: withContext ? legalReferenceContextFromText(text, normalized, tag) : ""
       };
     })
     .filter(Boolean);
@@ -723,12 +724,16 @@ function mergeLegalReferenceCandidates(candidates) {
   return Array.from(refs.values());
 }
 
-function extractLegalReferencesFromHfRow(rowWrapper) {
+function extractLegalReferencesFromHfRow(rowWrapper, options = {}) {
   const row = rowWrapper?.row || rowWrapper || {};
   const text = row.text || "";
+  const tagRefs = extractLegalReferencesFromHfTags(row, text, {
+    withContext: options.withContext !== false
+  });
+  if (options.tagsOnly) return mergeLegalReferenceCandidates(tagRefs);
   return mergeLegalReferenceCandidates([
     ...extractLegalReferences(text),
-    ...extractLegalReferencesFromHfTags(row, text)
+    ...tagRefs
   ]);
 }
 
@@ -1008,10 +1013,11 @@ async function upsertSupabaseDecisionAndCitations(rowWrapper, citations, query =
   return { decisions_indexed: 1, citations_indexed: citationPayload.length };
 }
 
-async function upsertSupabaseDecisionCitationBatch(rowCitationPairs, query = "") {
+async function upsertSupabaseDecisionCitationBatch(rowCitationPairs, query = "", options = {}) {
   if (!isSupabaseWriteEnabled()) {
     throw new Error("Supabase write key is not configured.");
   }
+  const compact = Boolean(options.compact);
 
   const pairs = (rowCitationPairs || [])
     .map((pair) => ({
@@ -1039,7 +1045,7 @@ async function upsertSupabaseDecisionCitationBatch(rowCitationPairs, query = "")
       text_len: Number(row.text_len || String(text).length || 0) || null,
       masked_count: Number(row.masked_count || 0) || 0,
       raw_sha256: row.raw_sha256 || "",
-      short_preview: makeExcerpt(text, query || hfId, 520),
+      short_preview: compact ? "" : makeExcerpt(text, query || hfId, 520),
       indexed_at: new Date().toISOString()
     };
   });
@@ -1085,7 +1091,7 @@ async function upsertSupabaseDecisionCitationBatch(rowCitationPairs, query = "")
         subparagraph: ref.subparagraph || "",
         canonical_ref: canonical,
         raw_reference: rawReference,
-        context: citation.context || makeExcerpt(text, rawReference, 360),
+        context: compact ? "" : citation.context || makeExcerpt(text, rawReference, 360),
         position: Number(citation.position || idx) || 0
       });
     });
@@ -1107,7 +1113,7 @@ async function upsertSupabaseDecisionCitationBatch(rowCitationPairs, query = "")
   };
 }
 
-async function scanHfRowsBatch({ config = "yargitay", offset = 0, length = 100, targetRef = null, query = "", dryRun = false }) {
+async function scanHfRowsBatch({ config = "yargitay", offset = 0, length = 100, targetRef = null, query = "", dryRun = false, compact = false, tagsOnly = false }) {
   const response = await fetchHfRowsPage(config, offset, length);
   if (!response.ok) {
     const detail = await hfErrorText(response);
@@ -1124,7 +1130,10 @@ async function scanHfRowsBatch({ config = "yargitay", offset = 0, length = 100, 
 
   for (const rowWrapper of rows) {
     const row = rowWrapper?.row || {};
-    const citations = extractLegalReferencesFromHfRow(rowWrapper);
+    const citations = extractLegalReferencesFromHfRow(rowWrapper, {
+      tagsOnly,
+      withContext: !compact
+    });
     if (!citations.length) continue;
     rowsWithCitations += 1;
     const matchesTarget = targetRef ? citations.some((citation) => legalRefMatchesTarget(citation, targetRef)) : true;
@@ -1151,7 +1160,7 @@ async function scanHfRowsBatch({ config = "yargitay", offset = 0, length = 100, 
   }
 
   if (!dryRun && rowsToStore.length) {
-    const stored = await upsertSupabaseDecisionCitationBatch(rowsToStore, query);
+    const stored = await upsertSupabaseDecisionCitationBatch(rowsToStore, query, { compact });
     decisionsIndexed += stored.decisions_indexed;
     citationsIndexed += stored.citations_indexed;
   }
@@ -2138,9 +2147,11 @@ app.post("/api/legal-index/scan-batch", requireAuthApi, async (req, res) => {
     const offset = Math.max(0, parseInt(req.body?.offset, 10) || 0);
     const length = Math.min(Math.max(parseInt(req.body?.length, 10) || 100, 1), 100);
     const query = String(req.body?.query || req.body?.legalRef || "").trim();
+    const compact = Boolean(req.body?.compact || req.body?.compactIndex);
+    const tagsOnly = typeof req.body?.tagsOnly === "boolean" ? req.body.tagsOnly : compact;
     const targetRef = parseLegalReferenceInput(req.body?.legalRef || query || "", { defaultLawCode: "TCK" });
     if (dryRun) {
-      const result = await scanHfRowsBatch({ config, offset, length, targetRef, query, dryRun: true });
+      const result = await scanHfRowsBatch({ config, offset, length, targetRef, query, dryRun: true, compact, tagsOnly });
       return res.json({ id: "dry-run", ...result });
     }
     const runId = crypto.randomUUID();
@@ -2173,7 +2184,7 @@ app.post("/api/legal-index/scan-batch", requireAuthApi, async (req, res) => {
         ""
       ]
     );
-    const result = await scanHfRowsBatch({ config, offset, length, targetRef, query });
+    const result = await scanHfRowsBatch({ config, offset, length, targetRef, query, compact, tagsOnly });
     await run(
       "UPDATE deep_search_jobs SET status = ?, progress_percent = ?, estimated_seconds = ?, matched_count = ?, status_message = ?, finished_at = ? WHERE id = ?",
       [
