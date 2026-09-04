@@ -16,9 +16,16 @@ const TAGS_ONLY = process.env.INDEXER_TAGS_ONLY
   : COMPACT;
 const TARGET_CITATIONS = Math.max(Number(process.env.INDEXER_TARGET_CITATIONS || 0), 0);
 const DELAY_MS = Math.max(Number(process.env.INDEXER_DELAY_MS || 250), 0);
+const MAX_RETRIES = Math.max(Number(process.env.INDEXER_MAX_RETRIES || 8), 0);
+const RETRY_BASE_MS = Math.max(Number(process.env.INDEXER_RETRY_BASE_MS || 30000), 1000);
 
 function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function isRetryableBatchError(error) {
+  const message = String(error?.message || "");
+  return /429|rate limit|zaman aşımı|timeout|Hugging Face rows servisi yanıt vermedi/i.test(message);
 }
 
 async function login() {
@@ -61,6 +68,20 @@ async function scanBatch(cookie, config, offset) {
   return payload;
 }
 
+async function scanBatchWithRetry(cookie, config, offset) {
+  for (let attempt = 0; attempt <= MAX_RETRIES; attempt += 1) {
+    try {
+      return await scanBatch(cookie, config, offset);
+    } catch (error) {
+      if (attempt >= MAX_RETRIES || !isRetryableBatchError(error)) throw error;
+      const waitMs = RETRY_BASE_MS * Math.min(attempt + 1, 6);
+      console.log(`[${new Date().toISOString()}] retry ${attempt + 1}/${MAX_RETRIES} for ${config}@${offset}: ${error.message}. waiting ${Math.round(waitMs / 1000)}s`);
+      await sleep(waitMs);
+    }
+  }
+  throw new Error(`Batch retry loop exhausted for ${config}@${offset}`);
+}
+
 console.log(`Index target: ${BASE_URL}`);
 console.log(`Configs: ${CONFIGS.join(', ')}`);
 console.log(`Batch size: ${BATCH_SIZE}, batches/config: ${BATCHES_PER_CONFIG}`);
@@ -69,6 +90,7 @@ if (DRY_RUN) console.log('Dry run: enabled; no Supabase writes will be attempted
 if (COMPACT) console.log('Compact mode: enabled; only lightweight decision metadata and citation tags are stored.');
 if (TAGS_ONLY) console.log('Tags-only mode: enabled; only Hugging Face mevzuat_atif tags are indexed.');
 if (TARGET_CITATIONS) console.log(`Citation target: ${TARGET_CITATIONS}`);
+console.log(`Delay: ${DELAY_MS}ms, retries: ${MAX_RETRIES}, retry base: ${Math.round(RETRY_BASE_MS / 1000)}s`);
 
 const cookie = await login();
 let totalRows = 0;
@@ -81,7 +103,7 @@ outer: for (const config of CONFIGS) {
   let offset = START_OFFSET;
   for (let batch = 0; batch < BATCHES_PER_CONFIG; batch += 1) {
     batchNo += 1;
-    const result = await scanBatch(cookie, config, offset);
+    const result = await scanBatchWithRetry(cookie, config, offset);
     totalRows += Number(result.rows_scanned || 0);
     totalDecisions += Number(result.decisions_indexed || 0);
     totalCitations += Number(result.citations_indexed || 0);
