@@ -25,7 +25,8 @@ function sleep(ms) {
 
 function isRetryableBatchError(error) {
   const message = String(error?.message || "");
-  return /429|rate limit|zaman aşımı|timeout|Hugging Face rows servisi yanıt vermedi/i.test(message);
+  const causeCode = String(error?.cause?.code || "");
+  return /429|502|503|504|rate limit|fetch failed|ECONNRESET|ETIMEDOUT|EAI_AGAIN|zaman aşımı|timeout|Hugging Face rows servisi yanıt vermedi/i.test(`${message} ${causeCode}`);
 }
 
 async function login() {
