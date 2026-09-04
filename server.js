@@ -535,6 +535,7 @@ function legalCitationWindow(windowText) {
   const barriers = [
     /\bAnayasa(?:'|’|nın|nin|nun|nün)?\b/iu,
     /\bİçtüzüğ[üu]\b/iu,
+    /\bYürürlük\s+ve\s+Uygulama\s+Şekli\b/iu,
     /\bB\.\s*No\b/iu,
     /\bBaşvuru\s+Numarası\b/iu,
     /§/u
@@ -544,7 +545,7 @@ function legalCitationWindow(windowText) {
       const match = compact.match(pattern);
       return match ? match.index : -1;
     })
-    .filter((idx) => idx >= 40)
+    .filter((idx) => idx > 0)
     .sort((a, b) => a - b)[0];
   return barrierIndex ? compact.slice(0, barrierIndex) : compact;
 }
@@ -602,11 +603,11 @@ function extractLegalReferences(text) {
   const refs = new Map();
   if (!sourceText) return [];
 
-  const directCodeRegex = /\b(TCK|CMK|TMK|VUK|INF|İnfaz|CGTİHK|CGTIHK)\b(?:\s*['’`]?(?:nın|nin|nun|nün|na|ne|da|de)?|\.\s*(?:nın|nin|nun|nün)?)\s*(?:m\.?|madde)?\s*(\d{1,4}(?:\/[0-9A-Za-zÇĞİÖŞÜçğıöşü.-]+)?)\b/giu;
+  const directCodeRegex = /\b(?:(765|5237|5271|5275|3713|6136|5607|213)\s*sayılı\s+)?(TCK|CMK|TMK|VUK|INF|İnfaz|CGTİHK|CGTIHK)\b(?:\s*['’`]?(?:nın|nin|nun|nün|na|ne|da|de)?|\.\s*(?:nın|nin|nun|nün)?)\s*(?:m\.?|madde)?\s*(\d{1,4}(?:\/[0-9A-Za-zÇĞİÖŞÜçğıöşü.-]+)?)\b/giu;
   let match;
   while ((match = directCodeRegex.exec(sourceText)) !== null) {
-    const law = lawByCode(match[1]);
-    const parts = parseArticlePath(match[2]);
+    const law = lawByCode(match[2], match[1]);
+    const parts = parseArticlePath(match[3]);
     if (law && parts) addDetectedLegalRef(refs, law, parts, match[0], sourceText, match.index);
   }
 
