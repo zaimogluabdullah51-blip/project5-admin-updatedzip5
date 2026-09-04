@@ -9,6 +9,7 @@ const BATCH_SIZE = Math.min(Math.max(Number(process.env.INDEXER_BATCH_SIZE || 10
 const BATCHES_PER_CONFIG = Math.max(Number(process.env.INDEXER_BATCHES || 10), 1);
 const START_OFFSET = Math.max(Number(process.env.INDEXER_START_OFFSET || 0), 0);
 const LEGAL_REF = process.env.INDEXER_LEGAL_REF || '';
+const DRY_RUN = String(process.env.INDEXER_DRY_RUN || '').toLowerCase() === 'true';
 
 async function login() {
   const response = await fetch(`${BASE_URL}/api/login`, {
@@ -37,7 +38,8 @@ async function scanBatch(cookie, config, offset) {
       offset,
       length: BATCH_SIZE,
       legalRef: LEGAL_REF,
-      query: LEGAL_REF
+      query: LEGAL_REF,
+      dryRun: DRY_RUN
     })
   });
   const payload = await response.json().catch(() => ({}));
@@ -51,6 +53,7 @@ console.log(`Index target: ${BASE_URL}`);
 console.log(`Configs: ${CONFIGS.join(', ')}`);
 console.log(`Batch size: ${BATCH_SIZE}, batches/config: ${BATCHES_PER_CONFIG}`);
 if (LEGAL_REF) console.log(`Target legal ref: ${LEGAL_REF}`);
+if (DRY_RUN) console.log('Dry run: enabled; no Supabase writes will be attempted.');
 
 const cookie = await login();
 let totalRows = 0;
@@ -64,7 +67,8 @@ for (const config of CONFIGS) {
     totalRows += Number(result.rows_scanned || 0);
     totalDecisions += Number(result.decisions_indexed || 0);
     totalCitations += Number(result.citations_indexed || 0);
-    console.log(`[${config}] offset ${offset}: scanned=${result.rows_scanned}, decisions=${result.decisions_indexed}, citations=${result.citations_indexed}`);
+    const previewCount = Array.isArray(result.matched_preview) ? result.matched_preview.length : 0;
+    console.log(`[${config}] offset ${offset}: scanned=${result.rows_scanned}, matched=${result.rows_matched_target}, decisions=${result.decisions_indexed}, citations=${result.citations_indexed}${DRY_RUN ? `, preview=${previewCount}` : ''}`);
     if (!result.rows_scanned) break;
     offset = Number(result.next_offset || offset + BATCH_SIZE);
   }

@@ -42,6 +42,8 @@ Set these environment variables in Render/Replit for production:
 
 Hugging Face hosts the raw dataset, but its live search endpoint may return `ResponseNotReady` for large queries. For reliable search, index legal citations into Supabase and let the app read from that local index.
 
+The indexer now reads Hugging Face's `mevzuat_atif` list column when available, then runs the local text parser as a fallback. This keeps the new datasource tags while still catching missing references such as visible `TCK 32` mentions that were not tagged.
+
 Required environment variables:
 - `SUPABASE_URL`
 - `SUPABASE_ANON_KEY` for read-only lookup, or `SUPABASE_SERVICE_ROLE_KEY` for read/write indexing
@@ -59,6 +61,14 @@ Targeted indexing example:
 ```bash
 INDEXER_BASE_URL=https://davatakibi.onrender.com \
 INDEXER_LEGAL_REF="TCK 204" \
+npm run index:hf
+```
+
+Dry-run a batch without writing to Supabase:
+```bash
+INDEXER_BASE_URL=https://davatakibi.onrender.com \
+INDEXER_LEGAL_REF="TCK 32" \
+INDEXER_DRY_RUN=true \
 npm run index:hf
 ```
 
