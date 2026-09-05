@@ -38,13 +38,19 @@ const LAW_REGISTRY = {
     law_no: "765",
     law_code: "765TCK",
     name: "Mülga Türk Ceza Kanunu",
-    aliases: ["765 sayılı TCK", "765 sayılı Türk Ceza Kanunu", "765 sayılı Kanun", "765 sayılı Yasa"]
+    aliases: ["TCY", "Türk Ceza Yasası", "765 sayılı TCK", "765 sayılı Türk Ceza Kanunu", "765 sayılı Türk Ceza Yasası", "765 sayılı Kanun", "765 sayılı Yasa"]
   },
   CMK: {
     law_no: "5271",
     law_code: "CMK",
     name: "Ceza Muhakemesi Kanunu",
     aliases: ["CMK", "Ceza Muhakemesi Kanunu", "5271 sayılı CMK", "5271 sayılı Ceza Muhakemesi Kanunu", "5271 sayılı Kanun", "5271 sayılı Yasa"]
+  },
+  CMUK: {
+    law_no: "1412",
+    law_code: "CMUK",
+    name: "Ceza Muhakemeleri Usulü Kanunu",
+    aliases: ["CMUK", "Ceza Muhakemeleri Usulü Kanunu", "1412 sayılı CMUK", "1412 sayılı Ceza Muhakemeleri Usulü Kanunu", "1412 sayılı Kanun", "1412 sayılı Yasa"]
   },
   HUMK: {
     law_no: "1086",
@@ -100,6 +106,9 @@ const LAW_BY_NO = Object.values(LAW_REGISTRY).reduce((acc, law) => {
   acc[law.law_no] = law;
   return acc;
 }, {});
+const LAW_NO_PATTERN = "\\d{3,4}";
+const ARTICLE_PATH_PATTERN = "\\d{1,4}(?:\\/[0-9A-Za-zÇĞİÖŞÜçğıöşü.-]+)?";
+const LAW_TITLE_PATTERN = "[A-ZÇĞİÖŞÜa-zçğıöşü0-9\\s.,'’()\\/-]{0,180}?(?:KANUNU|KANUN|YASA|NİZAMNAME|TÜZÜK|TÜZÜĞÜ)";
 
 function parseCookies(header) {
   if (!header) return {};
@@ -361,6 +370,8 @@ function lawByCode(rawCode, lawNoHint = "") {
     .trim()
     .replace(/[İI]NFAZ/i, "INF")
     .replace(/İYUK|IYUK/i, "IYUK")
+    .replace(/CMUK/i, "CMUK")
+    .replace(/TCY/i, "765TCK")
     .replace(/CGTİHK|CGTIHK/i, "INF")
     .toUpperCase();
   if (lawNoHint && lawByNo(lawNoHint)?.law_code) return lawByNo(lawNoHint);
@@ -374,17 +385,42 @@ function lawByTextMarker(marker, lawNoHint = "") {
   const hint = String(lawNoHint || "").toLocaleUpperCase("tr-TR");
   if (/^\d+$/.test(hint)) return lawByNo(hint);
   const isRepealed = /\bM[ÜU]LGA\b/u.test(hint) || /\bM[ÜU]LGA\b/u.test(text);
+  if (/\bTCY\b/.test(text) || text.includes("TÜRK CEZA YASA")) return LAW_REGISTRY["765TCK"];
   if (text.includes("TÜRK CEZA") || /\bTCK\b/.test(text)) return isRepealed ? LAW_REGISTRY["765TCK"] : LAW_REGISTRY.TCK;
   if (text.includes("CEZA MUHAKEMES") || /\bCMK\b/.test(text)) return LAW_REGISTRY.CMK;
+  if (text.includes("CEZA MUHAKEMELERİ USUL") || text.includes("CEZA MUHAKEMELERI USUL") || /\bCMUK\b/.test(text)) return LAW_REGISTRY.CMUK;
   if (text.includes("HUKUK USUL") || /\bHUMK\b/.test(text)) return LAW_REGISTRY.HUMK;
   if (text.includes("HUKUK MUHAKEMELER") || /\bHMK\b/.test(text)) return isRepealed ? LAW_REGISTRY.HUMK : LAW_REGISTRY.HMK;
   if (text.includes("İDARİ YARGILAMA") || /\bİYUK\b/.test(text) || /\bIYUK\b/.test(text)) return LAW_REGISTRY.IYUK;
+  if (text.includes("TÜRK MEDENİ") || text.includes("TÜRK MEDENI") || text.includes("MEDENİ KANUN") || text.includes("MEDENI KANUN")) return lawByNo("4721");
   if (text.includes("TERÖRLE MÜCADELE") || /\bTMK\b/.test(text)) return LAW_REGISTRY.TMK;
   if (text.includes("İNFAZ") || text.includes("GÜVENLİK TEDBİRLER")) return LAW_REGISTRY.INF;
   if (text.includes("VERGİ USUL") || /\bVUK\b/.test(text)) return LAW_REGISTRY.VUK;
   if (text.includes("ATEŞLİ SİLAH")) return LAW_REGISTRY.SILAH;
   if (text.includes("KAÇAKÇILIK")) return LAW_REGISTRY.KACAK;
   return null;
+}
+
+function resolveDetectedLaw(law, marker, parts, text, index) {
+  if (!law || law.law_code !== "TMK") return law;
+  const articleNumber = Number(parts?.article || 0);
+  const around = String(text || "")
+    .slice(Math.max(0, Number(index || 0) - 90), Number(index || 0) + 180)
+    .toLocaleUpperCase("tr-TR");
+  const looksMedeni = articleNumber > 50
+    || around.includes("TÜRK MEDENİ")
+    || around.includes("TÜRK MEDENI")
+    || around.includes("MEDENİ KANUN")
+    || around.includes("MEDENI KANUN")
+    || around.includes("MİRAS")
+    || around.includes("MIRAS")
+    || around.includes("BOŞAN")
+    || around.includes("BOSAN")
+    || around.includes("AİLE")
+    || around.includes("AILE");
+  const looksTerror = around.includes("TERÖR") || around.includes("TEROR");
+  if (looksMedeni && !looksTerror) return lawByNo("4721");
+  return law;
 }
 
 function cleanArticleToken(value) {
@@ -395,6 +431,8 @@ function cleanArticleToken(value) {
     .replace(/^(?:m\.?|madde)\s*/i, "")
     .replace(/[,:;]+$/g, "")
     .replace(/\s+/g, "")
+    .replace(/[.\/-]?maddesi[a-zçğıöşü]*$/i, "")
+    .replace(/[.\/-]?maddeler[a-zçğıöşü]*$/i, "")
     .replace(/\/(\d+)\.(?=[A-Za-zÇĞİÖŞÜçğıöşü0-9])/g, "/$1-")
     .replace(/(\d+)\.(?=[A-Za-zÇĞİÖŞÜçğıöşü])/g, "$1-")
     .replace(/\.$/, "");
@@ -443,7 +481,7 @@ function formatArticlePath(ref) {
   if (!ref?.article) return "";
   let out = String(ref.article);
   if (ref.paragraph) out += `/${ref.paragraph}`;
-  if (ref.subparagraph) out += `-${String(ref.subparagraph).toUpperCase()}`;
+  if (ref.subparagraph) out += `${ref.paragraph ? "-" : "/"}${String(ref.subparagraph).toUpperCase()}`;
   return out;
 }
 
@@ -528,21 +566,21 @@ function parseLegalReferenceInput(value, options = {}) {
     });
   }
 
-  const compactLaw = input.match(/\b(765|1086|2004|213|2577|3713|5237|5271|5275|5607|6100|6136)\/(\d{1,4}(?:\/[0-9A-Za-zÇĞİÖŞÜçğıöşü.-]+)?)\b/u);
+  const compactLaw = input.match(/\b(\d{3,4})\/(\d{1,4}(?:\/[0-9A-Za-zÇĞİÖŞÜçğıöşü.-]+)?)\b/u);
   if (compactLaw) {
     const law = lawByNo(compactLaw[1]);
     const parts = parseArticlePath(compactLaw[2]);
     if (law && parts) return normalizeLegalRef({ ...law, ...parts, raw_reference: compactLaw[0] });
   }
 
-  const numbered = input.match(/\b(765|1086|2004|213|2577|3713|5237|5271|5275|5607|6100|6136)\s*sayılı[\s\S]{0,90}?(\d{1,4}(?:\/[0-9A-Za-zÇĞİÖŞÜçğıöşü.-]+)?)\s*(?:\.?\s*(?:madde|maddesi|maddesinin|fıkra|uyarınca|kapsamında)|\b)/iu);
+  const numbered = input.match(/\b(\d{3,4})\s*sayılı[\s\S]{0,90}?(\d{1,4}(?:\/[0-9A-Za-zÇĞİÖŞÜçğıöşü.-]+)?)\s*(?:\.?\s*(?:madde|maddesi|maddesinin|fıkra|uyarınca|kapsamında)|\b)/iu);
   if (numbered) {
     const law = lawByNo(numbered[1]);
     const parts = parseArticlePath(numbered[2]);
     if (law && parts) return normalizeLegalRef({ ...law, ...parts, raw_reference: numbered[0] });
   }
 
-  const code = input.match(/\b(TCK|CMK|HUMK|HMK|İYUK|IYUK|TMK|VUK|INF|İnfaz|CGTİHK|CGTIHK)\b[\s'’`A-Za-zÇĞİÖŞÜçğıöşü.]{0,30}?(\d{1,4}(?:\/[0-9A-Za-zÇĞİÖŞÜçğıöşü.-]+)?)\b/u);
+  const code = input.match(/\b(TCK|TCY|CMK|CMUK|HUMK|HMK|İYUK|IYUK|TMK|VUK|INF|İnfaz|CGTİHK|CGTIHK)\b[\s'’`A-Za-zÇĞİÖŞÜçğıöşü.]{0,30}?(\d{1,4}(?:\/[0-9A-Za-zÇĞİÖŞÜçğıöşü.-]+)?)\b/u);
   if (code) {
     const law = lawByCode(code[1]);
     const parts = parseArticlePath(code[2]);
@@ -583,12 +621,20 @@ function legalCitationWindow(windowText) {
     /\bYürürlük\s+ve\s+Uygulama\s+Şekli\b/iu,
     /\bB\.\s*No\b/iu,
     /\bBaşvuru\s+Numarası\b/iu,
+    /\b\d{3,4}\s*(?:S\.?|say[ıi]l[ıi])(?=\s|$|[.,;:])/iu,
     /§/u
   ];
   const barrierIndex = barriers
-    .map((pattern) => {
-      const match = compact.match(pattern);
-      return match ? match.index : -1;
+    .flatMap((pattern) => {
+      const flags = Array.from(new Set(`${pattern.flags}g`.split(""))).join("");
+      const regex = new RegExp(pattern.source, flags);
+      const indexes = [];
+      let match;
+      while ((match = regex.exec(compact)) !== null) {
+        if (match.index > 0) indexes.push(match.index);
+        if (regex.lastIndex === match.index) regex.lastIndex += 1;
+      }
+      return indexes;
     })
     .filter((idx) => idx > 0)
     .sort((a, b) => a - b)[0];
@@ -596,10 +642,26 @@ function legalCitationWindow(windowText) {
 }
 
 function collectArticleTokens(sequence, baseIndex, lawNo, target, seen) {
-  const tokenRegex = /\b(\d{1,3}(?:\/[0-9]+(?:[.\-/]?[A-Za-zÇĞİÖŞÜçğıöşü](?:[-.]?\d+)?)?)?)\b/giu;
+  const tokenRegex = /\b(\d{1,3}(?:\s*-\s*\d{1,3})?(?:\/(?:[0-9]+|[IVXLCDM]+|[A-Za-zÇĞİÖŞÜçğıöşü])(?:[.\-/]?[A-Za-zÇĞİÖŞÜçğıöşü0-9]+(?:[-.]?\d+)?)?)?)\b/giu;
   let tokenMatch;
   while ((tokenMatch = tokenRegex.exec(sequence)) !== null) {
     const raw = tokenMatch[1];
+    const afterToken = sequence.slice(tokenRegex.lastIndex, tokenRegex.lastIndex + 20);
+    if (/^\s*(?:S\.?|say[ıi]l[ıi])(?=\s|$|[.,;:])/iu.test(afterToken)) continue;
+    const articleRange = raw.replace(/\s+/g, "").match(/^(\d{1,3})-(\d{1,3})$/);
+    if (articleRange) {
+      const start = Number(articleRange[1]);
+      const end = Number(articleRange[2]);
+      if (Number.isInteger(start) && Number.isInteger(end) && end >= start && end - start <= 20) {
+        for (let article = start; article <= end; article += 1) {
+          const normalized = String(article);
+          if (String(article) === String(lawNo) || seen.has(normalized)) continue;
+          seen.add(normalized);
+          target.push({ raw: normalized, index: baseIndex + tokenMatch.index });
+        }
+      }
+      continue;
+    }
     if (!isPlausibleArticleToken(raw, lawNo)) continue;
     const normalized = formatArticlePath(parseArticlePath(raw));
     if (!normalized || seen.has(normalized)) continue;
@@ -608,19 +670,29 @@ function collectArticleTokens(sequence, baseIndex, lawNo, target, seen) {
   }
 }
 
+function collectTrailingArticleTokensAfter(text, startIndex, lawNo) {
+  const tail = legalCitationWindow(String(text || "").slice(startIndex, startIndex + 140));
+  const sequenceMatch = tail.match(/^\s*(?:,|;|ve\b|ile\b)\s*((?:\d{1,3}(?:\/[0-9A-Za-zÇĞİÖŞÜçğıöşü.-]+)?\s*(?:,|;|\s+ve\s+|\s+ile\s+)?\s*){1,8})/iu);
+  if (!sequenceMatch) return [];
+  if (/^\s*(?:S\.?|say[ıi]l[ıi])(?=\s|$|[.,;:])/iu.test(tail.slice(sequenceMatch[0].length, sequenceMatch[0].length + 20))) return [];
+  const tokens = [];
+  collectArticleTokens(sequenceMatch[1], startIndex + sequenceMatch.index, lawNo, tokens, new Set());
+  return tokens;
+}
+
 function extractArticleTokensFromContext(windowText, lawNo) {
   const tokens = [];
   const seen = new Set();
   const text = legalCitationWindow(windowText);
 
-  const afterMaddeRegex = /\bMadde\s+((?:\d{1,3}(?:\/[0-9A-Za-zÇĞİÖŞÜçğıöşü.-]+)?(?:\s*(?:,|;|\s+ve\s+|\s+ile\s+)\s*)?){1,12})/giu;
+  const afterMaddeRegex = /\bMadde\s+((?:\d{1,3}(?:\s*-\s*\d{1,3})?(?:\/[0-9A-Za-zÇĞİÖŞÜçğıöşü.-]+)?(?:\s*(?:,|;|\s+ve\s+|\s+ile\s+)\s*)?){1,12})/giu;
   let match;
   while ((match = afterMaddeRegex.exec(text)) !== null) {
     collectArticleTokens(match[1], match.index, lawNo, tokens, seen);
     if (tokens.length >= 12) break;
   }
 
-  const beforeMaddeRegex = /((?:\b\d{1,3}(?:\/[0-9A-Za-zÇĞİÖŞÜçğıöşü.-]+)?\s*(?:\.|,|;|\s+ve\s+|\s+ile\s+)?\s*){1,12})\s*(?:maddesi|maddesinin|maddesinde|maddelerinde|maddelerine|maddeler|madde)\b/giu;
+  const beforeMaddeRegex = /((?:\b\d{1,3}(?:\s*-\s*\d{1,3})?(?:\/[0-9A-Za-zÇĞİÖŞÜçğıöşü.-]+)?\s*(?:\.|,|;|\s+ve\s+|\s+ile\s+)?\s*){1,12})\s*(?:maddesi[a-zçğıöşü]*|maddeler[a-zçğıöşü]*|madde)\b/giu;
   while ((match = beforeMaddeRegex.exec(text)) !== null) {
     collectArticleTokens(match[1], match.index, lawNo, tokens, seen);
     if (tokens.length >= 10) break;
@@ -670,19 +742,54 @@ function extractLegalReferences(text) {
   const refs = new Map();
   if (!sourceText) return [];
 
-  const directCodeRegex = /\b(?:(765|1086|2004|213|2577|3713|5237|5271|5275|5607|6100|6136)\s*sayılı\s+)?(TCK|CMK|HUMK|HMK|İYUK|IYUK|TMK|VUK|INF|İnfaz|CGTİHK|CGTIHK)\b(?:\s*['’`]?(?:nın|nin|nun|nün|na|ne|da|de)?|\.\s*(?:nın|nin|nun|nün)?)\s*(?:m\.?|madde)?\s*(\d{1,4}(?:\/[0-9A-Za-zÇĞİÖŞÜçğıöşü.-]+)?)\b/giu;
+  const directCodeRegex = /\b(?:(\d{3,4})\s*sayılı\s+)?(TCK|TCY|CMK|CMUK|HUMK|HMK|İYUK|IYUK|TMK|VUK|INF|İnfaz|CGTİHK|CGTIHK)\b(?:\s*['’`]?(?:nın|nin|nun|nün|na|ne|da|de)?|\.\s*(?:nın|nin|nun|nün)?)\s*(?:m\.?|madde)?\s*(\d{1,4}(?:\/[0-9A-Za-zÇĞİÖŞÜçğıöşü.-]+)?)\b/giu;
   let match;
   while ((match = directCodeRegex.exec(sourceText)) !== null) {
-    const law = lawByCode(match[2], match[1]);
+    let law = lawByCode(match[2], match[1]);
     const parts = parseArticlePath(match[3]);
-    if (law && parts) addDetectedLegalRef(refs, law, parts, match[0], sourceText, match.index);
+    if (law && parts) {
+      law = resolveDetectedLaw(law, match[0], parts, sourceText, match.index);
+      addDetectedLegalRef(refs, law, parts, match[0], sourceText, match.index);
+      const trailingTokens = collectTrailingArticleTokensAfter(sourceText, match.index + match[0].length, law.law_no);
+      trailingTokens.forEach((token) => {
+        const trailingParts = parseArticlePath(token.raw);
+        const trailingLaw = resolveDetectedLaw(law, token.raw, trailingParts, sourceText, token.index);
+        if (trailingParts) addDetectedLegalRef(refs, trailingLaw, trailingParts, token.raw, sourceText, token.index);
+      });
+    }
   }
 
-  const bracketLawRegex = /\b(?:(765|1086|2004|213|2577|3713|5237|5271|5275|5607|6100|6136)\s*S\.?\s*)?([A-ZÇĞİÖŞÜÜa-zçğıöşü\s]+?(?:KANUNU|YASA|TCK|CMK|HUMK|HMK|İYUK|IYUK|TMK|VUK))(?:\s*\((765|1086|5237|6100|MÜLGA|MULGA)\))?\s*\[\s*Madde\s+(\d{1,4}(?:\/[0-9A-Za-zÇĞİÖŞÜçğıöşü.-]+)?)\s*\]/giu;
+  const bracketLawRegex = new RegExp(`\\b(?:(${LAW_NO_PATTERN})\\s*S\\.?\\s*)?(${LAW_TITLE_PATTERN}|TCK|CMK|CMUK|HUMK|HMK|İYUK|IYUK|TMK|VUK)(?:\\s*\\((${LAW_NO_PATTERN}|MÜLGA|MULGA)\\))?\\s*\\[\\s*(?:Ek\\s+)?Madde\\s+(${ARTICLE_PATH_PATTERN})\\s*\\]`, "giu");
   while ((match = bracketLawRegex.exec(sourceText)) !== null) {
-    const law = lawByTextMarker(match[2], match[3] || match[1]);
+    let law = lawByTextMarker(match[2], match[3] || match[1]);
     const parts = parseArticlePath(match[4]);
-    if (law && parts) addDetectedLegalRef(refs, law, parts, match[0], sourceText, match.index);
+    if (law && parts) {
+      law = resolveDetectedLaw(law, match[0], parts, sourceText, match.index);
+      addDetectedLegalRef(refs, law, parts, match[0], sourceText, match.index);
+    }
+  }
+
+  const genericBracketByNumberRegex = new RegExp(`\\b(${LAW_NO_PATTERN})\\s*S\\.?\\s*[^\\[\\n]{0,220}\\[\\s*(?:Ek\\s+)?Madde\\s+(${ARTICLE_PATH_PATTERN})\\s*\\]`, "giu");
+  while ((match = genericBracketByNumberRegex.exec(sourceText)) !== null) {
+    let law = lawByTextMarker(match[0], match[1]) || lawByNo(match[1]);
+    const parts = parseArticlePath(match[2]);
+    if (law && parts) {
+      law = resolveDetectedLaw(law, match[0], parts, sourceText, match.index);
+      addDetectedLegalRef(refs, law, parts, match[0], sourceText, match.index);
+    }
+  }
+
+  const genericNumberedLawRegex = new RegExp(`\\b(${LAW_NO_PATTERN})\\s*(?:S\\.?|sayılı)\\s+${LAW_TITLE_PATTERN}`, "giu");
+  while ((match = genericNumberedLawRegex.exec(sourceText)) !== null) {
+    let law = lawByTextMarker(match[0], match[1]) || lawByNo(match[1]);
+    if (!law) continue;
+    const windowText = sourceText.slice(match.index, match.index + 300);
+    const articleTokens = extractArticleTokensFromContext(windowText, law.law_no);
+    articleTokens.forEach((token) => {
+      const parts = parseArticlePath(token.raw);
+      const detectedLaw = resolveDetectedLaw(law, token.raw, parts, sourceText, match.index + token.index);
+      if (parts) addDetectedLegalRef(refs, detectedLaw, parts, token.raw, sourceText, match.index + token.index);
+    });
   }
 
   for (const law of Object.values(LAW_REGISTRY)) {
@@ -700,7 +807,8 @@ function extractLegalReferences(text) {
         const articleTokens = extractArticleTokensFromContext(windowText, law.law_no);
         articleTokens.forEach((token) => {
           const parts = parseArticlePath(token.raw);
-          if (parts) addDetectedLegalRef(refs, law, parts, token.raw, sourceText, aliasMatch.index + token.index);
+          const detectedLaw = resolveDetectedLaw(law, token.raw, parts, sourceText, aliasMatch.index + token.index);
+          if (parts) addDetectedLegalRef(refs, detectedLaw, parts, token.raw, sourceText, aliasMatch.index + token.index);
         });
       }
     }
