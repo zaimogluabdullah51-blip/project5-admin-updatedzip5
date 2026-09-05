@@ -14,6 +14,7 @@ const COMPACT = String(process.env.INDEXER_COMPACT || '').toLowerCase() === 'tru
 const TAGS_ONLY = process.env.INDEXER_TAGS_ONLY
   ? String(process.env.INDEXER_TAGS_ONLY).toLowerCase() === 'true'
   : COMPACT;
+const RULE_AUDIT = String(process.env.INDEXER_RULE_AUDIT || '').toLowerCase() === 'true';
 const TARGET_CITATIONS = Math.max(Number(process.env.INDEXER_TARGET_CITATIONS || 0), 0);
 const DELAY_MS = Math.max(Number(process.env.INDEXER_DELAY_MS || 250), 0);
 const MAX_RETRIES = Math.max(Number(process.env.INDEXER_MAX_RETRIES || 8), 0);
@@ -59,7 +60,8 @@ async function scanBatch(cookie, config, offset) {
       query: LEGAL_REF,
       dryRun: DRY_RUN,
       compact: COMPACT,
-      tagsOnly: TAGS_ONLY
+      tagsOnly: TAGS_ONLY,
+      ruleAudit: RULE_AUDIT
     })
   });
   const payload = await response.json().catch(() => ({}));
@@ -90,6 +92,7 @@ if (LEGAL_REF) console.log(`Target legal ref: ${LEGAL_REF}`);
 if (DRY_RUN) console.log('Dry run: enabled; no Supabase writes will be attempted.');
 if (COMPACT) console.log('Compact mode: enabled; only lightweight decision metadata and citation tags are stored.');
 if (TAGS_ONLY) console.log('Tags-only mode: enabled; only Hugging Face mevzuat_atif tags are indexed.');
+if (RULE_AUDIT) console.log('Rule audit: enabled; Hugging Face tags are compared with the rule-based parser and differences are marked.');
 if (TARGET_CITATIONS) console.log(`Citation target: ${TARGET_CITATIONS}`);
 console.log(`Delay: ${DELAY_MS}ms, retries: ${MAX_RETRIES}, retry base: ${Math.round(RETRY_BASE_MS / 1000)}s`);
 
@@ -113,7 +116,11 @@ outer: for (const config of CONFIGS) {
     const citationRate = totalCitations / elapsedSeconds;
     const remainingCitations = Math.max(0, TARGET_CITATIONS - totalCitations);
     const etaMinutes = TARGET_CITATIONS && citationRate > 0 ? Math.ceil(remainingCitations / citationRate / 60) : 0;
-    console.log(`[${new Date().toISOString()}] batch=${batchNo} [${config}] offset ${offset}: scanned=${result.rows_scanned}, matched=${result.rows_matched_target}, decisions=${result.decisions_indexed}, citations=${result.citations_indexed}, total_citations=${totalCitations}${TARGET_CITATIONS ? `/${TARGET_CITATIONS}, eta_min=${etaMinutes}` : ''}${DRY_RUN ? `, preview=${previewCount}` : ''}`);
+    const audit = result.audit_stats || {};
+    const auditText = RULE_AUDIT
+      ? `, confirmed=${audit.exact_matches || 0}, review=${audit.needs_review || 0}, conflicts=${audit.conflicts || 0}, hf_only=${audit.hf_only || 0}, rule_only=${audit.rule_only || 0}`
+      : '';
+    console.log(`[${new Date().toISOString()}] batch=${batchNo} [${config}] offset ${offset}: scanned=${result.rows_scanned}, matched=${result.rows_matched_target}, decisions=${result.decisions_indexed}, citations=${result.citations_indexed}, total_citations=${totalCitations}${TARGET_CITATIONS ? `/${TARGET_CITATIONS}, eta_min=${etaMinutes}` : ''}${auditText}${DRY_RUN ? `, preview=${previewCount}` : ''}`);
     if (!result.rows_scanned) break;
     if (TARGET_CITATIONS && totalCitations >= TARGET_CITATIONS) break outer;
     offset = Number(result.next_offset || offset + BATCH_SIZE);

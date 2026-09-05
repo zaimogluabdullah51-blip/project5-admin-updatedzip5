@@ -46,6 +46,24 @@ const LAW_REGISTRY = {
     name: "Ceza Muhakemesi Kanunu",
     aliases: ["CMK", "Ceza Muhakemesi Kanunu", "5271 sayılı CMK", "5271 sayılı Ceza Muhakemesi Kanunu", "5271 sayılı Kanun", "5271 sayılı Yasa"]
   },
+  HUMK: {
+    law_no: "1086",
+    law_code: "HUMK",
+    name: "Mülga Hukuk Usulü Muhakemeleri Kanunu",
+    aliases: ["HUMK", "Hukuk Usulü Muhakemeleri Kanunu", "1086 sayılı HUMK", "1086 sayılı Hukuk Usulü Muhakemeleri Kanunu", "1086 sayılı Kanun", "1086 sayılı Yasa"]
+  },
+  HMK: {
+    law_no: "6100",
+    law_code: "HMK",
+    name: "Hukuk Muhakemeleri Kanunu",
+    aliases: ["HMK", "Hukuk Muhakemeleri Kanunu", "6100 sayılı HMK", "6100 sayılı Hukuk Muhakemeleri Kanunu", "6100 sayılı Kanun", "6100 sayılı Yasa"]
+  },
+  IYUK: {
+    law_no: "2577",
+    law_code: "IYUK",
+    name: "İdari Yargılama Usulü Kanunu",
+    aliases: ["İYUK", "IYUK", "İdari Yargılama Usulü Kanunu", "2577 sayılı İYUK", "2577 sayılı İdari Yargılama Usulü Kanunu", "2577 sayılı Kanun", "2577 sayılı Yasa"]
+  },
   INF: {
     law_no: "5275",
     law_code: "INF",
@@ -226,7 +244,15 @@ function postgrestSearchText(value) {
 function supabaseLegalRefOrFilter(legalRef) {
   const canonical = canonicalLegalRef(legalRef);
   if (!canonical) return "";
-  return `(canonical_ref.ilike.*${canonical}*,raw_reference.ilike.*${labelLegalRef(legalRef)}*)`;
+  const ref = normalizeLegalRef(legalRef);
+  const compact = ref?.law_no && ref?.article ? `${ref.law_no}/${formatArticlePath(ref)}` : "";
+  const legacyCanonical = ref?.law_no && ref?.article ? `${ref.law_no}:*:${ref.article}${ref.paragraph ? `:${ref.paragraph}` : ""}${ref.subparagraph ? `:${ref.subparagraph}` : ""}` : "";
+  return `(${[
+    `canonical_ref.ilike.*${canonical}*`,
+    `raw_reference.ilike.*${labelLegalRef(legalRef)}*`,
+    compact ? `raw_reference.ilike.*${compact}*` : "",
+    legacyCanonical ? `canonical_ref.ilike.*${legacyCanonical}*` : ""
+  ].filter(Boolean).join(",")})`;
 }
 
 function mapSupabaseCitation(row) {
@@ -334,6 +360,7 @@ function lawByCode(rawCode, lawNoHint = "") {
   const token = String(rawCode || "")
     .trim()
     .replace(/[İI]NFAZ/i, "INF")
+    .replace(/İYUK|IYUK/i, "IYUK")
     .replace(/CGTİHK|CGTIHK/i, "INF")
     .toUpperCase();
   if (lawNoHint && lawByNo(lawNoHint)?.law_code) return lawByNo(lawNoHint);
@@ -347,6 +374,9 @@ function lawByTextMarker(marker, lawNoHint = "") {
   if (lawNoHint) return lawByNo(lawNoHint);
   if (text.includes("TÜRK CEZA") || /\bTCK\b/.test(text)) return LAW_REGISTRY.TCK;
   if (text.includes("CEZA MUHAKEMES") || /\bCMK\b/.test(text)) return LAW_REGISTRY.CMK;
+  if (text.includes("HUKUK USUL") || /\bHUMK\b/.test(text)) return LAW_REGISTRY.HUMK;
+  if (text.includes("HUKUK MUHAKEMELER") || /\bHMK\b/.test(text)) return LAW_REGISTRY.HMK;
+  if (text.includes("İDARİ YARGILAMA") || /\bİYUK\b/.test(text) || /\bIYUK\b/.test(text)) return LAW_REGISTRY.IYUK;
   if (text.includes("TERÖRLE MÜCADELE") || /\bTMK\b/.test(text)) return LAW_REGISTRY.TMK;
   if (text.includes("İNFAZ") || text.includes("GÜVENLİK TEDBİRLER")) return LAW_REGISTRY.INF;
   if (text.includes("VERGİ USUL") || /\bVUK\b/.test(text)) return LAW_REGISTRY.VUK;
@@ -368,6 +398,19 @@ function cleanArticleToken(value) {
     .replace(/\.$/, "");
 }
 
+function romanToArabic(value) {
+  const roman = String(value || "").trim().toUpperCase();
+  if (!/^[IVXLCDM]+$/.test(roman)) return "";
+  const values = { I: 1, V: 5, X: 10, L: 50, C: 100, D: 500, M: 1000 };
+  let total = 0;
+  for (let index = 0; index < roman.length; index += 1) {
+    const current = values[roman[index]] || 0;
+    const next = values[roman[index + 1]] || 0;
+    total += current < next ? -current : current;
+  }
+  return total > 0 ? String(total) : "";
+}
+
 function parseArticlePath(value) {
   const token = cleanArticleToken(value);
   if (!token) return null;
@@ -379,9 +422,9 @@ function parseArticlePath(value) {
   let paragraph = "";
   let subparagraph = "";
   if (suffix) {
-    const paragraphMatch = suffix.match(/^(\d+)(?:[.\-/]?(.+))?$/i);
+    const paragraphMatch = suffix.match(/^(\d+|[IVXLCDM]+)(?:[.\-/]?(.+))?$/i);
     if (paragraphMatch) {
-      paragraph = paragraphMatch[1] || "";
+      paragraph = /^\d+$/.test(paragraphMatch[1]) ? paragraphMatch[1] : romanToArabic(paragraphMatch[1]);
       subparagraph = String(paragraphMatch[2] || "").replace(/^[.\-/]+|[.\-/]+$/g, "");
     } else {
       subparagraph = suffix;
@@ -483,21 +526,21 @@ function parseLegalReferenceInput(value, options = {}) {
     });
   }
 
-  const compactLaw = input.match(/\b(765|5237|5271|5275|3713|6136|5607|213)\/(\d{1,4}(?:\/[0-9A-Za-zÇĞİÖŞÜçğıöşü.-]+)?)\b/u);
+  const compactLaw = input.match(/\b(765|1086|2004|213|2577|3713|5237|5271|5275|5607|6100|6136)\/(\d{1,4}(?:\/[0-9A-Za-zÇĞİÖŞÜçğıöşü.-]+)?)\b/u);
   if (compactLaw) {
     const law = lawByNo(compactLaw[1]);
     const parts = parseArticlePath(compactLaw[2]);
     if (law && parts) return normalizeLegalRef({ ...law, ...parts, raw_reference: compactLaw[0] });
   }
 
-  const numbered = input.match(/\b(765|5237|5271|5275|3713|6136|5607|213)\s*sayılı[\s\S]{0,90}?(\d{1,4}(?:\/[0-9A-Za-zÇĞİÖŞÜçğıöşü.-]+)?)\s*(?:\.?\s*(?:madde|maddesi|maddesinin|fıkra|uyarınca|kapsamında)|\b)/iu);
+  const numbered = input.match(/\b(765|1086|2004|213|2577|3713|5237|5271|5275|5607|6100|6136)\s*sayılı[\s\S]{0,90}?(\d{1,4}(?:\/[0-9A-Za-zÇĞİÖŞÜçğıöşü.-]+)?)\s*(?:\.?\s*(?:madde|maddesi|maddesinin|fıkra|uyarınca|kapsamında)|\b)/iu);
   if (numbered) {
     const law = lawByNo(numbered[1]);
     const parts = parseArticlePath(numbered[2]);
     if (law && parts) return normalizeLegalRef({ ...law, ...parts, raw_reference: numbered[0] });
   }
 
-  const code = input.match(/\b(TCK|CMK|TMK|VUK|INF|İnfaz|CGTİHK|CGTIHK)\b[\s'’`A-Za-zÇĞİÖŞÜçğıöşü.]{0,30}?(\d{1,4}(?:\/[0-9A-Za-zÇĞİÖŞÜçğıöşü.-]+)?)\b/u);
+  const code = input.match(/\b(TCK|CMK|HUMK|HMK|İYUK|IYUK|TMK|VUK|INF|İnfaz|CGTİHK|CGTIHK)\b[\s'’`A-Za-zÇĞİÖŞÜçğıöşü.]{0,30}?(\d{1,4}(?:\/[0-9A-Za-zÇĞİÖŞÜçğıöşü.-]+)?)\b/u);
   if (code) {
     const law = lawByCode(code[1]);
     const parts = parseArticlePath(code[2]);
@@ -603,7 +646,7 @@ function extractLegalReferences(text) {
   const refs = new Map();
   if (!sourceText) return [];
 
-  const directCodeRegex = /\b(?:(765|5237|5271|5275|3713|6136|5607|213)\s*sayılı\s+)?(TCK|CMK|TMK|VUK|INF|İnfaz|CGTİHK|CGTIHK)\b(?:\s*['’`]?(?:nın|nin|nun|nün|na|ne|da|de)?|\.\s*(?:nın|nin|nun|nün)?)\s*(?:m\.?|madde)?\s*(\d{1,4}(?:\/[0-9A-Za-zÇĞİÖŞÜçğıöşü.-]+)?)\b/giu;
+  const directCodeRegex = /\b(?:(765|1086|2004|213|2577|3713|5237|5271|5275|5607|6100|6136)\s*sayılı\s+)?(TCK|CMK|HUMK|HMK|İYUK|IYUK|TMK|VUK|INF|İnfaz|CGTİHK|CGTIHK)\b(?:\s*['’`]?(?:nın|nin|nun|nün|na|ne|da|de)?|\.\s*(?:nın|nin|nun|nün)?)\s*(?:m\.?|madde)?\s*(\d{1,4}(?:\/[0-9A-Za-zÇĞİÖŞÜçğıöşü.-]+)?)\b/giu;
   let match;
   while ((match = directCodeRegex.exec(sourceText)) !== null) {
     const law = lawByCode(match[2], match[1]);
@@ -611,7 +654,7 @@ function extractLegalReferences(text) {
     if (law && parts) addDetectedLegalRef(refs, law, parts, match[0], sourceText, match.index);
   }
 
-  const bracketLawRegex = /\b(?:(765|5237|5271|5275|3713|6136|5607|213)\s*S\.?\s*)?([A-ZÇĞİÖŞÜÜa-zçğıöşü\s]+?(?:KANUNU|YASA|TCK|CMK|TMK|VUK))(?:\s*\((765|5237|MÜLGA|MULGA)\))?\s*\[\s*Madde\s+(\d{1,4}(?:\/[0-9A-Za-zÇĞİÖŞÜçğıöşü.-]+)?)\s*\]/giu;
+  const bracketLawRegex = /\b(?:(765|1086|2004|213|2577|3713|5237|5271|5275|5607|6100|6136)\s*S\.?\s*)?([A-ZÇĞİÖŞÜÜa-zçğıöşü\s]+?(?:KANUNU|YASA|TCK|CMK|HUMK|HMK|İYUK|IYUK|TMK|VUK))(?:\s*\((765|1086|5237|6100|MÜLGA|MULGA)\))?\s*\[\s*Madde\s+(\d{1,4}(?:\/[0-9A-Za-zÇĞİÖŞÜçğıöşü.-]+)?)\s*\]/giu;
   while ((match = bracketLawRegex.exec(sourceText)) !== null) {
     const hintedNo = /^\d+$/.test(match[3] || "") ? match[3] : match[1];
     const law = lawByTextMarker(match[2], hintedNo);
@@ -735,6 +778,154 @@ function extractLegalReferencesFromHfRow(rowWrapper, options = {}) {
     ...extractLegalReferences(text),
     ...tagRefs
   ]);
+}
+
+function baseCanonicalLegalRef(ref) {
+  const normalized = normalizeLegalRef(ref);
+  if (!normalized) return "";
+  return [normalized.law_no, normalized.law_code, normalized.article]
+    .map((item) => String(item || "").trim().toUpperCase())
+    .filter(Boolean)
+    .join(":");
+}
+
+function legalRefRelation(left, right) {
+  const leftCanonical = canonicalLegalRef(left);
+  const rightCanonical = canonicalLegalRef(right);
+  if (!leftCanonical || !rightCanonical) return "none";
+  if (leftCanonical === rightCanonical) return "exact";
+  if (leftCanonical.startsWith(`${rightCanonical}:`) || rightCanonical.startsWith(`${leftCanonical}:`)) return "granularity";
+  if (baseCanonicalLegalRef(left) && baseCanonicalLegalRef(left) === baseCanonicalLegalRef(right)) return "same_article";
+  return "none";
+}
+
+function bestLegalRefRelation(ref, candidates) {
+  let best = "none";
+  for (const candidate of candidates || []) {
+    const relation = legalRefRelation(ref, candidate);
+    if (relation === "exact") return "exact";
+    if (relation === "granularity") best = "granularity";
+    if (relation === "same_article" && best === "none") best = "same_article";
+  }
+  return best;
+}
+
+function hasExactLegalRef(ref, candidates) {
+  const canonical = canonicalLegalRef(ref);
+  return Boolean(canonical && (candidates || []).some((candidate) => canonicalLegalRef(candidate) === canonical));
+}
+
+function hasLegacyTckAmbiguity(text) {
+  const sourceText = String(text || "");
+  const hasOldTck = /\b765\s*(?:S\.?|sayılı)?[\s\S]{0,60}?(?:TCK|TÜRK\s+CEZA|MÜLGA)/iu.test(sourceText)
+    || /\bTCK\s*\(M[ÜU]LGA\)/iu.test(sourceText)
+    || /\bM[ÜU]LGA\s+TCK\b/iu.test(sourceText);
+  const hasNewTck = /\b5237\s*(?:S\.?|sayılı)?[\s\S]{0,60}?(?:TCK|TÜRK\s+CEZA)/iu.test(sourceText)
+    || /\bT[ÜU]RK\s+CEZA\s+KANUNU\b/iu.test(sourceText);
+  return hasOldTck && hasNewTck;
+}
+
+function rawReferenceHasLawNumber(ref) {
+  const normalized = normalizeLegalRef(ref);
+  const raw = String(ref?.raw_reference || "");
+  return Boolean(normalized?.law_no && new RegExp(`\\b${escapeRegExp(normalized.law_no)}\\b`, "u").test(raw));
+}
+
+function citationWithAuditFields(ref, sourceMethod, comparisonRefs, text) {
+  const relation = bestLegalRefRelation(ref, comparisonRefs);
+  const flags = [];
+  let qualityStatus = "needs_review";
+  let confidence = "medium";
+  let method = sourceMethod;
+
+  if (relation === "exact") {
+    method = "both";
+    qualityStatus = "confirmed";
+    confidence = "high";
+  } else if (relation === "granularity") {
+    method = "both";
+    flags.push("granularity_mismatch");
+  } else if (relation === "same_article") {
+    method = "conflict";
+    qualityStatus = "conflict";
+    confidence = "review";
+    flags.push("same_article_different_detail");
+  } else if (sourceMethod === "hf_tag") {
+    flags.push("not_found_by_rule_parser");
+  } else {
+    flags.push("missing_from_hf_tag");
+  }
+
+  const normalized = normalizeLegalRef(ref);
+  if (
+    normalized
+    && ["TCK", "765TCK"].includes(normalized.law_code)
+    && hasLegacyTckAmbiguity(text)
+    && !rawReferenceHasLawNumber(ref)
+  ) {
+    method = "conflict";
+    qualityStatus = "conflict";
+    confidence = "review";
+    flags.push("legacy_tck_ambiguity");
+  }
+
+  return {
+    ...ref,
+    source_method: method,
+    confidence,
+    quality_status: qualityStatus,
+    conflict_flags: Array.from(new Set(flags)),
+    audit_method: "hf_tag_vs_rule_parser_v1",
+    audited_at: new Date().toISOString()
+  };
+}
+
+function buildAuditedLegalReferencesForRow(rowWrapper, options = {}) {
+  const row = rowWrapper?.row || rowWrapper || {};
+  const text = row.text || "";
+  const withContext = options.withContext !== false;
+  const compact = Boolean(options.compact);
+  const hfRefs = mergeLegalReferenceCandidates(extractLegalReferencesFromHfTags(row, text, { withContext }));
+  const ruleRefs = mergeLegalReferenceCandidates(extractLegalReferences(text));
+  const citations = [];
+  const stats = {
+    hf_refs: hfRefs.length,
+    rule_refs: ruleRefs.length,
+    exact_matches: 0,
+    granularity_mismatches: 0,
+    same_article_conflicts: 0,
+    hf_only: 0,
+    rule_only: 0,
+    needs_review: 0,
+    conflicts: 0
+  };
+
+  hfRefs.forEach((ref) => {
+    const audited = citationWithAuditFields(ref, "hf_tag", ruleRefs, text);
+    if (compact) audited.context = "";
+    citations.push(audited);
+  });
+
+  ruleRefs
+    .filter((ref) => !hasExactLegalRef(ref, hfRefs))
+    .forEach((ref) => {
+      const audited = citationWithAuditFields(ref, "rule_based", hfRefs, text);
+      if (compact) audited.context = "";
+      citations.push(audited);
+    });
+
+  citations.forEach((citation) => {
+    const flags = Array.isArray(citation.conflict_flags) ? citation.conflict_flags : [];
+    if (citation.source_method === "both" && citation.quality_status === "confirmed") stats.exact_matches += 1;
+    if (flags.includes("granularity_mismatch")) stats.granularity_mismatches += 1;
+    if (flags.includes("same_article_different_detail")) stats.same_article_conflicts += 1;
+    if (flags.includes("not_found_by_rule_parser")) stats.hf_only += 1;
+    if (flags.includes("missing_from_hf_tag")) stats.rule_only += 1;
+    if (citation.quality_status === "needs_review") stats.needs_review += 1;
+    if (citation.quality_status === "conflict") stats.conflicts += 1;
+  });
+
+  return { citations, stats };
 }
 
 function extractTckCodes(text) {
@@ -1018,6 +1209,7 @@ async function upsertSupabaseDecisionCitationBatch(rowCitationPairs, query = "",
     throw new Error("Supabase write key is not configured.");
   }
   const compact = Boolean(options.compact);
+  const includeAuditFields = Boolean(options.auditRules);
 
   const pairs = (rowCitationPairs || [])
     .map((pair) => ({
@@ -1080,7 +1272,7 @@ async function upsertSupabaseDecisionCitationBatch(rowCitationPairs, query = "",
       const key = `${decisionId}|${canonical}|${rawReference}`;
       if (seen.has(key)) return;
       seen.add(key);
-      citationPayload.push({
+      const payload = {
         decision_id: decisionId,
         hf_id: hfId,
         law_no: ref.law_no,
@@ -1093,7 +1285,16 @@ async function upsertSupabaseDecisionCitationBatch(rowCitationPairs, query = "",
         raw_reference: rawReference,
         context: compact ? "" : citation.context || makeExcerpt(text, rawReference, 360),
         position: Number(citation.position || idx) || 0
-      });
+      };
+      if (includeAuditFields) {
+        payload.source_method = citation.source_method || "rule_based";
+        payload.confidence = citation.confidence || "medium";
+        payload.quality_status = citation.quality_status || "needs_review";
+        payload.conflict_flags = Array.isArray(citation.conflict_flags) ? citation.conflict_flags : [];
+        payload.audit_method = citation.audit_method || "hf_tag_vs_rule_parser_v1";
+        payload.audited_at = citation.audited_at || new Date().toISOString();
+      }
+      citationPayload.push(payload);
     });
   }
 
@@ -1102,7 +1303,7 @@ async function upsertSupabaseDecisionCitationBatch(rowCitationPairs, query = "",
     await supabaseRest(`/legal_citations?${conflict.toString()}`, {
       method: "POST",
       write: true,
-      headers: { Prefer: "resolution=ignore-duplicates,return=minimal" },
+      headers: { Prefer: `${includeAuditFields ? "resolution=merge-duplicates" : "resolution=ignore-duplicates"},return=minimal` },
       body: citationPayload
     });
   }
@@ -1113,7 +1314,7 @@ async function upsertSupabaseDecisionCitationBatch(rowCitationPairs, query = "",
   };
 }
 
-async function scanHfRowsBatch({ config = "yargitay", offset = 0, length = 100, targetRef = null, query = "", dryRun = false, compact = false, tagsOnly = false }) {
+async function scanHfRowsBatch({ config = "yargitay", offset = 0, length = 100, targetRef = null, query = "", dryRun = false, compact = false, tagsOnly = false, ruleAudit = false }) {
   const response = await fetchHfRowsPage(config, offset, length);
   if (!response.ok) {
     const detail = await hfErrorText(response);
@@ -1127,14 +1328,35 @@ async function scanHfRowsBatch({ config = "yargitay", offset = 0, length = 100, 
   let rowsMatchedTarget = 0;
   const matchedPreview = [];
   const rowsToStore = [];
+  const auditStats = {
+    hf_refs: 0,
+    rule_refs: 0,
+    exact_matches: 0,
+    granularity_mismatches: 0,
+    same_article_conflicts: 0,
+    hf_only: 0,
+    rule_only: 0,
+    needs_review: 0,
+    conflicts: 0
+  };
 
   for (const rowWrapper of rows) {
     const row = rowWrapper?.row || {};
-    const citations = extractLegalReferencesFromHfRow(rowWrapper, {
-      tagsOnly,
-      withContext: !compact
-    });
+    const auditResult = ruleAudit
+      ? buildAuditedLegalReferencesForRow(rowWrapper, { compact, withContext: !compact })
+      : null;
+    const citations = auditResult
+      ? auditResult.citations
+      : extractLegalReferencesFromHfRow(rowWrapper, {
+        tagsOnly,
+        withContext: !compact
+      });
     if (!citations.length) continue;
+    if (auditResult?.stats) {
+      Object.keys(auditStats).forEach((key) => {
+        auditStats[key] += Number(auditResult.stats[key] || 0);
+      });
+    }
     rowsWithCitations += 1;
     const matchesTarget = targetRef ? citations.some((citation) => legalRefMatchesTarget(citation, targetRef)) : true;
     if (!matchesTarget) continue;
@@ -1151,7 +1373,11 @@ async function scanHfRowsBatch({ config = "yargitay", offset = 0, length = 100, 
         detected_refs: citations.map((citation) => ({
           canonical_ref: canonicalLegalRef(citation),
           label: labelLegalRef(citation),
-          raw_reference: citation.raw_reference || ""
+          raw_reference: citation.raw_reference || "",
+          source_method: citation.source_method || "",
+          confidence: citation.confidence || "",
+          quality_status: citation.quality_status || "",
+          conflict_flags: citation.conflict_flags || []
         }))
       });
       continue;
@@ -1160,7 +1386,7 @@ async function scanHfRowsBatch({ config = "yargitay", offset = 0, length = 100, 
   }
 
   if (!dryRun && rowsToStore.length) {
-    const stored = await upsertSupabaseDecisionCitationBatch(rowsToStore, query, { compact });
+    const stored = await upsertSupabaseDecisionCitationBatch(rowsToStore, query, { compact, auditRules: ruleAudit });
     decisionsIndexed += stored.decisions_indexed;
     citationsIndexed += stored.citations_indexed;
   }
@@ -1174,6 +1400,8 @@ async function scanHfRowsBatch({ config = "yargitay", offset = 0, length = 100, 
     rows_matched_target: rowsMatchedTarget,
     decisions_indexed: decisionsIndexed,
     citations_indexed: citationsIndexed,
+    rule_audit: ruleAudit,
+    audit_stats: auditStats,
     dry_run: dryRun,
     matched_preview: matchedPreview.slice(0, 20)
   };
@@ -2149,9 +2377,10 @@ app.post("/api/legal-index/scan-batch", requireAuthApi, async (req, res) => {
     const query = String(req.body?.query || req.body?.legalRef || "").trim();
     const compact = Boolean(req.body?.compact || req.body?.compactIndex);
     const tagsOnly = typeof req.body?.tagsOnly === "boolean" ? req.body.tagsOnly : compact;
+    const ruleAudit = Boolean(req.body?.ruleAudit || req.body?.auditRules);
     const targetRef = parseLegalReferenceInput(req.body?.legalRef || query || "", { defaultLawCode: "TCK" });
     if (dryRun) {
-      const result = await scanHfRowsBatch({ config, offset, length, targetRef, query, dryRun: true, compact, tagsOnly });
+      const result = await scanHfRowsBatch({ config, offset, length, targetRef, query, dryRun: true, compact, tagsOnly, ruleAudit });
       return res.json({ id: "dry-run", ...result });
     }
     const runId = crypto.randomUUID();
@@ -2174,7 +2403,7 @@ app.post("/api/legal-index/scan-batch", requireAuthApi, async (req, res) => {
         "running",
         5,
         60,
-        `${config} kaynağında ${offset}-${offset + length} arası satırlar mevzuat atfı için taranıyor.`,
+        `${config} kaynağında ${offset}-${offset + length} arası satırlar mevzuat atfı için ${ruleAudit ? "rule audit ile " : ""}taranıyor.`,
         0,
         startedAt,
         "",
@@ -2184,7 +2413,7 @@ app.post("/api/legal-index/scan-batch", requireAuthApi, async (req, res) => {
         ""
       ]
     );
-    const result = await scanHfRowsBatch({ config, offset, length, targetRef, query, compact, tagsOnly });
+    const result = await scanHfRowsBatch({ config, offset, length, targetRef, query, compact, tagsOnly, ruleAudit });
     await run(
       "UPDATE deep_search_jobs SET status = ?, progress_percent = ?, estimated_seconds = ?, matched_count = ?, status_message = ?, finished_at = ? WHERE id = ?",
       [
