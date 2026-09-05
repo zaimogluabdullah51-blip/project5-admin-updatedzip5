@@ -15,6 +15,7 @@ const TAGS_ONLY = process.env.INDEXER_TAGS_ONLY
   ? String(process.env.INDEXER_TAGS_ONLY).toLowerCase() === 'true'
   : COMPACT;
 const RULE_AUDIT = String(process.env.INDEXER_RULE_AUDIT || '').toLowerCase() === 'true';
+const INSERT_RULE_ONLY = String(process.env.INDEXER_INSERT_RULE_ONLY || '').toLowerCase() === 'true';
 const TARGET_CITATIONS = Math.max(Number(process.env.INDEXER_TARGET_CITATIONS || 0), 0);
 const DELAY_MS = Math.max(Number(process.env.INDEXER_DELAY_MS || 250), 0);
 const MAX_RETRIES = Math.max(Number(process.env.INDEXER_MAX_RETRIES || 8), 0);
@@ -61,7 +62,8 @@ async function scanBatch(cookie, config, offset) {
       dryRun: DRY_RUN,
       compact: COMPACT,
       tagsOnly: TAGS_ONLY,
-      ruleAudit: RULE_AUDIT
+      ruleAudit: RULE_AUDIT,
+      insertRuleOnly: INSERT_RULE_ONLY
     })
   });
   const payload = await response.json().catch(() => ({}));
@@ -93,6 +95,8 @@ if (DRY_RUN) console.log('Dry run: enabled; no Supabase writes will be attempted
 if (COMPACT) console.log('Compact mode: enabled; only lightweight decision metadata and citation tags are stored.');
 if (TAGS_ONLY) console.log('Tags-only mode: enabled; only Hugging Face mevzuat_atif tags are indexed.');
 if (RULE_AUDIT) console.log('Rule audit: enabled; Hugging Face tags are compared with the rule-based parser and differences are marked.');
+if (RULE_AUDIT && !INSERT_RULE_ONLY) console.log('Safe audit: rule-only parser suggestions are counted, but not inserted into the public citation index.');
+if (INSERT_RULE_ONLY) console.log('Rule-only insertion: enabled; parser-only citations will be written to the citation index.');
 if (TARGET_CITATIONS) console.log(`Citation target: ${TARGET_CITATIONS}`);
 console.log(`Delay: ${DELAY_MS}ms, retries: ${MAX_RETRIES}, retry base: ${Math.round(RETRY_BASE_MS / 1000)}s`);
 
