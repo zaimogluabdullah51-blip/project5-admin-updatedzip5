@@ -2697,6 +2697,71 @@ app.get("/api/legal-index/problem-hf-ids", requireAuthApi, async (req, res) => {
   }
 });
 
+app.post("/api/legal-index/audit-rows", requireAuthApi, async (req, res) => {
+  try {
+    if (!isSupabaseWriteEnabled()) {
+      return res.status(400).json({
+        error: "Supabase yazma anahtarı yok. Render Environment bölümüne SUPABASE_URL ve SUPABASE_SERVICE_ROLE_KEY eklenmeli."
+      });
+    }
+    const compact = req.body?.compact !== false;
+    const insertRuleOnly = Boolean(req.body?.insertRuleOnly || req.body?.insert_rule_only);
+    const rows = (Array.isArray(req.body?.rows) ? req.body.rows : [])
+      .map((item, index) => {
+        if (item?.row) return item;
+        return { row_idx: item?.row_idx ?? index, row: item || {} };
+      })
+      .filter((item) => item?.row && (item.row.id || item.row.text || item.row.mevzuat_atif));
+    if (!rows.length) {
+      return res.status(400).json({ error: "Audit için rows dizisi boş." });
+    }
+
+    const rowsToStore = [];
+    const auditStats = {
+      hf_refs: 0,
+      rule_refs: 0,
+      exact_matches: 0,
+      granularity_mismatches: 0,
+      same_article_conflicts: 0,
+      hf_only: 0,
+      rule_only: 0,
+      needs_review: 0,
+      conflicts: 0
+    };
+
+    rows.forEach((rowWrapper) => {
+      const auditResult = buildAuditedLegalReferencesForRow(rowWrapper, {
+        compact,
+        withContext: !compact,
+        insertRuleOnly
+      });
+      Object.keys(auditStats).forEach((key) => {
+        auditStats[key] += Number(auditResult.stats?.[key] || 0);
+      });
+      if (auditResult.citations.length) {
+        rowsToStore.push({ rowWrapper, citations: auditResult.citations });
+      }
+    });
+
+    const stored = rowsToStore.length
+      ? await upsertSupabaseDecisionCitationBatch(rowsToStore, "problem-audit", { compact, auditRules: true })
+      : { decisions_indexed: 0, citations_indexed: 0 };
+
+    res.json({
+      ok: true,
+      rows_received: rows.length,
+      rows_indexed: rowsToStore.length,
+      decisions_indexed: stored.decisions_indexed,
+      citations_indexed: stored.citations_indexed,
+      insert_rule_only: insertRuleOnly,
+      audit_stats: auditStats
+    });
+  } catch (err) {
+    console.error("Direct legal row audit error:", err);
+    res.status(500).json({ error: err.message || "Satır bazlı mevzuat audit yapılamadı." });
+  }
+});
+
 app.post("/api/legal-index/scan-batch", requireAuthApi, async (req, res) => {
   try {
     const dryRun = Boolean(req.body?.dryRun || req.body?.dry_run);
