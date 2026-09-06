@@ -326,6 +326,48 @@ async function fetchSupabaseLegalReferences({ legalRef, query, limit }) {
   });
 }
 
+async function fetchSupabaseProblemHfIds({ limit = 10000, flag = "" } = {}) {
+  if (!isSupabaseReadEnabled()) {
+    throw new Error("Supabase read key is not configured.");
+  }
+  const maxIds = Math.min(Math.max(Number(limit) || 10000, 1), 50000);
+  const pageSize = 1000;
+  const ids = new Set();
+  const flagCounts = {};
+  let citationRowsScanned = 0;
+
+  for (let from = 0; from < maxIds * 5 && ids.size < maxIds; from += pageSize) {
+    const params = new URLSearchParams();
+    params.set("select", "hf_id,conflict_flags,quality_status,audited_at");
+    params.set("quality_status", "in.(needs_review,conflict)");
+    params.set("audited_at", "not.is.null");
+    params.set("order", "audited_at.desc");
+    params.set("limit", String(pageSize));
+    if (flag) {
+      params.set("conflict_flags", `cs.${JSON.stringify([flag])}`);
+    }
+    const rows = await supabaseRest(`/legal_citations?${params.toString()}`, {
+      headers: { Range: `${from}-${from + pageSize - 1}` }
+    });
+    if (!Array.isArray(rows) || !rows.length) break;
+    citationRowsScanned += rows.length;
+    rows.forEach((row) => {
+      if (row?.hf_id) ids.add(row.hf_id);
+      const flags = Array.isArray(row?.conflict_flags) ? row.conflict_flags : [];
+      flags.forEach((item) => {
+        const key = String(item || "").trim();
+        if (key) flagCounts[key] = (flagCounts[key] || 0) + 1;
+      });
+    });
+  }
+
+  return {
+    hf_ids: Array.from(ids).slice(0, maxIds),
+    citation_rows_scanned: citationRowsScanned,
+    flag_counts: flagCounts
+  };
+}
+
 function mergeLegalReferences(primary, secondary, limit) {
   const seen = new Set();
   const merged = [];
@@ -1566,7 +1608,7 @@ async function upsertSupabaseDecisionCitationBatch(rowCitationPairs, query = "",
   };
 }
 
-async function scanHfRowsBatch({ config = "yargitay", offset = 0, length = 100, targetRef = null, query = "", dryRun = false, compact = false, tagsOnly = false, ruleAudit = false, insertRuleOnly = false }) {
+async function scanHfRowsBatch({ config = "yargitay", offset = 0, length = 100, targetRef = null, query = "", dryRun = false, compact = false, tagsOnly = false, ruleAudit = false, insertRuleOnly = false, onlyHfIds = [] }) {
   const response = await fetchHfRowsPage(config, offset, length);
   if (!response.ok) {
     const detail = await hfErrorText(response);
@@ -1578,6 +1620,10 @@ async function scanHfRowsBatch({ config = "yargitay", offset = 0, length = 100, 
   let citationsIndexed = 0;
   let rowsWithCitations = 0;
   let rowsMatchedTarget = 0;
+  const onlyHfIdSet = new Set((Array.isArray(onlyHfIds) ? onlyHfIds : [])
+    .map((item) => String(item || "").trim())
+    .filter(Boolean));
+  const matchedHfIds = [];
   const matchedPreview = [];
   const rowsToStore = [];
   const auditStats = {
@@ -1594,6 +1640,9 @@ async function scanHfRowsBatch({ config = "yargitay", offset = 0, length = 100, 
 
   for (const rowWrapper of rows) {
     const row = rowWrapper?.row || {};
+    const hfId = row.id || `${row.source || "hf"}:${row.document_id || rowWrapper?.row_idx || ""}`;
+    if (onlyHfIdSet.size && !onlyHfIdSet.has(hfId)) continue;
+    if (onlyHfIdSet.size) matchedHfIds.push(hfId);
     const auditResult = ruleAudit
       ? buildAuditedLegalReferencesForRow(rowWrapper, { compact, withContext: !compact, insertRuleOnly })
       : null;
@@ -1666,6 +1715,8 @@ async function scanHfRowsBatch({ config = "yargitay", offset = 0, length = 100, 
     citations_indexed: citationsIndexed,
     rule_audit: ruleAudit,
     insert_rule_only: insertRuleOnly,
+    only_hf_ids: onlyHfIdSet.size,
+    matched_hf_ids: matchedHfIds,
     audit_stats: auditStats,
     dry_run: dryRun,
     matched_preview: matchedPreview.slice(0, 20)
@@ -2628,6 +2679,24 @@ app.delete("/api/tck-definitions/:code", requireAuthApi, async (req, res) => {
   }
 });
 
+app.get("/api/legal-index/problem-hf-ids", requireAuthApi, async (req, res) => {
+  try {
+    const limit = Math.min(Math.max(parseInt(req.query.limit, 10) || 10000, 1), 50000);
+    const flag = String(req.query.flag || "").trim();
+    const result = await fetchSupabaseProblemHfIds({ limit, flag });
+    res.json({
+      ok: true,
+      distinct_hf_ids: result.hf_ids.length,
+      citation_rows_scanned: result.citation_rows_scanned,
+      flag_counts: result.flag_counts,
+      hf_ids: result.hf_ids
+    });
+  } catch (err) {
+    console.error("Problem HF ID lookup error:", err);
+    res.status(500).json({ error: err.message || "Problemli HF kayıtları alınamadı." });
+  }
+});
+
 app.post("/api/legal-index/scan-batch", requireAuthApi, async (req, res) => {
   try {
     const dryRun = Boolean(req.body?.dryRun || req.body?.dry_run);
@@ -2644,9 +2713,13 @@ app.post("/api/legal-index/scan-batch", requireAuthApi, async (req, res) => {
     const tagsOnly = typeof req.body?.tagsOnly === "boolean" ? req.body.tagsOnly : compact;
     const ruleAudit = Boolean(req.body?.ruleAudit || req.body?.auditRules);
     const insertRuleOnly = Boolean(req.body?.insertRuleOnly || req.body?.insert_rule_only);
+    const onlyHfIds = (Array.isArray(req.body?.onlyHfIds) ? req.body.onlyHfIds : [])
+      .map((item) => String(item || "").trim())
+      .filter(Boolean)
+      .slice(0, 20000);
     const targetRef = parseLegalReferenceInput(req.body?.legalRef || query || "", { defaultLawCode: "TCK" });
     if (dryRun) {
-      const result = await scanHfRowsBatch({ config, offset, length, targetRef, query, dryRun: true, compact, tagsOnly, ruleAudit, insertRuleOnly });
+      const result = await scanHfRowsBatch({ config, offset, length, targetRef, query, dryRun: true, compact, tagsOnly, ruleAudit, insertRuleOnly, onlyHfIds });
       return res.json({ id: "dry-run", ...result });
     }
     const runId = crypto.randomUUID();
@@ -2669,7 +2742,7 @@ app.post("/api/legal-index/scan-batch", requireAuthApi, async (req, res) => {
         "running",
         5,
         60,
-        `${config} kaynağında ${offset}-${offset + length} arası satırlar mevzuat atfı için ${ruleAudit ? "rule audit ile " : ""}taranıyor.`,
+        `${config} kaynağında ${offset}-${offset + length} arası satırlar mevzuat atfı için ${ruleAudit ? "rule audit ile " : ""}taranıyor.${onlyHfIds.length ? ` Hedef problemli karar sayısı: ${onlyHfIds.length}.` : ""}`,
         0,
         startedAt,
         "",
@@ -2679,7 +2752,7 @@ app.post("/api/legal-index/scan-batch", requireAuthApi, async (req, res) => {
         ""
       ]
     );
-    const result = await scanHfRowsBatch({ config, offset, length, targetRef, query, compact, tagsOnly, ruleAudit, insertRuleOnly });
+    const result = await scanHfRowsBatch({ config, offset, length, targetRef, query, compact, tagsOnly, ruleAudit, insertRuleOnly, onlyHfIds });
     await run(
       "UPDATE deep_search_jobs SET status = ?, progress_percent = ?, estimated_seconds = ?, matched_count = ?, status_message = ?, finished_at = ? WHERE id = ?",
       [
