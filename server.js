@@ -247,6 +247,23 @@ async function supabaseRest(pathname, options = {}) {
   return text ? JSON.parse(text) : null;
 }
 
+async function deleteSupabaseCitationAuditsForDecisions(decisionIds) {
+  const ids = Array.from(new Set((decisionIds || [])
+    .map((id) => String(id || "").trim())
+    .filter(Boolean)));
+  if (!ids.length) return 0;
+
+  const params = new URLSearchParams();
+  params.set("decision_id", `in.(${ids.join(",")})`);
+  params.set("audit_method", "eq.hf_tag_vs_rule_parser_v1");
+  await supabaseRest(`/legal_citations?${params.toString()}`, {
+    method: "DELETE",
+    write: true,
+    headers: { Prefer: "return=minimal" }
+  });
+  return ids.length;
+}
+
 function postgrestSearchText(value) {
   return String(value || "").replace(/[(),*]/g, " ").replace(/\s+/g, " ").trim();
 }
@@ -1551,6 +1568,10 @@ async function upsertSupabaseDecisionCitationBatch(rowCitationPairs, query = "",
 
   const seen = new Set();
   const citationPayload = [];
+
+  if (includeAuditFields) {
+    await deleteSupabaseCitationAuditsForDecisions(Array.from(decisionIdByHfId.values()));
+  }
 
   for (const { rowWrapper, row, citations } of pairs) {
     const text = row.text || "";
