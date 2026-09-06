@@ -326,7 +326,7 @@ async function fetchSupabaseLegalReferences({ legalRef, query, limit }) {
   });
 }
 
-async function fetchSupabaseProblemHfIds({ limit = 10000, flag = "" } = {}) {
+async function fetchSupabaseProblemHfIds({ limit = 10000, flag = "", order = "oldest" } = {}) {
   if (!isSupabaseReadEnabled()) {
     throw new Error("Supabase read key is not configured.");
   }
@@ -341,7 +341,7 @@ async function fetchSupabaseProblemHfIds({ limit = 10000, flag = "" } = {}) {
     params.set("select", "hf_id,conflict_flags,quality_status,audited_at");
     params.set("quality_status", "in.(needs_review,conflict)");
     params.set("audited_at", "not.is.null");
-    params.set("order", "audited_at.desc");
+    params.set("order", order === "newest" ? "audited_at.desc" : "audited_at.asc");
     params.set("limit", String(pageSize));
     if (flag) {
       params.set("conflict_flags", `cs.${JSON.stringify([flag])}`);
@@ -2683,7 +2683,8 @@ app.get("/api/legal-index/problem-hf-ids", requireAuthApi, async (req, res) => {
   try {
     const limit = Math.min(Math.max(parseInt(req.query.limit, 10) || 10000, 1), 50000);
     const flag = String(req.query.flag || "").trim();
-    const result = await fetchSupabaseProblemHfIds({ limit, flag });
+    const order = String(req.query.order || "oldest").trim() === "newest" ? "newest" : "oldest";
+    const result = await fetchSupabaseProblemHfIds({ limit, flag, order });
     res.json({
       ok: true,
       distinct_hf_ids: result.hf_ids.length,

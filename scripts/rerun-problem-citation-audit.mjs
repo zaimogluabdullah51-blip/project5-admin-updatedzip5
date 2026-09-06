@@ -10,6 +10,7 @@ const BATCHES_PER_CONFIG = Math.max(Number(process.env.PROBLEM_AUDIT_BATCHES || 
 const START_OFFSET = Math.max(Number(process.env.PROBLEM_AUDIT_START_OFFSET || process.env.INDEXER_START_OFFSET || 0), 0);
 const PROBLEM_LIMIT = Math.min(Math.max(Number(process.env.PROBLEM_AUDIT_LIMIT || 5000), 1), 20000);
 const PROBLEM_FLAG = process.env.PROBLEM_AUDIT_FLAG || '';
+const PROBLEM_ORDER = process.env.PROBLEM_AUDIT_ORDER || 'oldest';
 const DELAY_MS = Math.max(Number(process.env.PROBLEM_AUDIT_DELAY_MS || process.env.INDEXER_DELAY_MS || 2500), 0);
 const MAX_RETRIES = Math.max(Number(process.env.PROBLEM_AUDIT_MAX_RETRIES || process.env.INDEXER_MAX_RETRIES || 8), 0);
 const RETRY_BASE_MS = Math.max(Number(process.env.PROBLEM_AUDIT_RETRY_BASE_MS || process.env.INDEXER_RETRY_BASE_MS || 120000), 1000);
@@ -43,6 +44,7 @@ async function login() {
 async function loadProblemIds(cookie) {
   const url = new URL(`${BASE_URL}/api/legal-index/problem-hf-ids`);
   url.searchParams.set('limit', String(PROBLEM_LIMIT));
+  url.searchParams.set('order', PROBLEM_ORDER);
   if (PROBLEM_FLAG) url.searchParams.set('flag', PROBLEM_FLAG);
   const response = await fetch(url, { headers: { Cookie: cookie } });
   const payload = await response.json().catch(() => ({}));
