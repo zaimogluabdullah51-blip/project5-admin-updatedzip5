@@ -101,10 +101,11 @@ function streamParquetRows({ offset, limit }) {
     stdio: ["ignore", "pipe", "pipe"]
   });
   child.stderr.on("data", chunk => process.stderr.write(chunk));
+  const exitPromise = new Promise(resolve => child.on("close", resolve));
 
   const rl = readline.createInterface({ input: child.stdout, crlfDelay: Infinity });
   async function waitForExit() {
-    const code = await new Promise(resolve => child.on("close", resolve));
+    const code = await exitPromise;
     if (code !== 0) throw new Error(`Parquet export failed with exit code ${code}`);
   }
   return { lines: rl, waitForExit };
