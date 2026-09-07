@@ -89,6 +89,25 @@ async function postBatchWithRetry(cookie, rows, offset) {
   throw new Error(`Retry loop exhausted at offset ${offset}`);
 }
 
+async function postRowsAdaptive(cookie, rows, offset) {
+  try {
+    return await postBatchWithRetry(cookie, rows, offset);
+  } catch (error) {
+    if (!/413|Payload Too Large/i.test(String(error?.message || "")) || rows.length <= 1) throw error;
+    const mid = Math.ceil(rows.length / 2);
+    console.log(`[${new Date().toISOString()}] splitting oversized batch at offset ${offset}: ${rows.length} -> ${mid}+${rows.length - mid}`);
+    const first = await postRowsAdaptive(cookie, rows.slice(0, mid), offset);
+    const second = await postRowsAdaptive(cookie, rows.slice(mid), offset + mid);
+    return {
+      ok: true,
+      rows_received: Number(first.rows_received || 0) + Number(second.rows_received || 0),
+      rows_indexed: Number(first.rows_indexed || 0) + Number(second.rows_indexed || 0),
+      decisions_indexed: Number(first.decisions_indexed || 0) + Number(second.decisions_indexed || 0),
+      citations_indexed: Number(first.citations_indexed || 0) + Number(second.citations_indexed || 0)
+    };
+  }
+}
+
 function streamParquetRows({ offset, limit }) {
   const helper = path.join(__dirname, "export-hf-parquet-sample.py");
   const child = spawn("python3", [helper], {
@@ -140,7 +159,8 @@ while (globalOffset < endOffset) {
     batch.push(JSON.parse(line));
     chunkRows += 1;
     if (batch.length >= POST_BATCH_SIZE) {
-      const result = await postBatchWithRetry(cookie, batch.splice(0), globalOffset + chunkRows - batch.length);
+      const rowsToPost = batch.splice(0);
+      const result = await postRowsAdaptive(cookie, rowsToPost, globalOffset + chunkRows - rowsToPost.length);
       totalRows += Number(result.rows_received || 0);
       totalIndexedRows += Number(result.rows_indexed || 0);
       totalDecisions += Number(result.decisions_indexed || 0);
@@ -154,7 +174,8 @@ while (globalOffset < endOffset) {
   }
 
   if (batch.length) {
-    const result = await postBatchWithRetry(cookie, batch.splice(0), globalOffset + chunkRows);
+    const rowsToPost = batch.splice(0);
+    const result = await postRowsAdaptive(cookie, rowsToPost, globalOffset + chunkRows - rowsToPost.length);
     totalRows += Number(result.rows_received || 0);
     totalIndexedRows += Number(result.rows_indexed || 0);
     totalDecisions += Number(result.decisions_indexed || 0);
