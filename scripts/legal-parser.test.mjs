@@ -177,6 +177,12 @@ test("common unnumbered law names in zero-citation rows are resolved", () => {
   assert.deepEqual(refs("Hazine ihbar üzerine (TMKmd.301) müdahale isteğinde bulunmuştur"), ["4721/301"]);
   assert.deepEqual(refs("boşanmaya (TMKmd.166/1) karar verilecek yerde"), ["4721/166/1"]);
   assert.deepEqual(refs("temyiz inceleme görevi Yargıtay Yasası’nın 14. maddesi uyarınca 5. Hukuk Dairesine aittir"), ["2797/14"]);
+  assert.deepEqual(refs("Hukuk Usulü Muhakemeleri Kanununun 23.6.1996 tarihinde yürürlüğe giren 4146 sayılı yasa ile değişik 440/III maddesi"), ["1086/440/3"]);
+  assert.deepEqual(refs("5271 sayılı CYY.nın 231. maddesi ve 1412 sayılı CYUY.nın 317. maddesi uyarınca"), ["1412/317", "5271/231"]);
+  assert.deepEqual(refs("İş Mahkemeleri Kanununun 8.maddesi gereğince görev belirlenir"), ["5521/8"]);
+  assert.deepEqual(refs("Borçlar Yasasının 101. ve izleyen maddeleri uyarınca faiz istenebilir"), ["818/101"]);
+  assert.deepEqual(refs("5133 S.K.md.2-3 hükümleri"), ["5133/2", "5133/3"]);
+  assert.deepEqual(refs("20.7.2004 gün ve 5219 sayılı Yasa ile HUMK.da yapılan değişiklik sonucu anılan Yasanın 427 nci maddesinde öngörülen kesinlik sınırı"), ["1086/427"]);
   assert.deepEqual(refs("Medeni Kanunun 2. kitabı"), []);
   assert.deepEqual(refs("SSK sigortasına bağlı olarak çalıştığını"), []);
 });

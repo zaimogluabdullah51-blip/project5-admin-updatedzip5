@@ -52,6 +52,12 @@ const LAW_REGISTRY = {
     name: "İş Kanunu",
     aliases: ["İş Kanunu", "İş Yasası", "4857 sayılı İş Kanunu", "4857 sayılı İş Yasası"]
   },
+  IS_MAHKEMELERI: {
+    law_no: "5521",
+    law_code: "5521",
+    name: "İş Mahkemeleri Kanunu",
+    aliases: ["İş Mahkemeleri Kanunu", "İş Mahkemeleri Yasası"]
+  },
   BK: {
     law_no: "818",
     law_code: "BK",
@@ -182,13 +188,13 @@ const LAW_REGISTRY = {
     law_no: "5271",
     law_code: "CMK",
     name: "Ceza Muhakemesi Kanunu",
-    aliases: ["CMK", "Ceza Muhakemesi Kanunu", "5271 sayılı CMK", "5271 sayılı Ceza Muhakemesi Kanunu", "5271 sayılı Kanun", "5271 sayılı Yasa"]
+    aliases: ["CMK", "CYY", "Ceza Muhakemesi Kanunu", "Ceza Yargılaması Yasası", "5271 sayılı CMK", "5271 sayılı CYY", "5271 sayılı Ceza Muhakemesi Kanunu", "5271 sayılı Kanun", "5271 sayılı Yasa"]
   },
   CMUK: {
     law_no: "1412",
     law_code: "CMUK",
     name: "Ceza Muhakemeleri Usulü Kanunu",
-    aliases: ["CMUK", "Ceza Muhakemeleri Usulü Kanunu", "1412 sayılı CMUK", "1412 sayılı Ceza Muhakemeleri Usulü Kanunu", "1412 sayılı Kanun", "1412 sayılı Yasa"]
+    aliases: ["CMUK", "CMUY", "CYUY", "Ceza Muhakemeleri Usulü Kanunu", "Ceza Muhakemeleri Usulü Yasası", "Ceza Yargılama Usulü Yasası", "1412 sayılı CMUK", "1412 sayılı CMUY", "1412 sayılı CYUY", "1412 sayılı Ceza Muhakemeleri Usulü Kanunu", "1412 sayılı Kanun", "1412 sayılı Yasa"]
   },
   HUMK: {
     law_no: "1086",
@@ -252,7 +258,7 @@ const LAW_BY_NO = Object.values(LAW_REGISTRY).reduce((acc, law) => {
 }, {});
 // 2004 is also a common case-number year, so never infer this law from 2004/N alone.
 const KNOWN_LAW_NOS = Object.keys(LAW_BY_NO).filter(no => no !== "2004");
-const LEGAL_CODE_PATTERN = ["TCK", "TCY", "CMK", "CMUK", "HUMK", "HUMUK", "HMUK", "HUMY", "HYUY", "HMK", "IYUK", "MÖHUK", "MOHUK", "TKHK", "TMK", "VUK", "TTK", "SSK", "IIK", "BK", "MK", "CGTIHK", "INF"]
+const LEGAL_CODE_PATTERN = ["TCK", "TCY", "CMK", "CMUK", "CMUY", "CYUY", "CYY", "HUMK", "HUMUK", "HMUK", "HUMY", "HYUY", "HMK", "IYUK", "MÖHUK", "MOHUK", "TKHK", "TMK", "VUK", "TTK", "SSK", "IIK", "BK", "MK", "CGTIHK", "INF"]
   .map(code => code.split("").map(c => c === "I" ? "[Iİıi]" : c).join("\\.?\\s*")).join("|");
 const LAW_NO_PATTERN = "[0-9lIİı]{3,4}";
 const ARTICLE_NUM_PATTERN = "(?:\\d|l(?=\\d)|(?<=\\d)l){1,4}";
@@ -614,7 +620,8 @@ function lawByCode(rawCode, lawNoHint = "") {
     .replace(/İ/g, "I")
     .replace(/[İI]NFAZ/i, "INF")
     .replace(/İYUK|IYUK/i, "IYUK")
-    .replace(/CMUK/i, "CMUK")
+    .replace(/CMUY|CYUY|CMUK/i, "CMUK")
+    .replace(/CYY/i, "CMK")
     .replace(/HUMUK|HMUK|HUMY|HYUY/i, "HUMK")
     .replace(/MÖHUK|MOHUK/i, "MOHUK")
     .replace(/TKHK/i, "TUKETICI")
@@ -635,8 +642,8 @@ function lawByTextMarker(marker, lawNoHint = "") {
   const isRepealed = /\bM[ÜU]LGA\b/u.test(hint) || /\bM[ÜU]LGA\b/u.test(text);
   if (/\bTCY\b/.test(text) || text.includes("TÜRK CEZA YASA")) return LAW_REGISTRY["765TCK"];
   if (text.includes("TÜRK CEZA") || /\bTCK\b/.test(text)) return isRepealed ? LAW_REGISTRY["765TCK"] : LAW_REGISTRY.TCK;
-  if (text.includes("CEZA MUHAKEMES") || /\bCMK\b/.test(text)) return LAW_REGISTRY.CMK;
-  if (text.includes("CEZA MUHAKEMELERİ USUL") || text.includes("CEZA MUHAKEMELERI USUL") || /\bCMUK\b/.test(text)) return LAW_REGISTRY.CMUK;
+  if (text.includes("CEZA MUHAKEMES") || text.includes("CEZA YARGILAMASI") || /\bCMK\b/.test(text) || /\bCYY\b/.test(text)) return LAW_REGISTRY.CMK;
+  if (text.includes("CEZA MUHAKEMELERİ USUL") || text.includes("CEZA MUHAKEMELERI USUL") || text.includes("CEZA YARGILAMA USUL") || /\bCMUK\b/.test(text) || /\bCMUY\b/.test(text) || /\bCYUY\b/.test(text)) return LAW_REGISTRY.CMUK;
   if (text.includes("HUKUK USUL") || text.includes("HUKUK YARGILAMA USUL") || /\bHUMK\b/.test(text) || /\bHUMUK\b/.test(text) || /\bHMUK\b/.test(text) || /\bHUMY\b/.test(text) || /\bHYUY\b/.test(text)) return LAW_REGISTRY.HUMK;
   if (text.includes("HUKUK MUHAKEMELER") || /\bHMK\b/.test(text)) return isRepealed ? LAW_REGISTRY.HUMK : LAW_REGISTRY.HMK;
   if (text.includes("İDARİ YARGILAMA") || /\bİYUK\b/.test(text) || /\bIYUK\b/.test(text)) return LAW_REGISTRY.IYUK;
@@ -644,6 +651,7 @@ function lawByTextMarker(marker, lawNoHint = "") {
   if (text.includes("BORÇLAR KANUN") || text.includes("BORCLAR KANUN") || /\bBK\b/.test(text)) return LAW_REGISTRY.BK;
   if (text.includes("TÜRK TİCARET") || text.includes("TURK TICARET") || text.includes("TİCARET KANUN") || text.includes("TICARET KANUN") || /\bTTK\b/.test(text)) return LAW_REGISTRY.TTK;
   if (text.includes("SOSYAL SİGORTALAR") || text.includes("SOSYAL SIGORTALAR") || /\bSSK\b/.test(text)) return LAW_REGISTRY.SSK;
+  if (text.includes("İŞ MAHKEMELERİ KANUN") || text.includes("IS MAHKEMELERI KANUN") || text.includes("İŞ MAHKEMELERİ YASA") || text.includes("IS MAHKEMELERI YASA")) return LAW_REGISTRY.IS_MAHKEMELERI;
   if (text.includes("İŞ KANUN") || text.includes("IS KANUN") || text.includes("İŞ YASA") || text.includes("IS YASA")) return LAW_REGISTRY.IS_4857;
   if (text.includes("KAMULAŞTIRMA KANUN") || text.includes("KAMULASTIRMA KANUN")) return LAW_REGISTRY.KAMULASTIRMA;
   if (text.includes("ORMAN KANUN") || text.includes("ORMAN YASA")) return LAW_REGISTRY.ORMAN;
@@ -1088,7 +1096,7 @@ function extractArticleTokensFromContext(windowText, lawNo) {
     if (tokens.length >= 12) break;
   }
 
-  const continuationRegex = /\b((?:\d|l(?=\d)|(?<=\d)l){1,4}(?:\/[0-9A-Za-zÇĞİÖŞÜçğıöşü.-]+)?)\s*(?:ve\s+devam[ıi]|ve\s+takip\s+eden|vd\.?)\s*(?:maddesi[a-zçğıöşü]*|maddeler[a-zçğıöşü]*|madde)\b/giu;
+  const continuationRegex = /\b((?:\d|l(?=\d)|(?<=\d)l){1,4}(?:\/[0-9A-Za-zÇĞİÖŞÜçğıöşü.-]+)?)\s*\.?\s*(?:ve\s+devam[ıi]|ve\s+izleyen|ve\s+takip\s+eden|vd\.?)\s*(?:maddesi[a-zçğıöşü]*|maddeler[a-zçğıöşü]*|madde)\b/giu;
   while ((match = continuationRegex.exec(text)) !== null) {
     collectArticleTokens(match[1], match.index, lawNo, tokens, seen);
     if (tokens.length >= 12) break;
@@ -1365,6 +1373,13 @@ function extractLegalReferences(text) {
     }
   }
 
+  const numberedShortLawCodeRegex = new RegExp(`\\b(${LAW_NO_PATTERN})\\s*S\\.?\\s*[KY]\\.?\\s*['’\x60]?(?:nın|nin|nun|nün|na|ne|da|de)?\\s*(?:m\\.?|md\\.?|madde)\\s*\\.?\\s*(${ARTICLE_PATH_PATTERN})(?![\\p{L}0-9])`, "giu");
+  while ((match = numberedShortLawCodeRegex.exec(sourceText)) !== null) {
+    const law = lawByNo(match[1]);
+    const parts = parseArticlePathInExplicitLawContext(match[2]);
+    if (law && parts) addDetectedLegalRef(refs, law, parts, match[0], sourceText, match.index);
+  }
+
   const bracketLawRegex = new RegExp(`\\b(?:(${LAW_NO_PATTERN})\\s*S\\.?\\s*)?(${LAW_TITLE_PATTERN}|TCK|CMK|CMUK|HUMK|HMK|İYUK|IYUK|TMK|VUK)(?:\\s*\\((${LAW_NO_PATTERN}|MÜLGA|MULGA)\\))?\\s*\\[\\s*(?:Ek\\s+)?Madde\\s+(${ARTICLE_PATH_PATTERN})\\s*\\]`, "giu");
   while ((match = bracketLawRegex.exec(sourceText)) !== null) {
     let law = lawByTextMarker(match[2], match[3] || match[1]);
@@ -1451,7 +1466,7 @@ function extractLegalReferences(text) {
         const tail = sourceText.slice(articleStart, articleStart + 260);
         const suffix = tail.match(/^['’]?(?:nın|nin|nun|nün|ndan|nden|dan|den|ın|in|un|ün|na|ne|da|de|n)?\s*/iu)?.[0] || "";
         const afterSuffix = tail.slice(suffix.length);
-        const modifier = afterSuffix.match(/^(?:(?:(?:\d{1,2}[./]\d{1,2}[./]\d{4}\s+(?:gün|tarih)(?:lü|li)?\s+)?\d{3,4}\s+sayılı\s+(?:yasa|kanun)(?:yla|la|le|\s+ile)\s+)?değiş(?:ik|tirilen|tırılan)\s+)/iu);
+        const modifier = afterSuffix.match(/^(?:(?:(?:\d{1,2}[./]\d{1,2}[./]\d{4}\s+(?:(?:gün|tarih)(?:lü|li)?|tarihinde(?:\s+yürürlüğe\s+giren)?)\s+)?\d{3,4}\s+sayılı\s+(?:yasa|kanun)(?:yla|la|le|\s+ile)\s+)?değiş(?:ik|tirilen|tırılan)\s+)/iu);
         const offset = suffix.length + (modifier?.[0].length || 0);
         const windowText = tail.slice(offset);
         const articleTokens = extractArticleTokensFromContext(windowText, law.law_no);
@@ -1462,6 +1477,13 @@ function extractLegalReferences(text) {
         });
       }
     }
+  }
+
+  const amendedCodeAnaphoraRegex = new RegExp(`(?<![\\p{L}])(${LEGAL_CODE_PATTERN})(?![\\p{L}])\\.?\\s*(?:da|de)\\s+yapılan\\s+değişiklik[\\s\\S]{0,180}?\\b(?:anılan|aynı)\\s+(?:Yasa|Kanun)(?:nın|nin|nun|nün|ın|in|un|ün)?\\s+(${ARTICLE_PATH_PATTERN})\\s*(?:nci|ncı|ncu|ncü|inci|ıncı|uncu|üncü)?\\s*(?:maddesi[a-zçğıöşü]*|madde)`, "giu");
+  while ((match = amendedCodeAnaphoraRegex.exec(sourceText)) !== null) {
+    const law = lawByCode(match[1]);
+    const parts = parseArticlePath(match[2]);
+    if (law && parts) addDetectedLegalRef(refs, law, parts, match[0], sourceText, match.index);
   }
 
   const sameLawAnaphoraRegex = new RegExp(`\\b(?:Aynı|Ayni|Anılan|Anilan|Mezkur)\\s+(?:Kanun|Yasa)(?:un|ın|in|nun|nün|nın|nin)?\\s+(${ARTICLE_PATH_PATTERN})\\s*\\.?\\s*(?:maddesi[a-zçğıöşü]*|maddeler[a-zçğıöşü]*|madde|fıkrası[a-zçğıöşü]*|fıkra)?`, "giu");
