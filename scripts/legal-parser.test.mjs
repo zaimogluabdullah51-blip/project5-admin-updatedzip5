@@ -183,6 +183,14 @@ test("common unnumbered law names in zero-citation rows are resolved", () => {
   assert.deepEqual(refs("Borçlar Yasasının 101. ve izleyen maddeleri uyarınca faiz istenebilir"), ["818/101"]);
   assert.deepEqual(refs("5133 S.K.md.2-3 hükümleri"), ["5133/2", "5133/3"]);
   assert.deepEqual(refs("20.7.2004 gün ve 5219 sayılı Yasa ile HUMK.da yapılan değişiklik sonucu anılan Yasanın 427 nci maddesinde öngörülen kesinlik sınırı"), ["1086/427"]);
+  assert.deepEqual(refs("HUMK. mad.74 uyarınca talep aşılamaz. HUMK. mad.438/7 gereğince düzeltilerek onanır."), ["1086/438/7", "1086/74"]);
+  assert.deepEqual(refs("temyiz süresi geçirilmişse usulün 2494 sayılı yasa ile değişik 432. maddesinin 4 ve 5.bendi gereğince işlem yapılması"), ["1086/432"]);
+  assert.deepEqual(refs("Hukuk Usulü Muhakemelerin Kanunu'nun değişik 432. maddesi uyarınca dosyanın iadesine"), ["1086/432"]);
+  assert.deepEqual(refs("2797 sayılı Yargıtay Kananu'nun 14.maddesi uyarınca görev belirlenir"), ["2797/14"]);
+  assert.deepEqual(refs("4721 sayılı Türk Medenî Kanunu m. 291 hükmüne göre soybağının reddi davası açılabilir"), ["4721/291"]);
+  assert.deepEqual(refs("Türk Medenî Kanununun 291. maddesi uyarınca"), ["4721/291"]);
+  assert.deepEqual(refs("2859 sayılı Kadastro ve Tapulama Paftalarının Yenilenmesi Hakkındaki Kanun’un uygulanmasından doğmaktadır. Anılan Kanun’un 4. maddesinin 2. bendinde düzenlenmiştir."), ["2859/4"]);
   assert.deepEqual(refs("Medeni Kanunun 2. kitabı"), []);
+  assert.deepEqual(refs("Medenî Kanunun 2. kitabı"), []);
   assert.deepEqual(refs("SSK sigortasına bağlı olarak çalıştığını"), []);
 });
