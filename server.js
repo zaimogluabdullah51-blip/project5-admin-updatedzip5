@@ -1095,6 +1095,17 @@ function extractArticleTokensFromContext(windowText, lawNo) {
     if (tokens.length >= 12) break;
   }
 
+  const articleNormativeReferenceRegex = new RegExp(`\\b(${ARTICLE_PATH_PATTERN})\\s*\\.?\\s*(?:hükmü|hükmünce|hükmüne|uyarınca|gereğince|kapsamında)(?=\\s|$|[.,;:)])`, "giu");
+  while ((match = articleNormativeReferenceRegex.exec(text)) !== null) {
+    const raw = match[1];
+    if (!isPlausibleArticleToken(raw, lawNo)) continue;
+    const normalized = formatArticlePath(parseArticlePath(raw));
+    if (!normalized || seen.has(normalized)) continue;
+    seen.add(normalized);
+    tokens.push({ raw, index: match.index });
+    if (tokens.length >= 12) break;
+  }
+
   const articleParagraphRegex = new RegExp(`\\b(${ARTICLE_NUM_PATTERN})\\s*m\\s*\\/\\s*([0-9IVXLCDMl]+)\\s*\\.?\\s*fıkra[a-zçğıöşü]*\\b`, "giu");
   while ((match = articleParagraphRegex.exec(text)) !== null) {
     collectArticleTokens(`${match[1]}/${match[2]}`, match.index, lawNo, tokens, seen);
@@ -1454,6 +1465,13 @@ function extractLegalReferences(text) {
       const detectedLaw = resolveDetectedLaw(law, match[0], parts, sourceText, articleStart + suffix.length + modifier.length + token.index);
       if (parts) addDetectedLegalRef(refs, detectedLaw, parts, token.raw, sourceText, articleStart + suffix.length + modifier.length + token.index);
     });
+  }
+
+  const numberedShortTitleLawAbbrevRegex = new RegExp(`\\b(${LAW_NO_PATTERN})\\s*S\\.?\\s*[^.\\n]{0,90}?\\bK\\.?\\s*(?:madde|mad\\.?|md\\.?|m\\.?)\\s*(${ARTICLE_PATH_PATTERN})(?![\\p{L}0-9])`, "giu");
+  while ((match = numberedShortTitleLawAbbrevRegex.exec(sourceText)) !== null) {
+    const law = lawByNo(match[1]);
+    const parts = parseArticlePathInExplicitLawContext(match[2]);
+    if (law && parts) addDetectedLegalRef(refs, law, parts, match[0], sourceText, match.index);
   }
 
   for (const law of Object.values(LAW_REGISTRY)) {

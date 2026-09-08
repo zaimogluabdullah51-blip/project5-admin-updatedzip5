@@ -190,6 +190,11 @@ test("common unnumbered law names in zero-citation rows are resolved", () => {
   assert.deepEqual(refs("4721 sayılı Türk Medenî Kanunu m. 291 hükmüne göre soybağının reddi davası açılabilir"), ["4721/291"]);
   assert.deepEqual(refs("Türk Medenî Kanununun 291. maddesi uyarınca"), ["4721/291"]);
   assert.deepEqual(refs("2859 sayılı Kadastro ve Tapulama Paftalarının Yenilenmesi Hakkındaki Kanun’un uygulanmasından doğmaktadır. Anılan Kanun’un 4. maddesinin 2. bendinde düzenlenmiştir."), ["2859/4"]);
+  assert.deepEqual(refs("6183 sayılı Amme Alacaklarının Tahsili Usulü Hakkında Kanunun 21/II hükmü uyarınca rehinli alacakların hakları mahfuzdur"), ["6183/21/2"]);
+  assert.deepEqual(refs("5464 Sayılı Kanunun 24/5 hükmü uyarınca kredi borcu adi kefalet hükmündedir"), ["5464/24/5"]);
+  assert.deepEqual(refs("Davacı 5458 sayılı Kanunun 1/a uyarınca hesaplama yapılmasını istemiştir"), ["5458/1/A"]);
+  assert.deepEqual(refs("Sözleşmenin 24/5 hükmü uyarınca işlem yapılmıştır"), []);
+  assert.deepEqual(refs("4722 s.Yürürlük K.m.10/4 gereğince mal rejimi dönüşmüştür"), ["4722/10/4"]);
   assert.deepEqual(refs("Medeni Kanunun 2. kitabı"), []);
   assert.deepEqual(refs("Medenî Kanunun 2. kitabı"), []);
   assert.deepEqual(refs("SSK sigortasına bağlı olarak çalıştığını"), []);
