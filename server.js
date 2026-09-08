@@ -2061,8 +2061,7 @@ async function upsertSupabaseDecisionCitationBatch(rowCitationPairs, query = "",
       rowWrapper: pair.rowWrapper,
       row: pair.rowWrapper?.row || {},
       citations: Array.isArray(pair.citations) ? pair.citations : []
-    }))
-    .filter((pair) => pair.citations.length);
+    }));
 
   if (!pairs.length) return { decisions_indexed: 0, citations_indexed: 0 };
 
@@ -3312,19 +3311,17 @@ app.post("/api/legal-index/audit-rows", requireAuthApi, async (req, res) => {
       Object.keys(auditStats).forEach((key) => {
         auditStats[key] += Number(auditResult.stats?.[key] || 0);
       });
-      if (auditResult.citations.length) {
-        rowsToStore.push({ rowWrapper, citations: auditResult.citations });
-      }
+      rowsToStore.push({ rowWrapper, citations: auditResult.citations });
     });
 
-    const stored = rowsToStore.length
-      ? await upsertSupabaseDecisionCitationBatch(rowsToStore, "problem-audit", { compact, auditRules: true })
-      : { decisions_indexed: 0, citations_indexed: 0 };
+    const rowsWithCitations = rowsToStore.filter((item) => item.citations.length).length;
+    const stored = await upsertSupabaseDecisionCitationBatch(rowsToStore, "problem-audit", { compact, auditRules: true });
 
     res.json({
       ok: true,
       rows_received: rows.length,
       rows_indexed: rowsToStore.length,
+      rows_with_citations: rowsWithCitations,
       decisions_indexed: stored.decisions_indexed,
       citations_indexed: stored.citations_indexed,
       insert_rule_only: insertRuleOnly,
