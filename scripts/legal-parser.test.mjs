@@ -172,6 +172,11 @@ test("common unnumbered law names in zero-citation rows are resolved", () => {
   assert.deepEqual(refs("6831 Sayılı Yasının 2. madde uygulaması"), ["6831/2"]);
   assert.deepEqual(refs("4822 sayılı kanun ile değişik 4077 sayılı TKHK'nun 3.maddesinde"), ["4077/3"]);
   assert.deepEqual(refs("2547 Sayılı Yasanın 56/b ve 492 sayılı yasının 13/1 maddesi hükmünce"), ["2547/56/B", "492/13/1"]);
+  assert.deepEqual(refs("6183 sayılı Amme Alacaklarının Tahsil Usulü Hakkında Kanun’un 21’nci maddesinin 1’nci fıkrasına göre"), ["6183/21"]);
+  assert.deepEqual(refs("HUMK.md.433-1 hükmü ve HUMKmd.438/7 gereğince"), ["1086/433/1", "1086/438/7"]);
+  assert.deepEqual(refs("Hazine ihbar üzerine (TMKmd.301) müdahale isteğinde bulunmuştur"), ["4721/301"]);
+  assert.deepEqual(refs("boşanmaya (TMKmd.166/1) karar verilecek yerde"), ["4721/166/1"]);
+  assert.deepEqual(refs("temyiz inceleme görevi Yargıtay Yasası’nın 14. maddesi uyarınca 5. Hukuk Dairesine aittir"), ["2797/14"]);
   assert.deepEqual(refs("Medeni Kanunun 2. kitabı"), []);
   assert.deepEqual(refs("SSK sigortasına bağlı olarak çalıştığını"), []);
 });

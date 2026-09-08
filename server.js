@@ -98,7 +98,7 @@ const LAW_REGISTRY = {
     law_no: "2797",
     law_code: "2797",
     name: "Yargıtay Kanunu",
-    aliases: ["Yargıtay Kanunu", "Yargıtay K."]
+    aliases: ["Yargıtay Kanunu", "Yargıtay Yasası", "Yargıtay K."]
   },
   HARCLAR: {
     law_no: "492",
@@ -648,7 +648,7 @@ function lawByTextMarker(marker, lawNoHint = "") {
   if (text.includes("KAMULAŞTIRMA KANUN") || text.includes("KAMULASTIRMA KANUN")) return LAW_REGISTRY.KAMULASTIRMA;
   if (text.includes("ORMAN KANUN") || text.includes("ORMAN YASA")) return LAW_REGISTRY.ORMAN;
   if (text.includes("VAKIFLAR KANUN") || text.includes("VAKIFLAR YASA")) return LAW_REGISTRY.VAKIFLAR;
-  if (text.includes("YARGITAY KANUN") || text.includes("YARGITAY K.")) return LAW_REGISTRY.YARGITAY;
+  if (text.includes("YARGITAY KANUN") || text.includes("YARGITAY YASA") || text.includes("YARGITAY K.")) return LAW_REGISTRY.YARGITAY;
   if (text.includes("HARÇLAR KANUN") || text.includes("HARCLAR KANUN") || text.includes("HARÇLAR YASA") || text.includes("HARCLAR YASA")) return LAW_REGISTRY.HARCLAR;
   if (text.includes("AVUKATLIK KANUN") || text.includes("AVUKATLIK YASA")) return LAW_REGISTRY.AVUKATLIK;
   if (text.includes("İMAR KANUN") || text.includes("IMAR KANUN") || text.includes("İMAR YASA") || text.includes("IMAR YASA")) return LAW_REGISTRY.IMAR;
@@ -812,6 +812,15 @@ function parseArticlePath(value) {
     subparagraph: subparagraph ? subparagraph.toUpperCase() : "",
     articleRangeEnd: ""
   };
+}
+
+function parseArticlePathInExplicitLawContext(value) {
+  const parts = parseArticlePath(value);
+  if (parts) return parts;
+  const token = cleanArticleToken(value);
+  const hyphenParagraph = token.match(/^(\d{1,4})-(\d{1,2}|[IVXLCDM]+|son)$/i);
+  if (!hyphenParagraph) return null;
+  return parseArticlePath(`${hyphenParagraph[1]}/${hyphenParagraph[2]}`);
 }
 
 function formatArticlePath(ref) {
@@ -1055,7 +1064,7 @@ function extractArticleTokensFromContext(windowText, lawNo) {
     if (tokens.length >= 12) break;
   }
 
-  const beforeMaddeRegex = /((?:\b(?:\d|l(?=\d)|(?<=\d)l){1,4}(?:(?:\s*-\s*(?:\d|l(?=\d)|(?<=\d)l){1,4})|(?:\/|-)[0-9A-Za-zÇĞİÖŞÜçğıöşü.-]+)?\s*(?:\.|,|;|\s+ve\s+|\s+ile\s+)?\s*){1,12})\s*\)?\s*(?:(?:inci|ıncı|uncu|üncü|nci|ncı|ncu|ncü)\s+)?madde(?:si[a-zçğıöşü]*|yi|ye|de|den|nin|ler[a-zçğıöşü]*)?\b/giu;
+  const beforeMaddeRegex = /((?:\b(?:\d|l(?=\d)|(?<=\d)l){1,4}(?:(?:\s*-\s*(?:\d|l(?=\d)|(?<=\d)l){1,4})|(?:\/|-)[0-9A-Za-zÇĞİÖŞÜçğıöşü.-]+)?\s*(?:\.|,|;|\s+ve\s+|\s+ile\s+)?\s*){1,12})\s*\)?\s*(?:(?:['’])?(?:inci|ıncı|uncu|üncü|nci|ncı|ncu|ncü)\s*)?madde(?:si[a-zçğıöşü]*|yi|ye|de|den|nin|ler[a-zçğıöşü]*)?\b/giu;
   while ((match = beforeMaddeRegex.exec(text)) !== null) {
     collectArticleTokens(match[1], match.index, lawNo, tokens, seen);
     if (tokens.length >= 10) break;
@@ -1225,7 +1234,23 @@ function extractLegalReferences(text) {
     const afterMatch = sourceText.slice(match.index + match[0].length, match.index + match[0].length + 24);
     if (/^\s*(?:S\.?|say[ıi]l[ıi])(?=\s|$|[.,;:])/iu.test(afterMatch)) continue;
     let law = lawByCode(match[2], match[1]);
-    const parts = parseArticlePath(match[3]);
+    const parts = parseArticlePathInExplicitLawContext(match[3]);
+    if (law && parts) {
+      law = resolveDetectedLaw(law, match[0], parts, sourceText, match.index);
+      addDetectedLegalRef(refs, law, parts, match[0], sourceText, match.index);
+      const trailingTokens = collectTrailingArticleTokensAfter(sourceText, match.index + match[0].length, law.law_no);
+      trailingTokens.forEach((token) => {
+        const trailingParts = parseArticlePath(token.raw);
+        const trailingLaw = resolveDetectedLaw(law, token.raw, trailingParts, sourceText, token.index);
+        if (trailingParts) addDetectedLegalRef(refs, trailingLaw, trailingParts, token.raw, sourceText, token.index);
+      });
+    }
+  }
+
+  const compactCodeArticleRegex = new RegExp(`(?<![\\p{L}])(${LEGAL_CODE_PATTERN}|İnfaz)\\.?\\s*['’\x60]?(?:nın|nin|nun|nün|na|ne|da|de)?\\s*(?:m\\.?|md\\.?|madde)\\s*\\.?\\s*(${ARTICLE_PATH_PATTERN})(?![\\p{L}0-9])`, "giu");
+  while ((match = compactCodeArticleRegex.exec(sourceText)) !== null) {
+    let law = lawByCode(match[1]);
+    const parts = parseArticlePathInExplicitLawContext(match[2]);
     if (law && parts) {
       law = resolveDetectedLaw(law, match[0], parts, sourceText, match.index);
       addDetectedLegalRef(refs, law, parts, match[0], sourceText, match.index);
