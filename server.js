@@ -565,6 +565,82 @@ async function fetchSupabaseProblemCitations({ limit = 200, flag = "", order = "
   return Array.isArray(rows) ? rows : [];
 }
 
+function chunkItems(items, size) {
+  const chunks = [];
+  for (let index = 0; index < items.length; index += size) {
+    chunks.push(items.slice(index, index + size));
+  }
+  return chunks;
+}
+
+async function fetchSupabaseCitedDecisionIds(decisionIds) {
+  const ids = Array.from(new Set((decisionIds || [])
+    .map((id) => String(id || "").trim())
+    .filter(Boolean)));
+  const citedIds = new Set();
+  if (!ids.length) return citedIds;
+
+  for (const batch of chunkItems(ids, 150)) {
+    const params = new URLSearchParams();
+    params.set("select", "decision_id");
+    params.set("decision_id", `in.(${batch.join(",")})`);
+    params.set("limit", "10000");
+    const rows = await supabaseRest(`/legal_citations?${params.toString()}`);
+    if (!Array.isArray(rows)) continue;
+    rows.forEach((row) => {
+      if (row?.decision_id) citedIds.add(row.decision_id);
+    });
+  }
+
+  return citedIds;
+}
+
+async function fetchSupabaseZeroCitationDecisions({ limit = 5000, offset = 0, scanLimit = 50000, order = "oldest" } = {}) {
+  if (!isSupabaseReadEnabled()) {
+    throw new Error("Supabase read key is not configured.");
+  }
+  const maxRows = Math.min(Math.max(Number(limit) || 5000, 1), 50000);
+  const startOffset = Math.max(Number(offset) || 0, 0);
+  const maxScan = Math.min(Math.max(Number(scanLimit) || Math.max(maxRows * 10, 1000), 1), 500000);
+  const pageSize = Math.min(Math.max(Math.min(maxRows, 1000), 100), 1000);
+  const rows = [];
+  let decisionsScanned = 0;
+  let nextOffset = startOffset;
+
+  for (let from = startOffset; decisionsScanned < maxScan && rows.length < maxRows; from += pageSize) {
+    const params = new URLSearchParams();
+    params.set(
+      "select",
+      "id,hf_id,source,document_id,court,esas_no,karar_no,karar_tarihi,year,month,text_len,masked_count,raw_sha256,short_preview,indexed_at,created_at"
+    );
+    params.set("hf_id", "not.is.null");
+    params.set("order", order === "newest" ? "indexed_at.desc" : "indexed_at.asc");
+    params.set("limit", String(pageSize));
+
+    const page = await supabaseRest(`/court_decisions?${params.toString()}`, {
+      headers: { Range: `${from}-${from + pageSize - 1}` }
+    });
+    if (!Array.isArray(page) || !page.length) break;
+
+    decisionsScanned += page.length;
+    nextOffset = from + page.length;
+    const citedDecisionIds = await fetchSupabaseCitedDecisionIds(page.map((row) => row.id));
+    page.forEach((row) => {
+      if (!row?.id || citedDecisionIds.has(row.id) || rows.length >= maxRows) return;
+      rows.push(row);
+    });
+    if (page.length < pageSize) break;
+  }
+
+  return {
+    rows,
+    hf_ids: rows.map((row) => row.hf_id).filter(Boolean),
+    decisions_scanned: decisionsScanned,
+    start_offset: startOffset,
+    next_offset: nextOffset
+  };
+}
+
 function mergeLegalReferences(primary, secondary, limit) {
   const seen = new Set();
   const merged = [];
@@ -3343,6 +3419,29 @@ app.get("/api/legal-index/problem-citations", requireAuthApi, async (req, res) =
   } catch (err) {
     console.error("Problem citation lookup error:", err);
     res.status(500).json({ error: err.message || "Problemli citation kayıtları alınamadı." });
+  }
+});
+
+app.get("/api/legal-index/zero-citation-decisions", requireAuthApi, async (req, res) => {
+  try {
+    const limit = Math.min(Math.max(parseInt(req.query.limit, 10) || 5000, 1), 50000);
+    const offset = Math.max(parseInt(req.query.offset, 10) || 0, 0);
+    const scanLimit = Math.min(Math.max(parseInt(req.query.scan_limit || req.query.scanLimit, 10) || Math.max(limit * 10, 1000), 1), 500000);
+    const order = String(req.query.order || "oldest").trim() === "newest" ? "newest" : "oldest";
+    const result = await fetchSupabaseZeroCitationDecisions({ limit, offset, scanLimit, order });
+    res.json({
+      ok: true,
+      rows_returned: result.rows.length,
+      distinct_hf_ids: result.hf_ids.length,
+      decisions_scanned: result.decisions_scanned,
+      start_offset: result.start_offset,
+      next_offset: result.next_offset,
+      hf_ids: result.hf_ids,
+      rows: result.rows
+    });
+  } catch (err) {
+    console.error("Zero-citation decision lookup error:", err);
+    res.status(500).json({ error: err.message || "Atıfsız karar kayıtları alınamadı." });
   }
 });
 
