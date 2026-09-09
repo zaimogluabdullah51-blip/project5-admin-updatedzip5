@@ -376,6 +376,15 @@ function isSupabaseWriteEnabled() {
   return Boolean(SUPABASE_URL && SUPABASE_WRITE_KEY);
 }
 
+function sleep(ms) {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+function isRetryableSupabaseRestError(status, detail) {
+  return [429, 500, 502, 503, 504].includes(Number(status)) &&
+    /PGRST002|schema cache|Retrying|timeout|ETIMEDOUT|ECONNRESET|fetch failed/i.test(String(detail || ""));
+}
+
 async function supabaseRest(pathname, options = {}) {
   const write = options.write === true;
   const key = write ? SUPABASE_WRITE_KEY : SUPABASE_READ_KEY;
@@ -387,18 +396,27 @@ async function supabaseRest(pathname, options = {}) {
     ...(options.headers || {})
   };
   const url = `${SUPABASE_URL}/rest/v1${pathname}`;
-  const response = await fetch(url, {
-    method: options.method || "GET",
-    headers,
-    body: options.body ? JSON.stringify(options.body) : undefined
-  });
-  if (!response.ok) {
+  const maxRetries = Math.min(Math.max(parseInt(process.env.SUPABASE_REST_RETRIES, 10) || 2, 0), 8);
+  const retryBaseMs = Math.min(Math.max(parseInt(process.env.SUPABASE_REST_RETRY_MS, 10) || 1200, 250), 10000);
+  for (let attempt = 0; attempt <= maxRetries; attempt += 1) {
+    const response = await fetch(url, {
+      method: options.method || "GET",
+      headers,
+      body: options.body ? JSON.stringify(options.body) : undefined
+    });
+    if (response.ok) {
+      if (response.status === 204) return null;
+      const text = await response.text();
+      return text ? JSON.parse(text) : null;
+    }
     const detail = await response.text().catch(() => "");
+    if (attempt < maxRetries && isRetryableSupabaseRestError(response.status, detail)) {
+      await sleep(retryBaseMs * (attempt + 1));
+      continue;
+    }
     throw new Error(`Supabase request failed (${response.status}): ${detail}`);
   }
-  if (response.status === 204) return null;
-  const text = await response.text();
-  return text ? JSON.parse(text) : null;
+  throw new Error("Supabase request failed.");
 }
 
 async function deleteSupabaseCitationAuditsForDecisions(decisionIds) {

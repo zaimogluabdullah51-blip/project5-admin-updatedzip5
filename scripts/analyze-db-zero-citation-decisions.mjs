@@ -20,6 +20,8 @@ const SAMPLE_PER_BUCKET = Math.max(Number(process.env.ZERO_CITATION_SAMPLE_PER_B
 const OUT = process.env.ZERO_CITATION_ANALYSIS_OUT || `/tmp/db-zero-citation-analysis-${CONFIG}-${Date.now()}.json`;
 const AUDIT_RECOVERED = String(process.env.ZERO_CITATION_AUDIT_RECOVERED || "").toLowerCase() === "true";
 const AUDIT_BATCH_SIZE = Math.min(Math.max(Number(process.env.ZERO_CITATION_AUDIT_BATCH_SIZE || 200), 1), 500);
+const MAX_RETRIES = Math.max(Number(process.env.ZERO_CITATION_MAX_RETRIES || 8), 0);
+const RETRY_BASE_MS = Math.max(Number(process.env.ZERO_CITATION_RETRY_BASE_MS || 10000), 1000);
 
 const parser = loadLegalParser();
 
@@ -45,10 +47,28 @@ async function fetchZeroCitationPage(cookie, offset) {
   url.searchParams.set("offset", String(offset));
   url.searchParams.set("scan_limit", String(SCAN_LIMIT));
   url.searchParams.set("order", "oldest");
-  const response = await fetch(url, { headers: { Cookie: cookie } });
-  const payload = await response.json().catch(() => ({}));
-  if (!response.ok) throw new Error(`Zero-citation lookup failed (${response.status}): ${payload.error || JSON.stringify(payload)}`);
-  return payload;
+  return fetchJsonWithRetry(url, { headers: { Cookie: cookie } }, "Zero-citation lookup");
+}
+
+function retryable(error) {
+  return /429|500|502|503|504|PGRST002|schema cache|Retrying|fetch failed|ECONNRESET|ETIMEDOUT|EAI_AGAIN|timeout/i.test(String(error?.message || ""));
+}
+
+async function fetchJsonWithRetry(url, options, label) {
+  for (let attempt = 0; attempt <= MAX_RETRIES; attempt += 1) {
+    try {
+      const response = await fetch(url, options);
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(`${label} failed (${response.status}): ${payload.error || JSON.stringify(payload)}`);
+      return payload;
+    } catch (error) {
+      if (attempt >= MAX_RETRIES || !retryable(error)) throw error;
+      const waitMs = RETRY_BASE_MS * Math.min(attempt + 1, 6);
+      console.log(`[${new Date().toISOString()}] retry ${attempt + 1}/${MAX_RETRIES}: ${error.message}. waiting ${Math.round(waitMs / 1000)}s`);
+      await sleep(waitMs);
+    }
+  }
+  throw new Error(`${label} retry loop exhausted`);
 }
 
 function streamParquetRowsByIds(ids) {
@@ -76,7 +96,7 @@ function streamParquetRowsByIds(ids) {
 }
 
 async function postAuditRows(cookie, rows) {
-  const response = await fetch(`${BASE_URL}/api/legal-index/audit-rows`, {
+  return fetchJsonWithRetry(`${BASE_URL}/api/legal-index/audit-rows`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -87,10 +107,7 @@ async function postAuditRows(cookie, rows) {
       insertRuleOnly: true,
       rows
     })
-  });
-  const payload = await response.json().catch(() => ({}));
-  if (!response.ok) throw new Error(`Audit rows failed (${response.status}): ${payload.error || JSON.stringify(payload)}`);
-  return payload;
+  }, "Audit rows");
 }
 
 function fold(value) {
