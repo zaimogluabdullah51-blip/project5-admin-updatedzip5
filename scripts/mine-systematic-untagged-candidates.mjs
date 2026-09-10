@@ -89,7 +89,7 @@ const rules = [
   },
   {
     name: "regulation_tariff_article",
-    regex: /\b(?:Yönetmelik|Tüzük|Tarife|Tebliğ|Genelge)(?:['’]?(?:nın|nin|nun|nün|ın|in|un|ün|na|ne|da|de))?[\s\S]{0,90}?\b(?:\d{1,4}\s*\.?\s*(?:madde|maddesi)|(?:madde|maddesi)\s*\d{1,4})\b/iu
+    regex: /\b(?:Yönetmelik|Tüzük|Tarife|Tebliğ(?!name)|Genelge)(?:['’]?(?:nın|nin|nun|nün|ın|in|un|ün|na|ne|da|de))?[\s\S]{0,90}?\b(?:\d{1,4}\s*\.?\s*(?:madde|maddesi)|(?:madde|maddesi)\s*\d{1,4})\b/iu
   },
   {
     name: "contract_spec_article",

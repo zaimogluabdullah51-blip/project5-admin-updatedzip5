@@ -79,7 +79,7 @@ const regexes = {
   abbreviationArticle: /\b(?:TCK|TCY|CMK|CMUK|HUMK|HMUK|HUMY|HYUY|HMK|İİK|IIK|İYUK|BK|TBK|MK|TMK|TTK|VUK|SSK|KDVK|TKHK)\s*(?:'|’|`|´)?\s*(?:nun|nın|nin|na|ne|da|de)?\.?\s*(?:m\.|md\.|madde|maddesi|maddesinde|maddesine|maddesinin)\s*\d{1,4}(?:\s*\/\s*[A-Za-z0-9ÇĞİÖŞÜçğıöşü-]+)?/iu,
   numberedLawNoArticle: /\b(?:\d{3,4}|[1lIİı]\d{2,3})\s*(?:s\.?|sayılı)\s+(?:[^.\n]{0,120}?)\b(?:kanun|yasa|khk|kanun hükmünde kararname)\b/iu,
   lawNameNoArticle: /\b(?:ceza|hukuk|borçlar|medeni|icra|iflas|kadastro|kamulaştırma|orman|harçlar|avukatlık|noterlik|tüketici|iş|trafik|imar|vergi)\s+(?:kanunu|yasası)\b/iu,
-  regulationTariff: /\b(?:yönetmelik|tüzük|tarife|tebliğ|genelge)\b/iu,
+  regulationTariff: /\b(?:yönetmelik|tüzük|tarife|tebliğ(?!name)|genelge)\b/iu,
   contractSpec: /\b(?:sözleşme|şartname|protokol|ihale dokümanı|teknik şartname|idari şartname)\b/iu,
   ibbkCase: /\b(?:içtihad[ıi] birleştirme|yargıtay [^.\n]{0,80}(?:kararı|ilamı)|anayasa mahkemesi kararı|danıştay [^.\n]{0,80}kararı)\b/iu,
   generalIllegality: /\b(?:kanuna|yasaya|hukuka|usul ve yasaya|usul ve kanuna)\s+aykır[ıi]/iu,
