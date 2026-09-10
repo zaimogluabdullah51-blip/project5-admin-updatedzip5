@@ -381,7 +381,7 @@ function sleep(ms) {
 }
 
 function isRetryableSupabaseRestError(status, detail) {
-  return [429, 500, 502, 503, 504].includes(Number(status)) &&
+  return [429, 500, 502, 503, 504, 522, 524].includes(Number(status)) &&
     /PGRST002|schema cache|Retrying|timeout|ETIMEDOUT|ECONNRESET|fetch failed/i.test(String(detail || ""));
 }
 
@@ -632,7 +632,7 @@ async function fetchSupabaseZeroCitationDecisions({ limit = 5000, offset = 0, sc
       "id,hf_id,source,document_id,court,esas_no,karar_no,karar_tarihi,year,month,text_len,masked_count,raw_sha256,short_preview,indexed_at,created_at"
     );
     params.set("hf_id", "not.is.null");
-    params.set("order", order === "newest" ? "indexed_at.desc" : "indexed_at.asc");
+    params.set("order", order === "newest" ? "id.desc" : "id.asc");
     params.set("limit", String(pageSize));
 
     const page = await supabaseRest(`/court_decisions?${params.toString()}`, {
