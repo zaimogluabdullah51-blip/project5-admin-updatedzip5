@@ -385,10 +385,23 @@ function isRetryableSupabaseRestError(status, detail) {
     /PGRST002|schema cache|Retrying|timeout|ETIMEDOUT|ECONNRESET|fetch failed/i.test(String(detail || ""));
 }
 
+let supabaseCircuitOpenUntil = 0;
+let supabaseCircuitReason = "";
+
+function openSupabaseCircuit(status, detail) {
+  const holdMs = Math.min(Math.max(parseInt(process.env.SUPABASE_CIRCUIT_BREAKER_MS, 10) || 120000, 10000), 900000);
+  supabaseCircuitOpenUntil = Date.now() + holdMs;
+  supabaseCircuitReason = `Supabase request failed (${status}): ${String(detail || "").slice(0, 240)}`;
+}
+
 async function supabaseRest(pathname, options = {}) {
   const write = options.write === true;
   const key = write ? SUPABASE_WRITE_KEY : SUPABASE_READ_KEY;
   if (!SUPABASE_URL || !key) throw new Error("Supabase environment variables are not configured.");
+  if (Date.now() < supabaseCircuitOpenUntil) {
+    const waitSeconds = Math.ceil((supabaseCircuitOpenUntil - Date.now()) / 1000);
+    throw new Error(`Supabase temporarily throttled for ${waitSeconds}s after transient failures. ${supabaseCircuitReason}`);
+  }
   const headers = {
     apikey: key,
     Authorization: `Bearer ${key}`,
@@ -396,7 +409,8 @@ async function supabaseRest(pathname, options = {}) {
     ...(options.headers || {})
   };
   const url = `${SUPABASE_URL}/rest/v1${pathname}`;
-  const maxRetries = Math.min(Math.max(parseInt(process.env.SUPABASE_REST_RETRIES, 10) || 2, 0), 8);
+  const retryEnv = parseInt(process.env.SUPABASE_REST_RETRIES ?? "0", 10);
+  const maxRetries = Math.min(Math.max(Number.isFinite(retryEnv) ? retryEnv : 0, 0), 8);
   const retryBaseMs = Math.min(Math.max(parseInt(process.env.SUPABASE_REST_RETRY_MS, 10) || 1200, 250), 10000);
   for (let attempt = 0; attempt <= maxRetries; attempt += 1) {
     const response = await fetch(url, {
@@ -405,15 +419,19 @@ async function supabaseRest(pathname, options = {}) {
       body: options.body ? JSON.stringify(options.body) : undefined
     });
     if (response.ok) {
+      supabaseCircuitOpenUntil = 0;
+      supabaseCircuitReason = "";
       if (response.status === 204) return null;
       const text = await response.text();
       return text ? JSON.parse(text) : null;
     }
     const detail = await response.text().catch(() => "");
     if (attempt < maxRetries && isRetryableSupabaseRestError(response.status, detail)) {
+      openSupabaseCircuit(response.status, detail);
       await sleep(retryBaseMs * (attempt + 1));
       continue;
     }
+    if (isRetryableSupabaseRestError(response.status, detail)) openSupabaseCircuit(response.status, detail);
     throw new Error(`Supabase request failed (${response.status}): ${detail}`);
   }
   throw new Error("Supabase request failed.");
