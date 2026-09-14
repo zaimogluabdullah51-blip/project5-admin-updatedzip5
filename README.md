@@ -40,15 +40,30 @@ Set these environment variables in Render/Replit for production:
 
 ## Legal citation index
 
-Hugging Face hosts the raw dataset, but its live search endpoint may return `ResponseNotReady` for large queries. For reliable search, index legal citations into Supabase and let the app read from that local index.
+Supabase should stay small and transactional. The large court-decision corpus can be stored as a local SQLite artifact instead of pushing millions of rows into Supabase.
 
-The indexer now reads Hugging Face's `mevzuat_atif` list column when available, then runs the local text parser as a fallback. This keeps the new datasource tags while still catching missing references such as visible `TCK 32` mentions that were not tagged.
+Build a local legal index from cached Hugging Face parquet shards:
+```bash
+HF_TOKEN=... \
+HF_PARQUET_CACHE_DIR=/private/tmp/hf-parquet-cache \
+npm run hf:cache
 
-Required environment variables:
-- `SUPABASE_URL`
-- `SUPABASE_ANON_KEY` for read-only lookup, or `SUPABASE_SERVICE_ROLE_KEY` for read/write indexing
+HF_PARQUET_CACHE_DIR=/private/tmp/hf-parquet-cache \
+LEGAL_INDEX_DB_PATH=data/legal-index.sqlite \
+HF_INDEX_LIMIT=1000000 \
+npm run index:local
+```
 
-Indexer command:
+`npm start` runs `npm run index:prepare` first. In production, upload `legal-index.sqlite` or `legal-index.sqlite.gz` to object storage and set:
+- `LEGAL_INDEX_DB_URL`
+- `LEGAL_INDEX_DB_PATH` (optional, defaults to `data/legal-index.sqlite`)
+- `LEGAL_INDEX_DB_SHA256` (optional but recommended)
+- `LEGAL_INDEX_DB_GZIP=true` if the URL does not end with `.gz`
+- `LEGAL_INDEX_REQUIRED=true` if the app should fail startup when the artifact is missing
+
+When `data/legal-index.sqlite` exists, `/api/legal-references` reads from it before Supabase. Set `LEGAL_INDEX_SUPABASE_FALLBACK=true` to also query Supabase after local matches.
+
+Legacy Supabase indexer command:
 ```bash
 INDEXER_BASE_URL=https://davatakibi.onrender.com \
 INDEXER_ADMIN_USER=admin \

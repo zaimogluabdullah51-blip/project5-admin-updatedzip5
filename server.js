@@ -1,7 +1,9 @@
 import express from "express";
+import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
 import crypto from "crypto";
+import sqlite3 from "sqlite3";
 import { all, get, run, init, createCase, updateCase, createPerson, linkPerson, createAction, createOfficial, linkOfficial, upsertEylemSummary, getEylemSummaries } from "./db.js";
 
 const app = express();
@@ -20,6 +22,9 @@ const HF_SPLIT = process.env.HF_DATASET_SPLIT || "train";
 const SUPABASE_URL = (process.env.SUPABASE_URL || "").replace(/\/+$/, "");
 const SUPABASE_READ_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY || "";
 const SUPABASE_WRITE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || "";
+const LOCAL_LEGAL_INDEX_DB_PATH = process.env.LEGAL_INDEX_DB_PATH || path.join(__dirname, "data", "legal-index.sqlite");
+const LOCAL_LEGAL_INDEX_ENABLED = String(process.env.LEGAL_INDEX_ENABLED || "true").toLowerCase() !== "false";
+const LOCAL_LEGAL_INDEX_SUPABASE_FALLBACK = String(process.env.LEGAL_INDEX_SUPABASE_FALLBACK || "").toLowerCase() === "true";
 const DEEP_SEARCH_PAGE_SIZE = Math.min(Math.max(parseInt(process.env.DEEP_SEARCH_PAGE_SIZE, 10) || 25, 1), 100);
 const DEEP_SEARCH_MAX_PAGES = Math.min(Math.max(parseInt(process.env.DEEP_SEARCH_MAX_PAGES, 10) || 3, 1), 20);
 const DEEP_SEARCH_MAX_RETRIES = Math.min(Math.max(parseInt(process.env.DEEP_SEARCH_MAX_RETRIES, 10) || 1, 1), 50);
@@ -499,6 +504,171 @@ function mapSupabaseCitation(row) {
     short_preview: row.context || decision.short_preview || "",
     indexed_level: "supabase_legal_citation",
     created_at: row.created_at || decision.created_at || ""
+  };
+}
+
+let localLegalIndexDb = null;
+
+function isLocalLegalIndexEnabled() {
+  return LOCAL_LEGAL_INDEX_ENABLED && fs.existsSync(LOCAL_LEGAL_INDEX_DB_PATH);
+}
+
+function getLocalLegalIndexDb() {
+  if (!isLocalLegalIndexEnabled()) return null;
+  if (!localLegalIndexDb) {
+    localLegalIndexDb = new sqlite3.Database(LOCAL_LEGAL_INDEX_DB_PATH, sqlite3.OPEN_READONLY);
+  }
+  return localLegalIndexDb;
+}
+
+function localLegalIndexAll(sql, params = []) {
+  const db = getLocalLegalIndexDb();
+  if (!db) return Promise.resolve([]);
+  return new Promise((resolve, reject) => {
+    db.all(sql, params, (err, rows) => {
+      if (err) return reject(err);
+      resolve(rows || []);
+    });
+  });
+}
+
+function localLegalIndexGet(sql, params = []) {
+  const db = getLocalLegalIndexDb();
+  if (!db) return Promise.resolve(null);
+  return new Promise((resolve, reject) => {
+    db.get(sql, params, (err, row) => {
+      if (err) return reject(err);
+      resolve(row || null);
+    });
+  });
+}
+
+function mapLocalLegalIndexCitation(row) {
+  const ref = normalizeLegalRef(row);
+  const tckCode = ref?.law_no === "5237" && ref?.law_code === "TCK" ? formatArticlePath(ref) : "";
+  return {
+    id: `local:${row.citation_id || row.id || row.hf_id}`,
+    hf_id: row.hf_id || "",
+    source: row.source || "",
+    document_id: row.document_id || "",
+    court: row.court || "",
+    esas_no: row.esas_no || "",
+    karar_no: row.karar_no || "",
+    karar_tarihi: row.karar_tarihi || "",
+    year: Number(row.year || 0),
+    month: Number(row.month || 0),
+    text_len: Number(row.text_len || 0),
+    masked_count: Number(row.masked_count || 0),
+    raw_sha256: row.raw_sha256 || "",
+    detected_law_refs: Array.from(new Set([
+      row.canonical_ref,
+      labelLegalRef(ref),
+      row.raw_reference
+    ].filter(Boolean))),
+    detected_tck_codes: tckCode ? Array.from(new Set([tckCode, ref.article].filter(Boolean))) : [],
+    short_preview: row.context || row.short_preview || "",
+    indexed_level: "local_legal_index",
+    created_at: row.indexed_at || ""
+  };
+}
+
+async function fetchLocalLegalReferences({ legalRef, query, limit }) {
+  if (!isLocalLegalIndexEnabled()) return [];
+  const maxRows = Math.min(Math.max(Number(limit) || 6, 1), 250);
+  const where = [];
+  const params = [];
+  const ref = normalizeLegalRef(legalRef);
+  const canonical = canonicalLegalRef(ref);
+
+  if (canonical) {
+    const label = labelLegalRef(ref);
+    const compact = ref?.law_no && ref?.article ? `${ref.law_no}/${formatArticlePath(ref)}` : "";
+    where.push(`(
+      c.canonical_ref = ?
+      OR c.canonical_ref LIKE ?
+      OR c.raw_reference LIKE ?
+      ${compact ? "OR c.raw_reference LIKE ?" : ""}
+    )`);
+    params.push(canonical, `${canonical}:%`, likeNeedle(label));
+    if (compact) params.push(likeNeedle(compact));
+  }
+
+  const q = String(query || "").trim();
+  if (q) {
+    const needle = likeNeedle(q);
+    where.push(`(
+      d.court LIKE ?
+      OR d.esas_no LIKE ?
+      OR d.karar_no LIKE ?
+      OR d.short_preview LIKE ?
+      OR c.raw_reference LIKE ?
+      OR c.canonical_ref LIKE ?
+    )`);
+    params.push(needle, needle, needle, needle, needle, needle);
+  }
+
+  if (!where.length) return [];
+
+  const rows = await localLegalIndexAll(
+    `SELECT
+       c.id AS citation_id,
+       c.hf_id,
+       c.law_no,
+       c.law_code,
+       c.law_name,
+       c.article,
+       c.paragraph,
+       c.subparagraph,
+       c.canonical_ref,
+       c.raw_reference,
+       c.context,
+       c.indexed_at,
+       d.source,
+       d.document_id,
+       d.court,
+       d.esas_no,
+       d.karar_no,
+       d.karar_tarihi,
+       d.year,
+       d.month,
+       d.text_len,
+       d.masked_count,
+       d.raw_sha256,
+       d.short_preview
+     FROM legal_index_citations c
+     JOIN legal_index_decisions d ON d.hf_id = c.hf_id
+     WHERE ${where.join(" AND ")}
+     ORDER BY d.karar_tarihi DESC, d.year DESC, c.id DESC
+     LIMIT ?`,
+    [...params, maxRows]
+  );
+
+  return rows.map(mapLocalLegalIndexCitation);
+}
+
+async function getLocalLegalIndexStatus() {
+  const exists = fs.existsSync(LOCAL_LEGAL_INDEX_DB_PATH);
+  if (!exists) {
+    return {
+      enabled: LOCAL_LEGAL_INDEX_ENABLED,
+      exists: false,
+      path: LOCAL_LEGAL_INDEX_DB_PATH
+    };
+  }
+  const [decisionStats, citationStats, taggedStats, metaRows] = await Promise.all([
+    localLegalIndexGet("SELECT count(*) AS n FROM legal_index_decisions"),
+    localLegalIndexGet("SELECT count(*) AS n FROM legal_index_citations"),
+    localLegalIndexGet("SELECT count(*) AS n FROM legal_index_decisions WHERE citation_count > 0"),
+    localLegalIndexAll("SELECT key, value FROM legal_index_meta ORDER BY key")
+  ]);
+  return {
+    enabled: LOCAL_LEGAL_INDEX_ENABLED,
+    exists: true,
+    path: LOCAL_LEGAL_INDEX_DB_PATH,
+    decisions: Number(decisionStats?.n || 0),
+    citations: Number(citationStats?.n || 0),
+    tagged_decisions: Number(taggedStats?.n || 0),
+    meta: Object.fromEntries((metaRows || []).map((row) => [row.key, row.value]))
   };
 }
 
@@ -3481,6 +3651,15 @@ app.get("/api/legal-index/zero-citation-decisions", requireAuthApi, async (req, 
   }
 });
 
+app.get("/api/legal-index/local-status", requireAuthApi, async (req, res) => {
+  try {
+    res.json({ ok: true, ...(await getLocalLegalIndexStatus()) });
+  } catch (err) {
+    console.error("Local legal index status error:", err);
+    res.status(500).json({ error: err.message || "Lokal hukuk indeksi durumu alınamadı." });
+  }
+});
+
 app.post("/api/legal-index/audit-rows", requireAuthApi, async (req, res) => {
   try {
     if (!isSupabaseWriteEnabled()) {
@@ -3630,11 +3809,20 @@ app.get("/api/legal-references", async (req, res) => {
     const params = [];
     const where = [];
     let supabaseRows = [];
+    let localIndexRows = [];
 
     try {
-      supabaseRows = await fetchSupabaseLegalReferences({ legalRef, query, limit });
+      localIndexRows = await fetchLocalLegalReferences({ legalRef, query, limit });
     } catch (err) {
-      console.warn("Supabase legal reference lookup skipped:", err.message);
+      console.warn("Local legal index lookup skipped:", err.message);
+    }
+
+    if ((!localIndexRows.length || LOCAL_LEGAL_INDEX_SUPABASE_FALLBACK) && localIndexRows.length < limit) {
+      try {
+        supabaseRows = await fetchSupabaseLegalReferences({ legalRef, query, limit: limit - localIndexRows.length });
+      } catch (err) {
+        console.warn("Supabase legal reference lookup skipped:", err.message);
+      }
     }
 
     if (legalRef) {
@@ -3664,7 +3852,7 @@ app.get("/api/legal-references", async (req, res) => {
       LIMIT ?
     `;
     const rows = await all(sql, [...params, limit]);
-    res.json(mergeLegalReferences(supabaseRows, rows.map(mapLegalReference), limit));
+    res.json(mergeLegalReferences([...localIndexRows, ...supabaseRows], rows.map(mapLegalReference), limit));
   } catch (err) {
     console.error("Legal references error:", err);
     res.status(500).json({ error: "İçtihat kayıtları yüklenemedi." });

@@ -7,6 +7,6 @@ export function loadLegalParser() {
   const end = source.indexOf("async function getTckTitleForSearch");
   if (start < 0 || end <= start) throw new Error("Legal parser block not found");
   const context = vm.createContext({ console, URL, URLSearchParams });
-  vm.runInContext(`${source.slice(start, end)}\nglobalThis.parser = {buildAuditedLegalReferencesForRow, canonicalLegalRef, extractLegalReferencesFromHfTags, extractLegalReferences, mergeLegalReferenceCandidates};`, context);
+  vm.runInContext(`${source.slice(start, end)}\nglobalThis.parser = {buildAuditedLegalReferencesForRow, canonicalLegalRef, normalizeLegalRef, labelLegalRef, extractLegalReferencesFromHfTags, extractLegalReferences, mergeLegalReferenceCandidates};`, context);
   return context.parser;
 }

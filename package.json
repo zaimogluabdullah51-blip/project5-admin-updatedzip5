@@ -7,10 +7,14 @@
     "dev": "node server.js",
     "dev:ui": "vite",
     "build": "vite build",
-    "start": "node server.js",
+    "start": "node scripts/prepare-local-legal-index.mjs && node server.js",
+    "serve": "node server.js",
     "preview": "vite preview",
     "push:main": "git add . && git commit -m \"update\" || true && git push origin main",
-    "index:hf": "node scripts/run-legal-indexer.mjs"
+    "index:hf": "node scripts/run-legal-indexer.mjs",
+    "index:local": "node scripts/build-local-legal-index.mjs",
+    "index:prepare": "node scripts/prepare-local-legal-index.mjs",
+    "hf:cache": "python3 scripts/download-hf-parquet-shards.py"
   },
   "dependencies": {
     "express": "^4.22.1",
