@@ -13,6 +13,10 @@
     "push:main": "git add . && git commit -m \"update\" || true && git push origin main",
     "index:hf": "node scripts/run-legal-indexer.mjs",
     "index:local": "node scripts/build-local-legal-index.mjs",
+    "index:fts": "node scripts/build-local-preview-fts.mjs",
+    "index:fulltext": "python3 scripts/build-local-fulltext-index.py",
+    "index:fulltext:check": "node scripts/check-local-fulltext-index.mjs",
+    "index:audit-local": "node scripts/audit-local-legal-index.mjs",
     "index:prepare": "node scripts/prepare-local-legal-index.mjs",
     "hf:cache": "python3 scripts/download-hf-parquet-shards.py"
   },

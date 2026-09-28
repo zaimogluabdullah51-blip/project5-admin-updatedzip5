@@ -5,6 +5,8 @@ import readline from "node:readline";
 import sqlite3 from "sqlite3";
 import { fileURLToPath } from "node:url";
 import { loadLegalParser } from "./load-legal-parser.mjs";
+import { fileHash, rowHash, sourceIdentity, validateCheckpoint } from './index-input-identity.mjs';
+import { evaluateDecisionMetadata, metadataParserHash, metadataPolicyVersion } from './decision-metadata-policy.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const rootDir = path.resolve(__dirname, "..");
@@ -19,10 +21,20 @@ const CHECKPOINT = process.env.HF_INDEX_CHECKPOINT || `/tmp/local-legal-index-${
 const COMPACT = String(process.env.HF_INDEX_COMPACT || "true").toLowerCase() !== "false";
 const PYTHON_BIN = process.env.PYTHON_BIN || "python3";
 const INPUT_JSONL = process.env.HF_INDEX_INPUT_JSONL || "";
+const TRACK_SEARCH_UPDATES = process.env.HF_INDEX_TRACK_SEARCH_UPDATES === 'true';
+if (TRACK_SEARCH_UPDATES && !INPUT_JSONL) throw new Error('Search updates require an explicit JSONL delta');
 const MAX_CHUNK_RETRIES = Math.max(Number(process.env.HF_INDEX_MAX_CHUNK_RETRIES || 8), 0);
 const RETRY_BASE_MS = Math.max(Number(process.env.HF_INDEX_RETRY_BASE_MS || 15000), 1000);
 
 const parser = loadLegalParser();
+const codeFiles = ['../server.js', './build-local-legal-index.mjs', './load-legal-parser.mjs', './index-input-identity.mjs', './export-hf-parquet-sample.py', './decision-metadata-parser.mjs', './decision-metadata-policy.mjs'];
+const codeHashes = [];
+for (const file of codeFiles) codeHashes.push(await fileHash(fileURLToPath(new URL(file, import.meta.url))));
+const processingHash = rowHash({ codeHashes, compact: COMPACT, config: CONFIG, trackSearchUpdates: TRACK_SEARCH_UPDATES });
+const inputIdentity = {
+  source: await sourceIdentity(INPUT_JSONL, CONFIG), processingHash,
+  start: START_OFFSET, limit: TOTAL_LIMIT
+};
 
 function run(db, sql, params = []) {
   return new Promise((resolve, reject) => {
@@ -44,11 +56,19 @@ function get(db, sql, params = []) {
 
 function loadCheckpoint() {
   if (!fs.existsSync(CHECKPOINT)) return null;
-  return JSON.parse(fs.readFileSync(CHECKPOINT, "utf8"));
+  const checkpoint = JSON.parse(fs.readFileSync(CHECKPOINT, "utf8"));
+  validateCheckpoint(checkpoint, inputIdentity, DB_PATH, START_OFFSET, START_OFFSET + TOTAL_LIMIT);
+  return checkpoint;
 }
 
 function saveCheckpoint(value) {
-  fs.writeFileSync(CHECKPOINT, JSON.stringify(value, null, 2) + "\n");
+  const temp = `${CHECKPOINT}.${process.pid}.tmp`;
+  try {
+    fs.writeFileSync(temp, JSON.stringify(value, null, 2) + "\n", { flag: 'wx' });
+    fs.renameSync(temp, CHECKPOINT);
+  } finally {
+    fs.rmSync(temp, { force: true });
+  }
 }
 
 function sleep(ms) {
@@ -120,6 +140,12 @@ function streamRows(offset, limit) {
 }
 
 async function initLocalIndex(db) {
+  const servingView = await get(db, "SELECT 1 AS found FROM sqlite_master WHERE name = 'legal_index_citations' AND type = 'view'");
+  if (servingView) throw new Error('This is a read-only serving artifact. Build or update the source index instead.');
+  const updateQueue = await get(db, "SELECT 1 FROM sqlite_master WHERE name='legal_index_search_updates'");
+  if (updateQueue && !TRACK_SEARCH_UPDATES && (await get(db, 'SELECT 1 FROM legal_index_search_updates LIMIT 1'))) {
+    throw new Error('Pending search updates require HF_INDEX_TRACK_SEARCH_UPDATES=true');
+  }
   await run(db, "PRAGMA journal_mode = WAL");
   await run(db, "PRAGMA synchronous = NORMAL");
   await run(db, "PRAGMA temp_store = MEMORY");
@@ -178,6 +204,26 @@ async function initLocalIndex(db) {
   await run(db, "CREATE INDEX IF NOT EXISTS idx_legal_index_citations_hf_id ON legal_index_citations (hf_id)");
   await run(db, "CREATE INDEX IF NOT EXISTS idx_legal_index_decisions_date ON legal_index_decisions (karar_tarihi DESC, year DESC)");
   await run(db, "CREATE INDEX IF NOT EXISTS idx_legal_index_decisions_court ON legal_index_decisions (court)");
+  await run(db, `CREATE TABLE IF NOT EXISTS legal_index_metadata_audit (
+    hf_id TEXT PRIMARY KEY, parser_sha256 TEXT NOT NULL, policy_version TEXT NOT NULL,
+    text_sha256 TEXT NOT NULL, evidence_json TEXT NOT NULL, audited_at TEXT NOT NULL
+  )`);
+  await run(db, `CREATE TABLE IF NOT EXISTS legal_index_processing_state (
+    hf_id TEXT PRIMARY KEY, input_sha256 TEXT NOT NULL, processing_sha256 TEXT NOT NULL
+  )`);
+  await run(db, `CREATE TABLE IF NOT EXISTS legal_index_search_updates (
+    hf_id TEXT PRIMARY KEY, body TEXT NOT NULL
+  )`);
+  const preview = await get(db, "SELECT 1 FROM sqlite_master WHERE name='legal_index_decisions_fts'");
+  if (preview) {
+    await run(db, `CREATE TRIGGER IF NOT EXISTS legal_preview_insert AFTER INSERT ON legal_index_decisions BEGIN
+      INSERT INTO legal_index_decisions_fts(rowid, short_preview) VALUES(new.rowid, new.short_preview); END`);
+    await run(db, `CREATE TRIGGER IF NOT EXISTS legal_preview_update AFTER UPDATE OF short_preview ON legal_index_decisions BEGIN
+      INSERT INTO legal_index_decisions_fts(legal_index_decisions_fts, rowid, short_preview) VALUES('delete', old.rowid, old.short_preview);
+      INSERT INTO legal_index_decisions_fts(rowid, short_preview) VALUES(new.rowid, new.short_preview); END`);
+    await run(db, `CREATE TRIGGER IF NOT EXISTS legal_preview_delete AFTER DELETE ON legal_index_decisions BEGIN
+      INSERT INTO legal_index_decisions_fts(legal_index_decisions_fts, rowid, short_preview) VALUES('delete', old.rowid, old.short_preview); END`);
+  }
 }
 
 async function setMeta(db, key, value) {
@@ -185,10 +231,21 @@ async function setMeta(db, key, value) {
 }
 
 async function indexRow(db, row, absoluteIndex) {
+  if (typeof row.text !== 'string') throw new Error('Decision text must be present, including an explicit empty string');
   const text = row.text || "";
-  const hfId = row.id || `${row.source || CONFIG}:${row.document_id || absoluteIndex}`;
+  if (!row.id && !row.document_id) throw new Error('Stable decision id or document_id required');
+  const hfId = row.id || `${row.source || CONFIG}:${row.document_id}`;
+  const inputHash = rowHash(row);
+  const previous = await get(db, `SELECT s.input_sha256, s.processing_sha256, d.citation_count
+    FROM legal_index_processing_state s JOIN legal_index_decisions d ON d.hf_id=s.hf_id WHERE s.hf_id=?`, [hfId]);
+  if (previous?.input_sha256 === inputHash && previous.processing_sha256 === processingHash) {
+    return { refs: previous.citation_count, inserted: 0 };
+  }
   const refs = parser.mergeLegalReferenceCandidates(parser.extractLegalReferences(text || ""));
   const now = new Date().toISOString();
+  const metadata = evaluateDecisionMetadata(row);
+  const effectiveDate = metadata.fields.decision_date.effective;
+  const filledDate = metadata.fields.decision_date.status === 'proposed_fill';
 
   await run(
     db,
@@ -214,12 +271,12 @@ async function indexRow(db, row, absoluteIndex) {
       hfId,
       row.source || CONFIG,
       row.document_id || "",
-      row.court || "",
+      metadata.fields.court.effective || "",
       row.esas_no || "",
       row.karar_no || "",
-      row.karar_tarihi || "",
-      Number(row.year || 0) || null,
-      Number(row.month || 0) || null,
+      effectiveDate || "",
+      filledDate ? Number(effectiveDate.slice(0, 4)) : Number(row.year || 0) || null,
+      filledDate ? Number(effectiveDate.slice(5, 7)) : Number(row.month || 0) || null,
       Number(row.text_len || String(text).length || 0) || null,
       Number(row.masked_count || 0) || 0,
       row.raw_sha256 || "",
@@ -230,18 +287,23 @@ async function indexRow(db, row, absoluteIndex) {
   );
 
   let inserted = 0;
-  let canonicalCount = 0;
+  await run(db, `INSERT OR REPLACE INTO legal_index_metadata_audit
+    (hf_id, parser_sha256, policy_version, text_sha256, evidence_json, audited_at)
+    VALUES (?, ?, ?, ?, ?, ?)`, [hfId, metadata.parser_sha256, metadata.policy_version,
+    metadata.text_sha256, JSON.stringify(metadata.fields), now]);
+  // processChunk owns the transaction: a failed replacement restores old citations too.
+  await run(db, "DELETE FROM legal_index_citations WHERE hf_id = ?", [hfId]);
   for (const [idx, ref] of refs.entries()) {
     const normalized = parser.normalizeLegalRef ? parser.normalizeLegalRef(ref) : ref;
     const canonical = parser.canonicalLegalRef(normalized);
     if (!canonical) continue;
-    canonicalCount += 1;
     const rawReference = String(ref.raw_reference || parser.labelLegalRef?.(normalized) || canonical);
     const result = await run(
       db,
-      `INSERT OR IGNORE INTO legal_index_citations
+      `INSERT INTO legal_index_citations
         (hf_id, law_no, law_code, law_name, article, paragraph, subparagraph, canonical_ref, raw_reference, context, source_method, confidence, quality_status, position, indexed_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+       ON CONFLICT(hf_id, canonical_ref, raw_reference) DO NOTHING`,
       [
         hfId,
         normalized.law_no || "",
@@ -267,16 +329,28 @@ async function indexRow(db, row, absoluteIndex) {
     "UPDATE legal_index_decisions SET citation_count = (SELECT count(*) FROM legal_index_citations WHERE hf_id = ?) WHERE hf_id = ?",
     [hfId, hfId]
   );
-  return { refs: canonicalCount, inserted };
+  await run(db, `INSERT INTO legal_index_processing_state VALUES (?, ?, ?)
+    ON CONFLICT(hf_id) DO UPDATE SET input_sha256=excluded.input_sha256, processing_sha256=excluded.processing_sha256`,
+    [hfId, inputHash, processingHash]);
+  if (TRACK_SEARCH_UPDATES) {
+    await run(db, `INSERT INTO legal_index_search_updates VALUES (?, ?)
+      ON CONFLICT(hf_id) DO UPDATE SET body=excluded.body`, [hfId, text]);
+  }
+  return { refs: inserted, inserted };
 }
 
+// Reject a mismatched checkpoint before opening or changing the target database.
+const checkpoint = loadCheckpoint();
 fs.mkdirSync(path.dirname(DB_PATH), { recursive: true });
 const db = new sqlite3.Database(DB_PATH);
 await initLocalIndex(db);
 
 function checkpointPayload(nextOffset) {
   return {
-    db_path: DB_PATH,
+    format: 'legal-index-checkpoint-v2',
+    identity: inputIdentity,
+    db_path: fs.realpathSync(DB_PATH),
+    db_file: `${fs.statSync(DB_PATH).dev}:${fs.statSync(DB_PATH).ino}`,
     config: CONFIG,
     start_offset: START_OFFSET,
     next_offset: nextOffset,
@@ -340,7 +414,6 @@ async function processChunk(chunkOffset, chunkLimit) {
 }
 
 const endOffset = START_OFFSET + TOTAL_LIMIT;
-const checkpoint = loadCheckpoint();
 let totalRows = Number(checkpoint?.total_rows || 0);
 let totalTaggedRows = Number(checkpoint?.total_tagged_rows || 0);
 let totalCitations = Number(checkpoint?.total_citations || 0);
@@ -357,6 +430,8 @@ await setMeta(db, "status", "building");
 await setMeta(db, "config", CONFIG);
 await setMeta(db, "start_offset", START_OFFSET);
 await setMeta(db, "target_limit", TOTAL_LIMIT);
+await setMeta(db, "metadata_parser_sha256", metadataParserHash);
+await setMeta(db, "metadata_policy_version", metadataPolicyVersion);
 
 chunks:
 while (offset < endOffset) {
@@ -393,7 +468,9 @@ while (offset < endOffset) {
 const decisionCount = await get(db, "SELECT count(*) as n FROM legal_index_decisions");
 const citationCount = await get(db, "SELECT count(*) as n FROM legal_index_citations");
 const taggedDecisionCount = await get(db, "SELECT count(*) as n FROM legal_index_decisions WHERE citation_count > 0");
-await setMeta(db, "status", "ready");
+const pendingSearch = await get(db, 'SELECT count(*) AS n FROM legal_index_search_updates');
+await setMeta(db, "status", pendingSearch.n ? "pending_search_sync" : "ready");
+await run(db, "DELETE FROM legal_index_meta WHERE key = 'error'");
 await setMeta(db, "updated_at", new Date().toISOString());
 await setMeta(db, "rows", decisionCount?.n || 0);
 await setMeta(db, "tagged_rows", taggedDecisionCount?.n || 0);

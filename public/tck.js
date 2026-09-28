@@ -4,6 +4,8 @@ let tckDefinitions = {};
 let allData = [];
 let legalReferences = [];
 let tckArticleParts = [];
+let localSearchMode = "browse";
+let localOptionsRequestId = 0;
 const deepSearchPollers = new Map();
 
 function esc(str) {
@@ -11,6 +13,28 @@ function esc(str) {
   const d = document.createElement("div");
   d.textContent = str;
   return d.innerHTML;
+}
+
+function highlightedSearchExcerpt(text, query) {
+  const source = String(text || "");
+  const tokens = Array.from(new Set(
+    String(query || "").normalize("NFKC").match(/[\p{L}\p{N}]+/gu)?.filter((token) => token.length >= 2) || []
+  )).sort((a, b) => b.length - a.length);
+  if (!source || !tokens.length) return esc(source);
+  const pattern = new RegExp(tokens.map((token) => token.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).join("|"), "giu");
+  let cursor = 0;
+  let html = "";
+  for (const match of source.matchAll(pattern)) {
+    const index = Number(match.index || 0);
+    html += esc(source.slice(cursor, index));
+    html += `<mark>${esc(match[0])}</mark>`;
+    cursor = index + match[0].length;
+  }
+  return html + esc(source.slice(cursor));
+}
+
+function escAttribute(value) {
+  return esc(value).replaceAll('"', '&quot;').replaceAll("'", '&#39;');
 }
 
 function updateAdminUI() {
@@ -63,6 +87,311 @@ async function loadLegalReferences() {
   } catch {
     legalReferences = [];
   }
+}
+
+function renderLocalReferenceResults(rows, query, mode, textSearchScope = "", textQuery = query) {
+  const results = document.getElementById("local-reference-results");
+  const status = document.getElementById("local-reference-status");
+  if (!results || !status) return;
+
+  if (!rows.length) {
+    status.textContent = query
+      ? `${query} için yerel indekste eşleşme bulunamadı.`
+      : "Seçilen filtrelerle eşleşen karar bulunamadı.";
+    results.innerHTML = "";
+    return;
+  }
+
+  status.textContent = `${rows.length} karar gösteriliyor.`;
+  const modeLabels = {
+    citation: "Mevzuat eşleşmesi",
+    browse: "Mahkeme ve tarih",
+    text: textSearchScope === "fulltext" ? "Tam metin eşleşmesi" : "Metin kesiti eşleşmesi"
+  };
+  results.innerHTML = rows.map((ref) => {
+    const identity = [
+      ref.court,
+      ref.esas_no ? `E. ${ref.esas_no}` : "",
+      ref.karar_no ? `K. ${ref.karar_no}` : ""
+    ].filter(Boolean).join(" · ");
+    const lawRefs = Array.isArray(ref.detected_law_refs)
+      ? Array.from(new Set(ref.detected_law_refs.filter(Boolean))).slice(0, 3)
+      : [];
+    const citationCount = Number(ref.citation_count || 0);
+    return `
+      <article class="local-reference-result">
+        <div class="local-reference-result-top">
+          <strong>${esc(identity || "Yargıtay kararı")}</strong>
+          ${ref.karar_tarihi ? `<time datetime="${escAttribute(ref.karar_tarihi)}">${esc(ref.karar_tarihi)}</time>` : ""}
+        </div>
+        <div class="local-reference-meta">
+          <span>${esc(modeLabels[mode] || modeLabels.browse)}</span>
+          <span class="${citationCount ? "is-tagged" : "is-zero"}">${citationCount ? `${citationCount} mevzuat atfı` : "Atıfsız"}</span>
+        </div>
+        ${lawRefs.length ? `<div class="local-reference-tags">${lawRefs.map((item) => `<span>${esc(item)}</span>`).join("")}</div>` : ""}
+        <p>${mode === "text"
+          ? highlightedSearchExcerpt(ref.match_preview || ref.short_preview || "Karar metni kesiti bulunmuyor.", textQuery)
+          : esc(ref.short_preview || "Karar metni kesiti bulunmuyor.")}</p>
+      </article>
+    `;
+  }).join("");
+}
+
+async function loadLocalSearchOptions() {
+  const select = document.getElementById("local-court-input");
+  const textInput = document.getElementById("local-text-input");
+  const dateFromInput = document.getElementById("local-date-from");
+  const dateToInput = document.getElementById("local-date-to");
+  const badge = document.getElementById("local-index-ready");
+  const retry = document.getElementById("local-options-retry");
+  if (!select) return;
+  const requestId = ++localOptionsRequestId;
+  badge.textContent = "Kontrol ediliyor";
+  badge.dataset.state = "loading";
+  retry.hidden = true;
+  try {
+    const response = await fetch("/api/legal-index/search-options", { signal: AbortSignal.timeout(10000) });
+    if (!response.ok) throw new Error("options failed");
+    const options = await response.json();
+    if (requestId !== localOptionsRequestId) return;
+    const courts = Array.isArray(options.courts) ? options.courts : [];
+    const ready = options.ready !== false && courts.length > 0;
+    badge.textContent = ready ? "Hazır" : "İndeks hazır değil";
+    badge.dataset.state = ready ? "ready" : "unavailable";
+    retry.hidden = ready;
+    [dateFromInput, dateToInput].filter(Boolean).forEach((input) => {
+      input.min = options.min_date || "";
+      input.max = options.max_date || "";
+    });
+    if (textInput) {
+      textInput.disabled = !ready || !options.text_search_ready;
+      textInput.placeholder = textInput.disabled ? "Metin indeksi hazır değil" : "Boşanma, tarım sigortalılığı, kamulaştırma...";
+    }
+    const selectedCourt = select.value;
+    const allCourts = document.createElement("option");
+    allCourts.value = "";
+    allCourts.textContent = "Tüm mahkemeler";
+    select.replaceChildren(allCourts);
+    courts.forEach((item) => {
+      const option = document.createElement("option");
+      option.value = item.court;
+      option.textContent = `${item.court} (${Number(item.count || 0).toLocaleString("tr-TR")})`;
+      select.appendChild(option);
+    });
+    select.value = courts.some(item => item.court === selectedCourt) ? selectedCourt : "";
+  } catch {
+    if (requestId !== localOptionsRequestId) return;
+    badge.textContent = navigator.onLine === false ? "Çevrimdışı" : "Bağlantı kurulamadı";
+    badge.dataset.state = "unavailable";
+    retry.hidden = false;
+  }
+}
+
+function bindLocalReferenceSearch() {
+  const form = document.getElementById("local-reference-form");
+  const input = document.getElementById("local-reference-input");
+  const textInput = document.getElementById("local-text-input");
+  const courtInput = document.getElementById("local-court-input");
+  const dateFromInput = document.getElementById("local-date-from");
+  const dateToInput = document.getElementById("local-date-to");
+  const citationStateField = document.getElementById("local-citation-state-field");
+  const modeButtons = Array.from(document.querySelectorAll("[data-local-mode]"));
+  const modePanels = Array.from(document.querySelectorAll("[data-local-panel]"));
+  const exampleGroups = Array.from(document.querySelectorAll("[data-local-examples]"));
+  const status = document.getElementById("local-reference-status");
+  const results = document.getElementById("local-reference-results");
+  if (!form || !input || !textInput || !courtInput || !dateFromInput || !dateToInput || !citationStateField || !modeButtons.length || !status || !results || form.dataset.bound === "true") return;
+  form.dataset.bound = "true";
+  document.getElementById("local-options-retry").addEventListener("click", loadLocalSearchOptions);
+  window.addEventListener("online", loadLocalSearchOptions);
+  const pagination = document.getElementById("local-search-pagination");
+  const previousPage = document.getElementById("local-page-prev");
+  const nextPage = document.getElementById("local-page-next");
+  const pageLabel = document.getElementById("local-page-label");
+  let activeRequest = null;
+  let requestId = 0;
+  let lastSearch = null;
+  const cancelSearch = () => {
+    requestId += 1;
+    activeRequest?.abort();
+    activeRequest = null;
+    form.removeAttribute("aria-busy");
+    form.querySelector("button[type='submit']").disabled = false;
+    pagination.hidden = true;
+  };
+
+  const selectedCitationState = () => form.querySelector("input[name='local-citation-state']:checked")?.value || "";
+  const setMode = (mode, { focus = false, clearFeedback = true } = {}) => {
+    if (!modeButtons.some((button) => button.dataset.localMode === mode)) return;
+    localSearchMode = mode;
+    modeButtons.forEach((button) => {
+      const selected = button.dataset.localMode === mode;
+      button.setAttribute("aria-selected", selected ? "true" : "false");
+      button.tabIndex = selected ? 0 : -1;
+    });
+    modePanels.forEach((panel) => {
+      panel.hidden = panel.dataset.localPanel !== mode;
+    });
+    exampleGroups.forEach((group) => {
+      group.hidden = group.dataset.localExamples !== mode;
+    });
+    citationStateField.hidden = mode === "citation";
+    if (clearFeedback) {
+      cancelSearch();
+      lastSearch = null;
+      status.textContent = "";
+      results.innerHTML = "";
+    }
+    if (focus) {
+      const target = mode === "citation" ? input : mode === "text" ? textInput : courtInput;
+      window.requestAnimationFrame(() => {
+        target.focus();
+        if (typeof target.select === "function") target.select();
+        document.querySelector(".local-index-search")?.scrollIntoView({ behavior: "smooth", block: "start" });
+      });
+    }
+  };
+
+  const search = async (offset = 0, snapshot = null) => {
+    cancelSearch();
+    const mode = snapshot?.mode || localSearchMode;
+    const legalRef = snapshot ? snapshot.legalRef : mode === "citation" ? String(input.value || "").trim() : "";
+    const query = snapshot ? snapshot.query : mode === "text" ? String(textInput.value || "").trim() : "";
+    const court = snapshot ? snapshot.court : courtInput.value;
+    const dateFrom = snapshot ? snapshot.dateFrom : dateFromInput.value;
+    const dateTo = snapshot ? snapshot.dateTo : dateToInput.value;
+    const citationState = snapshot ? snapshot.citationState : mode === "citation" ? "tagged" : selectedCitationState();
+
+    if (mode === "text" && textInput.disabled) {
+      status.textContent = "Metin indeksi hazır değil. İndeks durumunu yeniden kontrol edin.";
+      results.innerHTML = "";
+      return;
+    }
+
+    if (mode === "citation" && !legalRef) {
+      status.textContent = "Bir mevzuat atfı girin.";
+      results.innerHTML = "";
+      input.focus();
+      return;
+    }
+    if (mode === "text" && !query) {
+      status.textContent = "Karar metninde aranacak kelime veya ifadeyi girin.";
+      results.innerHTML = "";
+      textInput.focus();
+      return;
+    }
+    if (mode === "browse" && !court && !dateFrom && !dateTo && !citationState) {
+      status.textContent = "En az bir mahkeme, tarih veya atıf durumu filtresi seçin.";
+      results.innerHTML = "";
+      courtInput.focus();
+      return;
+    }
+    if (dateFrom && dateTo && dateFrom > dateTo) {
+      status.textContent = "Başlangıç tarihi bitiş tarihinden sonra olamaz.";
+      results.innerHTML = "";
+      return;
+    }
+
+    const submit = form.querySelector("button[type='submit']");
+    if (submit) submit.disabled = true;
+    form.setAttribute("aria-busy", "true");
+    status.textContent = "Yerel karar indeksinde aranıyor...";
+    results.innerHTML = "";
+    activeRequest = new AbortController();
+    const currentRequest = requestId;
+    try {
+      const params = new URLSearchParams({ limit: "20", offset: String(offset) });
+      if (legalRef) params.set("legalRef", legalRef);
+      if (query) params.set("query", query);
+      if (court) params.set("court", court);
+      if (dateFrom) params.set("dateFrom", dateFrom);
+      if (dateTo) params.set("dateTo", dateTo);
+      if (citationState) params.set("citationState", citationState);
+      const response = await fetch(`/api/legal-index/search?${params.toString()}`, { signal: activeRequest.signal });
+      const payload = await response.json();
+      if (currentRequest !== requestId) return;
+      if (!response.ok) throw new Error(payload.error || "search failed");
+      const citationStateLabels = { tagged: "atıflı", zero: "atıfsız" };
+      const labels = [query, legalRef, court, dateFrom && `≥ ${dateFrom}`, dateTo && `≤ ${dateTo}`, citationStateLabels[citationState]].filter(Boolean);
+      renderLocalReferenceResults(
+        Array.isArray(payload.results) ? payload.results : [],
+        labels.join(" · "),
+        mode,
+        payload.text_search_scope || "",
+        query
+      );
+      lastSearch = { mode, legalRef, query, court, dateFrom, dateTo, citationState, offset };
+      const count = Array.isArray(payload.results) ? payload.results.length : 0;
+      pagination.hidden = !count && !offset;
+      previousPage.disabled = offset === 0;
+      nextPage.disabled = !payload.has_more;
+      pageLabel.textContent = count ? `${offset + 1}–${offset + count}` : "Sonuç yok";
+      if (snapshot) results.scrollIntoView({ block: "start" });
+    } catch (error) {
+      if (currentRequest !== requestId || error.name === "AbortError") return;
+      if (error instanceof TypeError) {
+        const badge = document.getElementById("local-index-ready");
+        badge.textContent = "Bağlantı kurulamadı";
+        badge.dataset.state = "unavailable";
+        document.getElementById("local-options-retry").hidden = false;
+      }
+      status.textContent = error instanceof TypeError
+        ? "Bağlantı kurulamadı. Yeniden deneyin."
+        : error.message || "Yerel indeks sorgulanamadı. Birazdan tekrar deneyin.";
+    } finally {
+      if (currentRequest === requestId) {
+        if (submit) submit.disabled = false;
+        form.removeAttribute("aria-busy");
+        activeRequest = null;
+      }
+    }
+  };
+  previousPage.addEventListener("click", () => lastSearch && search(Math.max(0, lastSearch.offset - 20), lastSearch));
+  nextPage.addEventListener("click", () => lastSearch && search(lastSearch.offset + 20, lastSearch));
+  form.addEventListener("input", () => {
+    cancelSearch();
+    lastSearch = null;
+    status.textContent = "";
+    results.innerHTML = "";
+  });
+
+  form.addEventListener("submit", (event) => {
+    event.preventDefault();
+    search();
+  });
+  modeButtons.forEach((button) => {
+    button.addEventListener("click", () => setMode(button.dataset.localMode, { focus: true }));
+    button.addEventListener("keydown", (event) => {
+      if (!['ArrowLeft', 'ArrowRight'].includes(event.key)) return;
+      event.preventDefault();
+      const currentIndex = modeButtons.indexOf(button);
+      const direction = event.key === 'ArrowRight' ? 1 : -1;
+      const next = modeButtons[(currentIndex + direction + modeButtons.length) % modeButtons.length];
+      setMode(next.dataset.localMode);
+      next.focus();
+    });
+  });
+  document.querySelectorAll("[data-local-query]").forEach((button) => {
+    button.addEventListener("click", () => {
+      setMode("citation", { clearFeedback: false });
+      input.value = button.dataset.localQuery || "";
+      search();
+    });
+  });
+  document.querySelectorAll("[data-local-text-query]").forEach((button) => {
+    button.addEventListener("click", () => {
+      setMode("text", { clearFeedback: false });
+      textInput.value = button.dataset.localTextQuery || "";
+      search();
+    });
+  });
+  document.addEventListener("keydown", (event) => {
+    if (event.defaultPrevented || event.altKey || event.shiftKey || !(event.metaKey || event.ctrlKey) || event.key.toLowerCase() !== "f") return;
+    event.preventDefault();
+    setMode("text", { focus: true });
+  });
+  setMode(localSearchMode, { clearFeedback: false });
+  loadLocalSearchOptions();
 }
 
 async function loadTCK() {
@@ -705,4 +1034,5 @@ document.getElementById("tck-search").addEventListener("input", (e) => {
 });
 
 bindLegalReferenceForm();
+bindLocalReferenceSearch();
 loadTCK();

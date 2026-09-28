@@ -8,6 +8,10 @@ const refs = text => [...parser.extractLegalReferences(text)]
 
 test("multiple laws are retained without cross-law article leakage", () => {
   assert.deepEqual(refs("TCK.nun 59. ve CMUK.nun 321. maddeleri"), ["1412/321", "5237/59"]);
+  assert.deepEqual(
+    refs("TMK.md.175) Hukuk Usulü Muhakemeleri Kanununun 440-442. maddeleri"),
+    ["1086/440", "1086/441", "1086/442", "4721/175"]
+  );
 });
 test("multiple articles within each law remain tagged", () => {
   assert.deepEqual(refs("TCK 86, 87 ve 88. maddeleri ile CMUK 321 ve 322. maddeleri"), ["1412/321", "1412/322", "5237/86", "5237/87", "5237/88"]);
@@ -82,6 +86,14 @@ test("later amendment references do not hide a principal law article", () => {
     refs("4077 sayılı Tüketicinin Korunması hakkındaki kanunun 3. maddesinde 14.3.2003 tarihinde yürürlüğe giren 4822 sayılı kanunla değişiklik yapılmış"),
     ["4077/3"]
   );
+  assert.deepEqual(
+    refs("1086 sayılı Kanunun 5236 sayılı Kanunla yapılan değişiklikten önceki 427 ila 454. madde hükümleri"),
+    ["1086/427", "1086/454"]
+  );
+  assert.deepEqual(
+    refs("mülga 1086 sayılı Kanun 26.09.2004 tarih ve 5236 sayılı Kanunla yapılan değişiklikten önceki 433. madde hükmü"),
+    ["1086/433"]
+  );
 });
 
 test("code-first amendment modifiers bind the changed article, not the modifier law number", () => {
@@ -97,7 +109,56 @@ test("legacy civil abbreviations and OCR article digits are parsed conservativel
   assert.deepEqual(refs("BK.nun 66. maddesi hükmü olmayıp, BK.nun 125. maddesi hükmüdür"), ["818/125", "818/66"]);
   assert.deepEqual(refs("M.K.nun 634, B.K.nun 213 maddeleri"), ["743/634", "818/213"]);
   assert.deepEqual(refs("TCK.nun 5l.maddesi ve TCK.nun l9l/l.maddesi"), ["5237/191/1", "5237/51"]);
+  assert.deepEqual(refs("TCK'nun 87/4.2.cümlesi uyarınca, aynı kanunun 6l.maddesine göre"), ["5237/61", "5237/87/4-2"]);
+  assert.deepEqual(refs("HMK 353/1-b.2 maddesi uyarınca"), ["6100/353/1-B-2"]);
+  assert.deepEqual(refs("765 sayılı TCK’nın 491/ilk.maddesi"), ["765/491/1"]);
+  assert.deepEqual(refs("HUMK 195. maddesi. 1-Dava trafik kazasından doğmuştur"), ["1086/195"]);
   assert.deepEqual(refs("Ayrıntı için bkz. kaynaklar"), []);
+});
+
+test("compact paragraph and subparagraph chains retain their legal structure", () => {
+  assert.deepEqual(refs("HMK'nın 353/b-1 maddesi"), ["6100/353/B-1"]);
+  assert.deepEqual(
+    refs("CMK'nın 2/j-1, CMK'nın 2/j-2 ve CMK'nın 2/j-3 maddeleri"),
+    ["5271/2/J-1", "5271/2/J-2", "5271/2/J-3"]
+  );
+  assert.deepEqual(
+    refs("5237 sayılı TCY'nın 53/1-a-b-c-d-e maddesi"),
+    ["5237/53/1-A-B-C-D-E"]
+  );
+  assert.deepEqual(
+    refs("TCK'nın 109/2-3-a-e maddesi"),
+    ["5237/109/2", "5237/109/3-A-E"]
+  );
+  assert.deepEqual(
+    refs("5237 sayılı TCK'nın 86/1-3-e, 87/1-a-son maddeleri"),
+    ["5237/86/1", "5237/86/3-E", "5237/87/1-A"]
+  );
+  assert.deepEqual(refs("HUMK'nun m. 427/VI-VIII"), ["1086/427"]);
+});
+
+test("non-statute article notation stays outside the statute index", () => {
+  assert.deepEqual(refs("224 sayılı hisse senetleri piyasası genelgesinin 2.3. maddesi"), []);
+  assert.deepEqual(refs("Avrupa İnsan Hakları Sözleşmesi’nin 6/3-c maddesi"), []);
+  assert.deepEqual(
+    refs("6136 sayılı Kanuna muhalefet suçundan 5271 sayılı CMK'nın 5728 sayılı Kanun ile değişik 231/5. maddesi"),
+    ["5271/231/5"]
+  );
+});
+
+test("long ordinal article lists stay bound to their explicit law", () => {
+  assert.deepEqual(
+    refs("5271 sayılı Kanunu’nun 286 ncı maddesi, 260 ıncı maddesi, 291 ... maddesi, 294 üncü maddesi, 298 ... maddesi ve 307 nci maddesi"),
+    ["5271/260", "5271/286", "5271/291", "5271/294", "5271/298", "5271/307"]
+  );
+  assert.deepEqual(
+    refs("5271 sayılı CYY’nın Kararların açıklanması ve tebliği başlıklı 35. maddesinin 2. fıkrasında"),
+    ["5271/35"]
+  );
+  assert.deepEqual(
+    refs("2709 sayılı ... Cumhuriyeti Anayasası’nın (Anayasa) Toplu ... sözleşmesi hakkı başlıklı 53 üncü maddesi"),
+    ["2709/53"]
+  );
 });
 
 test("full law aliases allow Turkish buffer suffixes", () => {
@@ -112,6 +173,88 @@ test("same-law anaphora uses the nearest numbered law conservatively", () => {
   assert.deepEqual(
     refs("2886 sayılı Devlet İhale Kanununun 1. maddesi uyarınca ihale yapıldı. Borçlar Kanununun 225 m/2. fıkrası uyarınca satım kurulur ve mülkiyet aynı Kanunun 231. maddesi gereğince geçer."),
     ["2886/1", "818/225/2", "818/231"]
+  );
+});
+
+test("shared article wording binds the ordinal before a secondary legal source", () => {
+  assert.deepEqual(
+    refs("2797 sayılı Yargıtay Kanunu’nun 40 ıncı ve Yargıtay İç Yönetmeliği’nin 18 inci maddeleri uyarınca"),
+    ["2797/40"]
+  );
+});
+
+test("standard statute abbreviations and named statutes resolve without ad hoc decision rules", () => {
+  assert.deepEqual(refs("2918 sayılı KTK.'nun 109. maddesine göre"), ["2918/109"]);
+  assert.deepEqual(refs("Sigortacılık Kanunu 30/17 maddesi uyarınca"), ["5684/30/17"]);
+  assert.deepEqual(refs("Çocuk Koruma Kanunu'nun 23/1. maddesi uyarınca"), ["5395/23/1"]);
+  assert.deepEqual(
+    refs("3402 Sayılı Yasanın 22/1. maddeleri gereğince ikinci kadastro yolsuz (T.M.Y.nın 1025. md.)"),
+    ["3402/22/1", "4721/1025"]
+  );
+  assert.deepEqual(refs("Sigortacılıkta Tahkime İlişkin Yönetmelik'in 16/13 maddesi"), []);
+});
+
+test("parenthetical former-law equivalents retain both statutes", () => {
+  assert.deepEqual(
+    refs("Türk Borçlar Kanunu’nun 61. (Borçlar Kanunu’nun 50. md.) maddesinde düzenlenmiştir"),
+    ["6098/61", "818/50"]
+  );
+});
+
+test("masked law qualifiers and ordinal paragraphs are parsed structurally", () => {
+  assert.deepEqual(
+    refs("5320 ... Ceza Muhakemesi Kanununun Yürürlük ve Uygulama Şekli Hakkında Kanun’un 8 inci maddesinin 1 inci fıkrasına 5560 ... Kanun'un 29 uncu maddesi ile eklenmiştir"),
+    ["5320/8", "5320/8/1", "5560/29"]
+  );
+  assert.deepEqual(
+    refs("6098 sayılı Türk Borçlar Kanunu'nun 30 ila 37 nci maddeleri"),
+    ["6098/30", "6098/31", "6098/32", "6098/33", "6098/34", "6098/35", "6098/36", "6098/37"]
+  );
+  assert.deepEqual(
+    refs("CMUK'nın 322. maddesi uygulanır. (Ek cümle: 1/7/2016-6723/33 md.)"),
+    ["1412/322"]
+  );
+});
+
+test("amended ordinary and temporary articles remain legally distinct", () => {
+  assert.deepEqual(
+    refs("6136 sayılı Yasaya aykırılık suçundan sonra 2797 sayılı Yargıtay Kanunu'nun 6545 sayılı Kanun'la değişik 14. ve eklenen geçici 13. maddeleri uyarınca"),
+    ["2797/14", "2797/GEÇİCİ-13"]
+  );
+  assert.equal(
+    parser.canonicalLegalRef(parser.normalizeLegalRef({ law_no: "2797", article: "geçici madde 13" })),
+    "2797:2797:GEÇİCİ-13"
+  );
+  assert.deepEqual(refs("6352 sayılı Kanunun geçici 2/2 maddesi uyarınca"), ["6352/GEÇİCİ-2/2"]);
+  assert.deepEqual(refs("5271 sayılı Kanunun geçici 5/d maddesi uyarınca"), ["5271/GEÇİCİ-5/D"]);
+  assert.deepEqual(refs("7188 sayılı Kanunun geçici 5/1-d maddesi uyarınca"), ["7188/GEÇİCİ-5/1-D"]);
+  assert.deepEqual(
+    refs("696 sayılı Kanun Hükmünde Kararname ile 375 sayılı Kanun Hükmünde Kararname'ye eklenen geçici 23 ve 24. maddeleri"),
+    ["375/GEÇİCİ-23", "375/GEÇİCİ-24"]
+  );
+  assert.deepEqual(
+    refs("4857 sayılı Kanunun 22 ve 32 nci maddeleri, 696 sayılı KHK ile 375 sayılı KHK'ya eklenen geçici 23 ve 24 üncü maddeler"),
+    ["375/GEÇİCİ-23", "375/GEÇİCİ-24", "4857/22", "4857/32"]
+  );
+  assert.deepEqual(
+    refs("2797 sayılı Yargıtay Kanunu'na 6752 sayılı Kanun'un 27. maddesi ile eklenen geçici 14. madde"),
+    ["2797/GEÇİCİ-14", "6752/27"]
+  );
+  assert.deepEqual(
+    refs("5311 sayılı Kanun ile İcra İflas Kanunu'na eklenen geçici 7.madde"),
+    ["2004/GEÇİCİ-7"]
+  );
+  assert.deepEqual(
+    refs("6352 sayılı “Yargı Hizmetlerinin Etkinleştirilmesi Amacıyla Bazı Kanunlarda Değişiklik Yapılması ve Basın Yoluyla İşlenen Suçlara İlişkin Dava ve Cezaların Ertelenmesi Hakkındaki” Kanun'un geçici 2. maddesinin 1. ve 2. fıkrası"),
+    ["6352/GEÇİCİ-2"]
+  );
+  assert.deepEqual(
+    refs("Davanın yasal dayanağı 506 sayılı Yasanın 3395 sayılı Yasa ile değişik Ek.5.maddesinin III.bendidir."),
+    ["506/EK-5/3"]
+  );
+  assert.equal(
+    parser.canonicalLegalRef(parser.normalizeLegalRef({ law_no: "506", article: "EK-5", paragraph: "III" })),
+    "506:506:EK-5:3"
   );
 });
 
@@ -172,7 +315,7 @@ test("common unnumbered law names in zero-citation rows are resolved", () => {
   assert.deepEqual(refs("6831 Sayılı Yasının 2. madde uygulaması"), ["6831/2"]);
   assert.deepEqual(refs("4822 sayılı kanun ile değişik 4077 sayılı TKHK'nun 3.maddesinde"), ["4077/3"]);
   assert.deepEqual(refs("2547 Sayılı Yasanın 56/b ve 492 sayılı yasının 13/1 maddesi hükmünce"), ["2547/56/B", "492/13/1"]);
-  assert.deepEqual(refs("6183 sayılı Amme Alacaklarının Tahsil Usulü Hakkında Kanun’un 21’nci maddesinin 1’nci fıkrasına göre"), ["6183/21"]);
+  assert.deepEqual(refs("6183 sayılı Amme Alacaklarının Tahsil Usulü Hakkında Kanun’un 21’nci maddesinin 1’nci fıkrasına göre"), ["6183/21", "6183/21/1"]);
   assert.deepEqual(refs("HUMK.md.433-1 hükmü ve HUMKmd.438/7 gereğince"), ["1086/433/1", "1086/438/7"]);
   assert.deepEqual(refs("Hazine ihbar üzerine (TMKmd.301) müdahale isteğinde bulunmuştur"), ["4721/301"]);
   assert.deepEqual(refs("boşanmaya (TMKmd.166/1) karar verilecek yerde"), ["4721/166/1"]);

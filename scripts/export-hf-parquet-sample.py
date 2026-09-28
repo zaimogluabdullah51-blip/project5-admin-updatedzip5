@@ -105,4 +105,4 @@ for row in rows:
     item = dict(zip(cols, row))
     if item.get("mevzuat_atif") is None:
         item["mevzuat_atif"] = []
-    print(json.dumps(item, ensure_ascii=False, default=str))
+    print(json.dumps(item, ensure_ascii=True, default=str))
