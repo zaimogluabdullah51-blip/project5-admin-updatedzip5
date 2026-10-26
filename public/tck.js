@@ -126,7 +126,7 @@ function renderLocalReferenceResults(rows, query, mode, textSearchScope = "", te
         </div>
         <div class="local-reference-meta">
           <span>${esc(modeLabels[mode] || modeLabels.browse)}</span>
-          <span class="${citationCount ? "is-tagged" : "is-zero"}">${citationCount ? `${citationCount} mevzuat atfı` : "Atıfsız"}</span>
+          <span class="${citationCount ? "is-tagged" : "is-zero"}">${citationCount ? `${citationCount} mevzuat atfı` : "Atıf etiketi yok"}</span>
         </div>
         ${lawRefs.length ? `<div class="local-reference-tags">${lawRefs.map((item) => `<span>${esc(item)}</span>`).join("")}</div>` : ""}
         <p>${mode === "text"
@@ -167,6 +167,15 @@ async function loadLocalSearchOptions() {
       textInput.disabled = !ready || !options.text_search_ready;
       textInput.placeholder = textInput.disabled ? "Metin indeksi hazır değil" : "Boşanma, tarım sigortalılığı, kamulaştırma...";
     }
+    const referenceInput = document.getElementById("local-reference-input");
+    if (referenceInput) {
+      referenceInput.disabled = !ready || options.citation_search_ready === false;
+      referenceInput.title = referenceInput.disabled ? "Mevzuat atıflarının hazırlanması sürüyor." : "";
+    }
+    document.querySelectorAll("input[name='local-citation-state']").forEach((input) => {
+      input.disabled = !ready || options.citation_search_ready === false;
+      if (input.disabled) input.checked = !input.value;
+    });
     const selectedCourt = select.value;
     const allCourts = document.createElement("option");
     allCourts.value = "";
@@ -195,6 +204,8 @@ function bindLocalReferenceSearch() {
   const dateFromInput = document.getElementById("local-date-from");
   const dateToInput = document.getElementById("local-date-to");
   const citationStateField = document.getElementById("local-citation-state-field");
+  const caseNumberInput = document.getElementById("local-case-number");
+  const decisionNumberInput = document.getElementById("local-decision-number");
   const modeButtons = Array.from(document.querySelectorAll("[data-local-mode]"));
   const modePanels = Array.from(document.querySelectorAll("[data-local-panel]"));
   const exampleGroups = Array.from(document.querySelectorAll("[data-local-examples]"));
@@ -208,6 +219,7 @@ function bindLocalReferenceSearch() {
   const previousPage = document.getElementById("local-page-prev");
   const nextPage = document.getElementById("local-page-next");
   const pageLabel = document.getElementById("local-page-label");
+  const cancelButton = document.getElementById("local-search-cancel");
   let activeRequest = null;
   let requestId = 0;
   let lastSearch = null;
@@ -218,7 +230,12 @@ function bindLocalReferenceSearch() {
     form.removeAttribute("aria-busy");
     form.querySelector("button[type='submit']").disabled = false;
     pagination.hidden = true;
+    cancelButton.hidden = true;
   };
+  cancelButton.addEventListener("click", () => {
+    cancelSearch();
+    status.textContent = "Arama iptal edildi.";
+  });
 
   const selectedCitationState = () => form.querySelector("input[name='local-citation-state']:checked")?.value || "";
   const setMode = (mode, { focus = false, clearFeedback = true } = {}) => {
@@ -261,9 +278,17 @@ function bindLocalReferenceSearch() {
     const dateFrom = snapshot ? snapshot.dateFrom : dateFromInput.value;
     const dateTo = snapshot ? snapshot.dateTo : dateToInput.value;
     const citationState = snapshot ? snapshot.citationState : mode === "citation" ? "tagged" : selectedCitationState();
+    const caseNo = snapshot ? snapshot.caseNo : mode === "browse" ? caseNumberInput.value.trim() : "";
+    const decisionNo = snapshot ? snapshot.decisionNo : mode === "browse" ? decisionNumberInput.value.trim() : "";
 
     if (mode === "text" && textInput.disabled) {
       status.textContent = "Metin indeksi hazır değil. İndeks durumunu yeniden kontrol edin.";
+      results.innerHTML = "";
+      return;
+    }
+
+    if ((mode === "citation" || citationState) && input.disabled) {
+      status.textContent = "Mevzuat atıflarının hazırlanması sürüyor. Mahkeme, tarih veya esas/karar numarasıyla arayabilirsiniz.";
       results.innerHTML = "";
       return;
     }
@@ -280,8 +305,8 @@ function bindLocalReferenceSearch() {
       textInput.focus();
       return;
     }
-    if (mode === "browse" && !court && !dateFrom && !dateTo && !citationState) {
-      status.textContent = "En az bir mahkeme, tarih veya atıf durumu filtresi seçin.";
+    if (mode === "browse" && !court && !dateFrom && !dateTo && !citationState && !caseNo && !decisionNo) {
+      status.textContent = "En az bir mahkeme, tarih, esas/karar numarası veya atıf durumu filtresi seçin.";
       results.innerHTML = "";
       courtInput.focus();
       return;
@@ -295,7 +320,10 @@ function bindLocalReferenceSearch() {
     const submit = form.querySelector("button[type='submit']");
     if (submit) submit.disabled = true;
     form.setAttribute("aria-busy", "true");
-    status.textContent = "Yerel karar indeksinde aranıyor...";
+    status.textContent = mode === "text"
+      ? "Karar metinlerinde aranıyor. Bu işlem zaman alabilir."
+      : "Karar indeksinde aranıyor...";
+    cancelButton.hidden = false;
     results.innerHTML = "";
     activeRequest = new AbortController();
     const currentRequest = requestId;
@@ -307,12 +335,18 @@ function bindLocalReferenceSearch() {
       if (dateFrom) params.set("dateFrom", dateFrom);
       if (dateTo) params.set("dateTo", dateTo);
       if (citationState) params.set("citationState", citationState);
+      if (caseNo) params.set("caseNo", caseNo);
+      if (decisionNo) params.set("decisionNo", decisionNo);
       const response = await fetch(`/api/legal-index/search?${params.toString()}`, { signal: activeRequest.signal });
-      const payload = await response.json();
+      const payload = await response.json().catch(() => ({}));
       if (currentRequest !== requestId) return;
-      if (!response.ok) throw new Error(payload.error || "search failed");
+      if (response.status === 504 || response.status === 408) {
+        throw new Error("Arama süre sınırına ulaştı. Bu, sonuç bulunmadığı anlamına gelmez. Yeniden deneyebilirsiniz.");
+      }
+      if (!response.ok) throw new Error(payload.error || "Arama hizmetine ulaşılamadı. Yeniden deneyin.");
+      if (!Array.isArray(payload.results)) throw new Error("Arama yanıtı alınamadı. Yeniden deneyin.");
       const citationStateLabels = { tagged: "atıflı", zero: "atıfsız" };
-      const labels = [query, legalRef, court, dateFrom && `≥ ${dateFrom}`, dateTo && `≤ ${dateTo}`, citationStateLabels[citationState]].filter(Boolean);
+      const labels = [query, legalRef, court, caseNo && `E. ${caseNo}`, decisionNo && `K. ${decisionNo}`, dateFrom && `≥ ${dateFrom}`, dateTo && `≤ ${dateTo}`, citationStateLabels[citationState]].filter(Boolean);
       renderLocalReferenceResults(
         Array.isArray(payload.results) ? payload.results : [],
         labels.join(" · "),
@@ -320,7 +354,7 @@ function bindLocalReferenceSearch() {
         payload.text_search_scope || "",
         query
       );
-      lastSearch = { mode, legalRef, query, court, dateFrom, dateTo, citationState, offset };
+      lastSearch = { mode, legalRef, query, court, dateFrom, dateTo, citationState, caseNo, decisionNo, offset };
       const count = Array.isArray(payload.results) ? payload.results.length : 0;
       pagination.hidden = !count && !offset;
       previousPage.disabled = offset === 0;
@@ -343,6 +377,7 @@ function bindLocalReferenceSearch() {
         if (submit) submit.disabled = false;
         form.removeAttribute("aria-busy");
         activeRequest = null;
+        cancelButton.hidden = true;
       }
     }
   };
@@ -389,6 +424,11 @@ function bindLocalReferenceSearch() {
     if (event.defaultPrevented || event.altKey || event.shiftKey || !(event.metaKey || event.ctrlKey) || event.key.toLowerCase() !== "f") return;
     event.preventDefault();
     setMode("text", { focus: true });
+  });
+  document.addEventListener("legal-reference-search", (event) => {
+    setMode("citation", { focus: true });
+    input.value = String(event.detail?.legalRef || "");
+    search();
   });
   setMode(localSearchMode, { clearFeedback: false });
   loadLocalSearchOptions();
@@ -673,7 +713,7 @@ function renderLegalReferences(code) {
       <div class="tck-reference-header">
         <div>
           <h4>İlgili İçtihatlar</h4>
-          <p>${refs.length ? `${refs.length} yapılandırılmış karar kaydı gösteriliyor.` : "Bu madde için kayıtlı içtihat yok."}</p>
+          <p>${refs.length ? `${refs.length} yapılandırılmış karar kaydı gösteriliyor.` : "Bu kartta karar önizlemesi bulunmuyor."}</p>
         </div>
         <button type="button" class="tck-deep-search-btn" data-tck-code="${esc(normalized)}" data-legal-ref="${esc(`TCK ${normalized}`)}">
           Mevzuat içtihadı ara
@@ -682,7 +722,7 @@ function renderLegalReferences(code) {
       <div class="tck-deep-search-status" data-deep-status-for="${esc(normalized)}"></div>
       ${refs.length ? `<div class="tck-reference-list">${items}</div>` : `
         <div class="tck-reference-empty">
-          Hugging Face arşivinde bu madde için derin arama kuyruğa alınabilir.
+          Bu maddeye ilişkin kararlar için mevzuat aramasını kullanın.
         </div>
       `}
     </section>
@@ -691,26 +731,10 @@ function renderLegalReferences(code) {
 
 function bindDeepSearchButtons() {
   document.querySelectorAll(".tck-deep-search-btn").forEach((btn) => {
-    btn.addEventListener("click", async () => {
+    btn.addEventListener("click", () => {
       const tckCode = btn.getAttribute("data-tck-code") || "";
       const legalRef = btn.getAttribute("data-legal-ref") || `TCK ${tckCode}`;
-      btn.disabled = true;
-      btn.textContent = "Kuyruğa alınıyor...";
-      try {
-        const res = await fetch("/api/deep-search-jobs", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ tckCode, legalRef, query: legalRef })
-        });
-        if (!res.ok) throw new Error("job error");
-        const job = await res.json();
-        btn.textContent = "Durum aşağıda";
-        renderDeepSearchStatus(tckCode, job);
-        pollDeepSearchJob(tckCode, job.id);
-      } catch {
-        btn.disabled = false;
-        btn.textContent = "Tekrar dene";
-      }
+      document.dispatchEvent(new CustomEvent("legal-reference-search", { detail: { legalRef } }));
     });
   });
 }
@@ -841,45 +865,6 @@ function pollDeepSearchJob(tckCode, jobId) {
   };
   const interval = setInterval(tick, 5000);
   deepSearchPollers.set(jobId, interval);
-}
-
-function bindLegalReferenceForm() {
-  const form = document.getElementById("legal-reference-form");
-  const input = document.getElementById("legal-reference-input");
-  const status = document.getElementById("legal-reference-status");
-  if (!form || !input || form.dataset.bound === "true") return;
-  form.dataset.bound = "true";
-  form.addEventListener("submit", async (event) => {
-    event.preventDefault();
-    const legalRef = input.value.trim();
-    if (!legalRef) {
-      if (status) status.innerHTML = '<div class="tck-empty" style="padding:12px 0;">Önce bir mevzuat atfı yazın.</div>';
-      return;
-    }
-    const submit = form.querySelector("button");
-    if (submit) {
-      submit.disabled = true;
-      submit.textContent = "Kuyruğa alınıyor...";
-    }
-    try {
-      const res = await fetch("/api/deep-search-jobs", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ legalRef, query: legalRef })
-      });
-      if (!res.ok) throw new Error("job error");
-      const job = await res.json();
-      if (submit) submit.textContent = "Durum aşağıda";
-      renderDeepSearchStatus("__legal_reference__", job);
-      pollDeepSearchJob("__legal_reference__", job.id);
-    } catch {
-      if (submit) {
-        submit.disabled = false;
-        submit.textContent = "Tekrar dene";
-      }
-      if (status) status.innerHTML = '<div class="tck-empty" style="padding:12px 0;">Arama başlatılamadı. Birazdan tekrar deneyin.</div>';
-    }
-  });
 }
 
 function getDescription(article) {
@@ -1033,6 +1018,5 @@ document.getElementById("tck-search").addEventListener("input", (e) => {
   renderList(filtered);
 });
 
-bindLegalReferenceForm();
 bindLocalReferenceSearch();
 loadTCK();

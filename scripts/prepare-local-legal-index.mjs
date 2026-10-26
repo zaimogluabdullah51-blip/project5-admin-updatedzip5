@@ -110,7 +110,9 @@ async function downloadOnce() {
   return true;
 }
 
-if (fs.existsSync(DB_PATH) && !FORCE) {
+if (process.env.LEGAL_SEARCH_BACKEND === "supabase-v2") {
+  console.log("Local legal index prepare skipped: structured search uses Supabase v2.");
+} else if (fs.existsSync(DB_PATH) && !FORCE) {
   await verifyFile(DB_PATH);
   console.log(`Local legal index already exists: ${DB_PATH}`);
 } else {

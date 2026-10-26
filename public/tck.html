@@ -53,7 +53,7 @@
       <section class="local-index-search" aria-labelledby="local-index-search-title">
         <div class="local-index-search-heading">
           <div>
-            <span class="local-index-kicker">9,8 milyon karar · yerel indeks</span>
+            <span class="local-index-kicker">Karar indeksi</span>
             <h2 id="local-index-search-title">Karar arama</h2>
           </div>
           <div class="local-index-health">
@@ -64,7 +64,7 @@
 
         <div class="local-search-modes" role="tablist" aria-label="Arama türü">
           <button id="local-mode-citation" type="button" role="tab" aria-selected="false" aria-controls="local-panel-citation" data-local-mode="citation">Mevzuata göre</button>
-          <button id="local-mode-browse" type="button" role="tab" aria-selected="true" aria-controls="local-panel-browse" data-local-mode="browse">Mahkeme ve tarih</button>
+          <button id="local-mode-browse" type="button" role="tab" aria-selected="true" aria-controls="local-panel-browse" data-local-mode="browse">Filtreli arama</button>
           <button id="local-mode-text" type="button" role="tab" aria-selected="false" aria-controls="local-panel-text" data-local-mode="text">Karar metninde</button>
         </div>
 
@@ -76,12 +76,22 @@
             </div>
           </div>
 
-          <div id="local-panel-browse" class="local-search-primary" role="tabpanel" aria-labelledby="local-mode-browse" data-local-panel="browse"></div>
+          <div id="local-panel-browse" class="local-search-primary" role="tabpanel" aria-labelledby="local-mode-browse" data-local-panel="browse">
+            <div class="local-search-field">
+              <label for="local-case-number">Esas numarası</label>
+              <input id="local-case-number" type="text" autocomplete="off" maxlength="100" placeholder="2026/123" />
+            </div>
+            <div class="local-search-field">
+              <label for="local-decision-number">Karar numarası</label>
+              <input id="local-decision-number" type="text" autocomplete="off" maxlength="100" placeholder="2026/456" />
+            </div>
+          </div>
 
           <div id="local-panel-text" class="local-search-primary" role="tabpanel" aria-labelledby="local-mode-text" data-local-panel="text" hidden>
             <div class="local-search-field">
               <label for="local-text-input">Karar metni</label>
-              <input id="local-text-input" type="search" autocomplete="off" placeholder="Boşanma, tarım sigortalılığı, kamulaştırma..." />
+              <input id="local-text-input" type="search" autocomplete="off" aria-describedby="local-text-warning" placeholder="Boşanma, tarım sigortalılığı, kamulaştırma..." />
+              <p id="local-text-warning">Tam metin araması zaman alabilir.</p>
             </div>
           </div>
 
@@ -122,12 +132,13 @@
           <button type="button" data-local-query="3713 sayılı Kanun 5">3713/5</button>
         </div>
         <div class="local-index-examples" data-local-examples="text" aria-label="Örnek metin aramaları" hidden>
-          <span>Hızlı arama</span>
+          <span>Örnek aramalar</span>
           <button type="button" data-local-text-query="boşanma">Boşanma</button>
           <button type="button" data-local-text-query="tarım sigortalılığı">Tarım sigortalılığı</button>
           <button type="button" data-local-text-query="kamulaştırma bedeli">Kamulaştırma bedeli</button>
         </div>
         <div id="local-reference-status" class="local-reference-status" aria-live="polite"></div>
+        <button id="local-search-cancel" type="button" hidden>Aramayı iptal et</button>
         <div id="local-reference-results" class="local-reference-results"></div>
         <nav id="local-search-pagination" aria-label="Karar sonuç sayfaları" hidden>
           <button id="local-page-prev" type="button" aria-label="Önceki sayfa" title="Önceki sayfa">←</button>
@@ -135,16 +146,6 @@
           <button id="local-page-next" type="button" aria-label="Sonraki sayfa" title="Sonraki sayfa">→</button>
         </nav>
       </section>
-
-      <form id="legal-reference-form" class="legal-reference-form">
-        <div>
-          <label for="legal-reference-input">Mevzuat atfı derin arama</label>
-          <p>Yerel sonuç bulunamazsa dış arşivde yeni bir tarama başlatın.</p>
-        </div>
-        <input id="legal-reference-input" type="search" placeholder="Örn: CMK 231 veya 3713/5" />
-        <button type="submit">Derin arama başlat</button>
-      </form>
-      <div id="legal-reference-status" class="tck-deep-search-status"></div>
 
       <div class="tck-search-bar tck-catalog-search">
         <label for="tck-search">TCK madde rehberi</label>

@@ -136,6 +136,12 @@
   display: none;
 }
 
+#local-panel-browse:not([hidden]) {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
 .local-search-filters {
   display: grid;
   grid-template-columns: minmax(190px, 1.35fr) minmax(130px, 0.8fr) minmax(130px, 0.8fr) minmax(205px, 1.2fr) auto;

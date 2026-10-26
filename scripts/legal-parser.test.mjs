@@ -6,6 +6,13 @@ const refs = text => [...parser.extractLegalReferences(text)]
   .map(r => `${r.law_no}/${r.article}${r.paragraph ? `/${r.paragraph}` : ""}${r.subparagraph ? `${r.paragraph ? "-" : "/"}${r.subparagraph}` : ""}`)
   .sort();
 
+test("commercial code titles stop a preceding numbered-law context", () => {
+  for (const title of ["Türk Ticaret Kanununun", "Ticaret Kanununun"]) {
+    assert.deepEqual(refs(`440 sayılı Kanunda hüküm bulunmayan hususlarda ${title} 314. maddesi uygulanır.`), ["6762/314"]);
+    assert.deepEqual(refs(`440 sayılı Kanunun 8. maddesi ve ${title} 314. maddesi uygulanır.`), ["440/8", "6762/314"]);
+  }
+});
+
 test("multiple laws are retained without cross-law article leakage", () => {
   assert.deepEqual(refs("TCK.nun 59. ve CMUK.nun 321. maddeleri"), ["1412/321", "5237/59"]);
   assert.deepEqual(

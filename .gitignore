@@ -8,3 +8,6 @@ data/legal-index*
 data/backups/
 *.log
 .DS_Store
+.env.import*
+.venv-import/
+data/hf-source-cache/

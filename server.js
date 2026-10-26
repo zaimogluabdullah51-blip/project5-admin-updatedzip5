@@ -6,6 +6,7 @@ import crypto from "crypto";
 import sqlite3 from "sqlite3";
 import zlib from "node:zlib";
 import { createLegalSearchReader } from "./legal-search-reader.mjs";
+import { createLegalSearchV2 } from "./legal-search-v2.mjs";
 import { all, get, run, init, createCase, updateCase, createPerson, linkPerson, createAction, createOfficial, linkOfficial, upsertEylemSummary, getEylemSummaries } from "./db.js";
 
 const app = express();
@@ -436,6 +437,10 @@ function openSupabaseCircuit(status, detail) {
 }
 
 async function supabaseRest(pathname, options = {}) {
+  if (options.write === true && process.env.ALLOW_LEGACY_CORPUS_IMPORT !== "true"
+      && /^\/(court_decisions|legal_citations)(?:\?|$)/.test(pathname)) {
+    throw new Error("Legacy corpus writes are disabled; rebuild uses legal_search v2");
+  }
   const write = options.write === true;
   const key = write ? SUPABASE_WRITE_KEY : SUPABASE_READ_KEY;
   if (!SUPABASE_URL || !key) throw new Error("Supabase environment variables are not configured.");
@@ -1513,6 +1518,7 @@ function isPlausibleArticleToken(token, lawNo) {
 function legalCitationWindow(windowText) {
   const compact = String(windowText || "");
   const barriers = [
+    /(?<![\p{L}])(?:Türk\s+)?Ticaret\s+(?:Kanun|Yasa)/iu,
     new RegExp(`\\b(?:${LEGAL_CODE_PATTERN})\\b`, "iu"),
     /\b(?:Aynı|Ayni|Anılan|Anilan|Mezkur)\s+(?:Kanun|Yasa)/iu,
     /(?:Tüzüğ|Tüzük|Yönetmeli)[\p{L}]*/iu,
@@ -1807,6 +1813,7 @@ function isAmendingLawModifier(text, index, matchedText) {
 
 function hasInterveningLawMarker(text) {
   const source = String(text || "");
+  if (/(?<![\p{L}])(?:Türk\s+)?Ticaret\s+(?:Kanun|Yasa)/iu.test(source)) return true;
   const markerPattern = new RegExp(`\\b(?:${LEGAL_CODE_PATTERN})\\b|\\b(?:(?:Türk\\s+(?:Ceza|Medeni)|Ceza\\s+Muhakeme|Hukuk\\s+(?:Usul[üu]?(?:\\s+Muhakemeler[ıi])?|Muhakemeler[ıi]|Muhakeme)|Borçlar|Terörle\\s+Mücadele|İcra\\s+(?:ve\\s+)?İflas|İş|Tebligat|Harçlar|Avukatlık|İmar|Kadastro|Kat\\s+Mülkiyeti|Karayolları\\s+Trafik|Trafik|Mera|Noterlik|Tüketicinin\\s+Korunması|Tüketici)\\s+(?:Kanun|Yasa|Hakkında|Hakkındaki))`, "iu");
   return markerPattern.test(source);
 }
@@ -3022,8 +3029,7 @@ async function scanHfRowsBatch({ config = "yargitay", offset = 0, length = 100, 
       });
     }
     const auditSuggestions = auditResult?.suggestions || [];
-    if (!citations.length && !auditSuggestions.length) continue;
-    rowsWithCitations += 1;
+    if (citations.length) rowsWithCitations += 1;
     const matchesTarget = targetRef
       ? [...citations, ...auditSuggestions].some((citation) => legalRefMatchesTarget(citation, targetRef))
       : true;
@@ -3059,7 +3065,7 @@ async function scanHfRowsBatch({ config = "yargitay", offset = 0, length = 100, 
       });
       continue;
     }
-    if (citations.length) rowsToStore.push({ rowWrapper, citations });
+    rowsToStore.push({ rowWrapper, citations });
   }
 
   if (!dryRun && rowsToStore.length) {
@@ -4258,6 +4264,23 @@ app.get("/api/legal-references", async (req, res) => {
       || (tckCode ? parseLegalReferenceInput(`TCK ${tckCode}`, { defaultLawCode: "TCK" }) : null);
     const query = String(req.query.q || "").trim();
     const limit = Math.min(Math.max(parseInt(req.query.limit, 10) || 6, 1), 250);
+    if (process.env.LEGAL_SEARCH_BACKEND === "supabase-v2") {
+      // The unfiltered legacy preview is not a representative corpus search.
+      if (!legalRef && !query) return res.json([]);
+      try {
+        const search = createLegalSearchV2({
+          url: SUPABASE_URL, key: SUPABASE_WRITE_KEY,
+          parseReference: parseLegalReferenceInput, canonicalReference: canonicalLegalRef,
+        });
+        const payload = await search.search({
+          legalRef: legalRef ? `${legalRef.law_no}/${formatArticlePath(legalRef)}` : "",
+          query, limit: Math.min(limit, 100),
+        });
+        return res.json(payload.results);
+      } catch (error) {
+        return res.status(error.status || 503).json({ error: error.message });
+      }
+    }
     const params = [];
     const where = [];
     let supabaseRows = [];
@@ -4312,6 +4335,14 @@ app.get("/api/legal-references", async (req, res) => {
 });
 
 app.get("/api/legal-index/search-options", async (req, res) => {
+  if (process.env.LEGAL_SEARCH_BACKEND === "supabase-v2") {
+    try {
+      const search = createLegalSearchV2({ url: SUPABASE_URL, key: SUPABASE_WRITE_KEY });
+      return res.json(await search.options());
+    } catch (error) {
+      return res.status(error.status || 503).json({ error: error.message });
+    }
+  }
   try {
     if (!isLocalLegalIndexEnabled()) return res.json({ ready: false, courts: [], min_date: "", max_date: "", text_search_ready: false });
     const indexState = await localLegalIndexGet("SELECT value FROM legal_index_meta WHERE key='status'");
@@ -4367,6 +4398,18 @@ app.get("/api/legal-index/search", async (req, res) => {
   const cancelSearch = () => searchController.abort();
   res.once("close", cancelSearch);
   try {
+    if (process.env.LEGAL_SEARCH_BACKEND === "supabase-v2") {
+      const search = createLegalSearchV2({
+        url: SUPABASE_URL, key: SUPABASE_WRITE_KEY,
+        parseReference: parseLegalReferenceInput, canonicalReference: canonicalLegalRef,
+      });
+      try {
+        return res.json(await search.search(req.query, searchController.signal));
+      } catch (error) {
+        if (searchController.signal.aborted) return;
+        return res.status(error.status || 503).json({ error: error.message });
+      }
+    }
     if (!isLocalLegalIndexEnabled()) return res.status(503).json({ error: "Yerel indeks hazır değil." });
     const indexState = await localLegalIndexGet("SELECT value FROM legal_index_meta WHERE key='status'");
     if (indexState?.value !== 'ready') return res.status(503).json({ error: "Yerel indeks güncelleniyor; arama henüz hazır değil." });
@@ -4375,6 +4418,8 @@ app.get("/api/legal-index/search", async (req, res) => {
     const court = String(req.query.court || "").trim();
     const dateFrom = String(req.query.dateFrom || "").trim();
     const dateTo = String(req.query.dateTo || "").trim();
+    const caseNo = String(req.query.caseNo || "").trim();
+    const decisionNo = String(req.query.decisionNo || "").trim();
     const limit = Math.min(Math.max(parseInt(req.query.limit, 10) || 20, 1), 100);
     const offset = Math.max(parseInt(req.query.offset, 10) || 0, 0);
     const citationState = ["zero", "tagged"].includes(String(req.query.citationState || ""))
@@ -4386,7 +4431,7 @@ app.get("/api/legal-index/search", async (req, res) => {
       : null;
     const canonical = canonicalLegalRef(legalRef);
 
-    if (!legalRefInput && !query && !court && !dateFrom && !dateTo && !citationState) {
+    if (!legalRefInput && !query && !court && !dateFrom && !dateTo && !citationState && !caseNo && !decisionNo) {
       return res.status(400).json({ error: "En az bir arama filtresi gerekli." });
     }
     if (query && !ftsQuery) {
@@ -4401,9 +4446,14 @@ app.get("/api/legal-index/search", async (req, res) => {
     if (dateFrom && dateTo && dateFrom > dateTo) {
       return res.status(400).json({ error: "Başlangıç tarihi bitiş tarihinden sonra olamaz." });
     }
+    if (caseNo.length > 100 || decisionNo.length > 100) {
+      return res.status(400).json({ error: "Esas veya karar numarası çok uzun." });
+    }
 
     const where = [];
     const params = [];
+    if (caseNo) { where.push("d.esas_no = ?"); params.push(caseNo); }
+    if (decisionNo) { where.push("d.karar_no = ?"); params.push(decisionNo); }
     let textSearchReady = false;
     let textSearchScope = "";
     let fulltextStatus = null;
@@ -4741,8 +4791,8 @@ const port = process.env.PORT || 5000;
 
 init()
   .then(() => {
-    app.listen(port, "0.0.0.0", () => {
-      console.log(`Server running on http://0.0.0.0:${port}`);
+    app.listen(port, process.env.HOST || "0.0.0.0", () => {
+      console.log(`Server running on http://${process.env.HOST || "0.0.0.0"}:${port}`);
     });
     if (DEEP_SEARCH_WORKER_ENABLED) {
       setInterval(runDeepSearchWorkerOnce, 5000);
