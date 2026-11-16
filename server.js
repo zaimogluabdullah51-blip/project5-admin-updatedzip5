@@ -7,6 +7,7 @@ import sqlite3 from "sqlite3";
 import zlib from "node:zlib";
 import { createLegalSearchReader } from "./legal-search-reader.mjs";
 import { createLegalSearchV2 } from "./legal-search-v2.mjs";
+import { createSearchReleasePolicy } from "./structured-search-release.mjs";
 import { all, get, run, init, createCase, updateCase, createPerson, linkPerson, createAction, createOfficial, linkOfficial, upsertEylemSummary, getEylemSummaries } from "./db.js";
 
 const app = express();
@@ -14,6 +15,11 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 app.use(express.json({ limit: "1mb" }));
+const searchRelease = createSearchReleasePolicy({
+  keywordEnabled: process.env.LEGAL_KEYWORD_SEARCH_ENABLED === "true",
+});
+app.get(["/api/legal-index/search", "/api/legal-references"], searchRelease.guard);
+app.post("/api/deep-search-jobs", searchRelease.guardDeepSearch);
 
 const AUTH_COOKIE = "cc_admin";
 const ADMIN_USER = process.env.ADMIN_USER || "admin";
@@ -4338,7 +4344,7 @@ app.get("/api/legal-index/search-options", async (req, res) => {
   if (process.env.LEGAL_SEARCH_BACKEND === "supabase-v2") {
     try {
       const search = createLegalSearchV2({ url: SUPABASE_URL, key: SUPABASE_WRITE_KEY });
-      return res.json(await search.options());
+      return res.json(searchRelease.options(await search.options()));
     } catch (error) {
       return res.status(error.status || 503).json({ error: error.message });
     }
@@ -4378,7 +4384,7 @@ app.get("/api/legal-index/search-options", async (req, res) => {
          FROM legal_index_decisions
          WHERE karar_tarihi <> ''`
       );
-    res.json({
+    res.json(searchRelease.options({
       ready: storedDates.status === "ready",
       courts: courts.map((row) => ({ court: row.court, count: Number(row.count || 0) })),
       min_date: dates?.min_date || "",
@@ -4386,7 +4392,7 @@ app.get("/api/legal-index/search-options", async (req, res) => {
       text_search_ready: Boolean(fulltextStatus.ready || previewFts?.ready),
       text_search_scope: fulltextStatus.ready ? "fulltext" : previewFts?.ready ? "preview" : "none",
       text_search_rows: fulltextStatus.ready ? Number(fulltextStatus.rows || 0) : 0
-    });
+    }));
   } catch (err) {
     console.error("Local legal index options error:", err);
     res.status(500).json({ error: "Yerel indeks seçenekleri yüklenemedi." });

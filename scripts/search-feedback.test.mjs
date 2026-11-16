@@ -18,7 +18,7 @@ function setup(fetch) {
     return elements.get(id);
   }
   const modes = ['text', 'browse', 'citation'].map(mode => {
-    const item = element(mode); item.dataset.localMode = mode; return item;
+    const item = element(mode); item.dataset.localMode = mode; item.hidden = false; return item;
   });
   const context = vm.createContext({
     document: { getElementById: element, addEventListener(name, fn) { documentListeners[name] = fn; },
@@ -63,7 +63,7 @@ test('options distinguish catalog readiness from citation readiness', async () =
     const radios = [{ value: '', checked: false }, { value: 'tagged', checked: true }];
     const context = vm.createContext({
       document: { getElementById: element, querySelectorAll: () => radios, createElement: () => ({}) },
-      AbortSignal, localOptionsRequestId: 0, navigator: { onLine: true },
+      AbortSignal, localOptionsRequestId: 0, localSearchMode: 'browse', navigator: { onLine: true },
       fetch: async () => ({ ok: true, json: async () => ({
         ready: true, courts: [{ court: 'Test Court', count: 10 }],
         text_search_ready: false, citation_search_ready: citationReady,
@@ -74,12 +74,25 @@ test('options distinguish catalog readiness from citation readiness', async () =
     assert.equal(element('local-index-ready').dataset.state, 'ready');
     assert.equal(element('local-reference-input').disabled, citationReady === false);
     assert.equal(element('local-text-input').disabled, true);
+    assert.equal(element('local-mode-text').hidden, false);
+    assert.match(element('local-mode-text').innerHTML, /Henüz kullanılamıyor/);
     assert.equal(radios[1].disabled, citationReady === false);
     if (citationReady === false) {
       assert.equal(radios[0].checked, true);
       assert.equal(radios[1].checked, false);
     }
   }
+});
+
+test('hidden keyword mode cannot be selected and keyboard navigation skips it', () => {
+  const app = setup(() => { throw new Error('unexpected request'); });
+  app.element('text').hidden = true;
+  app.element('text').disabled = true;
+  app.element('browse').listeners.click();
+  app.element('text').listeners.click();
+  app.element('browse').listeners.keydown({ key: 'ArrowRight', preventDefault() {} });
+  assert.equal(app.element('text').hidden, true);
+  assert.equal(app.element('text').disabled, true);
 });
 
 test('keyword search shows progress and cancel aborts without rendering stale results', async () => {

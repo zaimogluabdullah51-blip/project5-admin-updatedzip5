@@ -96,7 +96,7 @@ function renderLocalReferenceResults(rows, query, mode, textSearchScope = "", te
 
   if (!rows.length) {
     status.textContent = query
-      ? `${query} için yerel indekste eşleşme bulunamadı.`
+      ? `${query} için eşleşme bulunamadı.`
       : "Seçilen filtrelerle eşleşen karar bulunamadı.";
     results.innerHTML = "";
     return;
@@ -145,6 +145,19 @@ async function loadLocalSearchOptions() {
   const badge = document.getElementById("local-index-ready");
   const retry = document.getElementById("local-options-retry");
   if (!select) return;
+  const updateKeywordMode = (available) => {
+    const english = (document.documentElement?.lang || "tr").toLowerCase().startsWith("en");
+    const label = english ? "Keyword search" : "Kelime araması";
+    const unavailable = english ? "Not available yet" : "Henüz kullanılamıyor";
+    const textMode = document.getElementById("local-mode-text");
+    textMode.hidden = false;
+    textMode.disabled = !available;
+    textMode.innerHTML = `<span>${label}</span>${available ? "" : `<small>${unavailable}</small>`}`;
+    if (!available && localSearchMode === "text") {
+      document.getElementById("local-mode-browse").click();
+    }
+  };
+  updateKeywordMode(false);
   const requestId = ++localOptionsRequestId;
   badge.textContent = "Kontrol ediliyor";
   badge.dataset.state = "loading";
@@ -167,6 +180,7 @@ async function loadLocalSearchOptions() {
       textInput.disabled = !ready || !options.text_search_ready;
       textInput.placeholder = textInput.disabled ? "Metin indeksi hazır değil" : "Boşanma, tarım sigortalılığı, kamulaştırma...";
     }
+    updateKeywordMode(ready && options.text_search_ready === true);
     const referenceInput = document.getElementById("local-reference-input");
     if (referenceInput) {
       referenceInput.disabled = !ready || options.citation_search_ready === false;
@@ -190,6 +204,8 @@ async function loadLocalSearchOptions() {
     select.value = courts.some(item => item.court === selectedCourt) ? selectedCourt : "";
   } catch {
     if (requestId !== localOptionsRequestId) return;
+    if (textInput) textInput.disabled = true;
+    updateKeywordMode(false);
     badge.textContent = navigator.onLine === false ? "Çevrimdışı" : "Bağlantı kurulamadı";
     badge.dataset.state = "unavailable";
     retry.hidden = false;
@@ -239,7 +255,7 @@ function bindLocalReferenceSearch() {
 
   const selectedCitationState = () => form.querySelector("input[name='local-citation-state']:checked")?.value || "";
   const setMode = (mode, { focus = false, clearFeedback = true } = {}) => {
-    if (!modeButtons.some((button) => button.dataset.localMode === mode)) return;
+    if (!modeButtons.some((button) => button.dataset.localMode === mode && !button.hidden && !button.disabled)) return;
     localSearchMode = mode;
     modeButtons.forEach((button) => {
       const selected = button.dataset.localMode === mode;
@@ -358,8 +374,11 @@ function bindLocalReferenceSearch() {
       const count = Array.isArray(payload.results) ? payload.results.length : 0;
       pagination.hidden = !count && !offset;
       previousPage.disabled = offset === 0;
-      nextPage.disabled = !payload.has_more;
+      nextPage.disabled = !payload.has_more || offset >= 1000;
       pageLabel.textContent = count ? `${offset + 1}–${offset + count}` : "Sonuç yok";
+      if (payload.has_more && offset >= 1000) {
+        status.textContent += " Daha fazla sonuç için filtreleri daraltın.";
+      }
       if (snapshot) results.scrollIntoView({ block: "start" });
     } catch (error) {
       if (currentRequest !== requestId || error.name === "AbortError") return;
@@ -399,9 +418,11 @@ function bindLocalReferenceSearch() {
     button.addEventListener("keydown", (event) => {
       if (!['ArrowLeft', 'ArrowRight'].includes(event.key)) return;
       event.preventDefault();
-      const currentIndex = modeButtons.indexOf(button);
+      const availableModes = modeButtons.filter(item => !item.hidden && !item.disabled);
+      const currentIndex = availableModes.indexOf(button);
       const direction = event.key === 'ArrowRight' ? 1 : -1;
-      const next = modeButtons[(currentIndex + direction + modeButtons.length) % modeButtons.length];
+      const next = availableModes[(currentIndex + direction + availableModes.length) % availableModes.length];
+      if (!next) return;
       setMode(next.dataset.localMode);
       next.focus();
     });
@@ -422,6 +443,7 @@ function bindLocalReferenceSearch() {
   });
   document.addEventListener("keydown", (event) => {
     if (event.defaultPrevented || event.altKey || event.shiftKey || !(event.metaKey || event.ctrlKey) || event.key.toLowerCase() !== "f") return;
+    if (textInput.disabled || document.getElementById("local-mode-text").hidden) return;
     event.preventDefault();
     setMode("text", { focus: true });
   });

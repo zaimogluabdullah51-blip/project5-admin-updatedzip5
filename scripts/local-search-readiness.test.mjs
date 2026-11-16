@@ -8,9 +8,10 @@ const loader = source.slice(source.indexOf('async function loadLocalSearchOption
 function harness(fetch) {
   const nodes = new Map();
   const element = () => ({ value: '', dataset: {}, children: [], replaceChildren(...items) { this.children = items; }, appendChild(item) { this.children.push(item); } });
-  const context = vm.createContext({ fetch, AbortSignal, navigator: { onLine: true }, document: {
+  const context = vm.createContext({ fetch, AbortSignal, localSearchMode: 'browse', navigator: { onLine: true }, document: {
     getElementById(id) { if (!nodes.has(id)) nodes.set(id, element()); return nodes.get(id); },
     createElement: element,
+    querySelectorAll: () => [],
   } });
   vm.runInContext('let localOptionsRequestId = 0;\n' + loader, context);
   return { load: () => vm.runInContext('loadLocalSearchOptions()', context), nodes, context };

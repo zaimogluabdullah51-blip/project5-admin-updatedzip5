@@ -45,7 +45,6 @@
       <div class="tck-hero">
         <p class="eyebrow">CourtCase Clarity</p>
         <h1>Mevzuat Atfı Analizi</h1>
-        <p class="subhead">TCK ana gövde olarak durur; CMK, TMK, 6136, 5607 ve benzeri kanun atıfları aynı derin arama mantığıyla çözümlenir.</p>
       </div>
     </header>
 
@@ -65,7 +64,7 @@
         <div class="local-search-modes" role="tablist" aria-label="Arama türü">
           <button id="local-mode-citation" type="button" role="tab" aria-selected="false" aria-controls="local-panel-citation" data-local-mode="citation">Mevzuata göre</button>
           <button id="local-mode-browse" type="button" role="tab" aria-selected="true" aria-controls="local-panel-browse" data-local-mode="browse">Filtreli arama</button>
-          <button id="local-mode-text" type="button" role="tab" aria-selected="false" aria-controls="local-panel-text" data-local-mode="text">Karar metninde</button>
+          <button id="local-mode-text" type="button" role="tab" aria-selected="false" aria-controls="local-panel-text" data-local-mode="text" disabled><span>Kelime araması</span><small>Henüz kullanılamıyor</small></button>
         </div>
 
         <form id="local-reference-form" class="local-reference-form">
@@ -90,7 +89,7 @@
           <div id="local-panel-text" class="local-search-primary" role="tabpanel" aria-labelledby="local-mode-text" data-local-panel="text" hidden>
             <div class="local-search-field">
               <label for="local-text-input">Karar metni</label>
-              <input id="local-text-input" type="search" autocomplete="off" aria-describedby="local-text-warning" placeholder="Boşanma, tarım sigortalılığı, kamulaştırma..." />
+              <input id="local-text-input" type="search" autocomplete="off" aria-describedby="local-text-warning" placeholder="Boşanma, tarım sigortalılığı, kamulaştırma..." disabled />
               <p id="local-text-warning">Tam metin araması zaman alabilir.</p>
             </div>
           </div>
@@ -115,7 +114,7 @@
               <div class="local-citation-state-options">
                 <label><input type="radio" name="local-citation-state" value="" checked /><span>Tümü</span></label>
                 <label><input type="radio" name="local-citation-state" value="tagged" /><span>Atıflı</span></label>
-                <label><input type="radio" name="local-citation-state" value="zero" /><span>Atıfsız</span></label>
+                <label><input type="radio" name="local-citation-state" value="zero" /><span>Etiket yok</span></label>
               </div>
             </fieldset>
             <button type="submit">Kararlarda ara</button>
