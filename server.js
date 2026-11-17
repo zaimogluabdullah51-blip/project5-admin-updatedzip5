@@ -5,6 +5,9 @@ import { fileURLToPath } from "url";
 import crypto from "crypto";
 import sqlite3 from "sqlite3";
 import zlib from "node:zlib";
+import { execFile } from "node:child_process";
+import { promisify } from "node:util";
+import { openDecisionArchive } from "./decision-remote.mjs";
 import { createLegalSearchReader } from "./legal-search-reader.mjs";
 import { createLegalSearchV2 } from "./legal-search-v2.mjs";
 import { createSearchReleasePolicy } from "./structured-search-release.mjs";
@@ -13,6 +16,44 @@ import { all, get, run, init, createCase, updateCase, createPerson, linkPerson, 
 const app = express();
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
+const decisionPython = process.env.LEGAL_DECISION_PYTHON;
+const decisionOffsets = process.env.LEGAL_DECISION_OFFSETS || (process.env.RENDER === "true"
+  ? path.join(__dirname, "data/decision-offsets.sqlite") : "");
+const remoteDecision = decisionOffsets && fs.existsSync(decisionOffsets) ? openDecisionArchive(decisionOffsets) : null;
+const decisionTextAvailable = Boolean(remoteDecision || decisionPython);
+const runDecisionReader = promisify(execFile);
+let decisionReadActive = false;
+
+app.get("/api/legal-index/decision", async (req, res) => {
+  res.set("Cache-Control", "no-store");
+  if (!decisionTextAvailable) return res.sendStatus(503);
+  const id = req.query.id;
+  if (typeof id !== "string" || !/^(?:yargitay|danistay|emsal|aym_bb|aym_norm):[\w.-]{1,128}$/.test(id)) {
+    return res.sendStatus(400);
+  }
+  if (decisionReadActive) return res.set("Retry-After", "2").sendStatus(429);
+  decisionReadActive = true;
+  const controller = new AbortController();
+  const cancel = () => controller.abort();
+  res.once("close", cancel);
+  try {
+    if (remoteDecision) {
+      const row = await remoteDecision(id, controller.signal);
+      return row ? res.json(row) : res.sendStatus(404);
+    }
+    const { stdout } = await runDecisionReader(decisionPython, ["scripts/read-decision-text.py", id], {
+      cwd: __dirname, timeout: 8000, maxBuffer: 4 * 1024 * 1024, signal: controller.signal,
+    });
+    const row = JSON.parse(stdout);
+    if (row.hf_id !== id || typeof row.text !== "string" || !row.text) return res.sendStatus(502);
+    return res.json(row);
+  } catch (error) {
+    if (!controller.signal.aborted) return res.sendStatus(error.code === 3 ? 404 : 503);
+  } finally {
+    decisionReadActive = false;
+    res.off("close", cancel);
+  }
+});
 
 app.use(express.json({ limit: "1mb" }));
 const searchRelease = createSearchReleasePolicy({
@@ -4410,7 +4451,8 @@ app.get("/api/legal-index/search", async (req, res) => {
         parseReference: parseLegalReferenceInput, canonicalReference: canonicalLegalRef,
       });
       try {
-        return res.json(await search.search(req.query, searchController.signal));
+        const results = await search.search(req.query, searchController.signal);
+        return res.json({ ...results, decision_text_available: decisionTextAvailable });
       } catch (error) {
         if (searchController.signal.aborted) return;
         return res.status(error.status || 503).json({ error: error.message });

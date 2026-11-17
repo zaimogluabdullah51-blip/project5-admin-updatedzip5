@@ -367,6 +367,16 @@
   line-height: 1.55;
 }
 
+.local-decision-text summary {
+  cursor: pointer;
+}
+
+.local-decision-body {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  line-height: 1.65;
+}
+
 .local-reference-result mark {
   padding: 1px 2px;
   border-radius: 2px;

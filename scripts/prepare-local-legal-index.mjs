@@ -110,6 +110,8 @@ async function downloadOnce() {
   return true;
 }
 
+await import("./prepare-decision-offsets.mjs");
+
 if (process.env.LEGAL_SEARCH_BACKEND === "supabase-v2") {
   console.log("Local legal index prepare skipped: structured search uses Supabase v2.");
 } else if (fs.existsSync(DB_PATH) && !FORCE) {

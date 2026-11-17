@@ -89,7 +89,7 @@ async function loadLegalReferences() {
   }
 }
 
-function renderLocalReferenceResults(rows, query, mode, textSearchScope = "", textQuery = query) {
+function renderLocalReferenceResults(rows, query, mode, textSearchScope = "", textQuery = query, hasDecisionText = false) {
   const results = document.getElementById("local-reference-results");
   const status = document.getElementById("local-reference-status");
   if (!results || !status) return;
@@ -118,6 +118,7 @@ function renderLocalReferenceResults(rows, query, mode, textSearchScope = "", te
       ? Array.from(new Set(ref.detected_law_refs.filter(Boolean))).slice(0, 3)
       : [];
     const citationCount = Number(ref.citation_count || 0);
+    const decisionId = /^v2-decision:((?:yargitay|danistay|emsal|aym_bb|aym_norm):[\w.-]{1,128})$/.exec(ref.id)?.[1];
     return `
       <article class="local-reference-result">
         <div class="local-reference-result-top">
@@ -132,9 +133,42 @@ function renderLocalReferenceResults(rows, query, mode, textSearchScope = "", te
         <p>${mode === "text"
           ? highlightedSearchExcerpt(ref.match_preview || ref.short_preview || "Karar metni kesiti bulunmuyor.", textQuery)
           : esc(ref.short_preview || "Karar metni kesiti bulunmuyor.")}</p>
+        ${hasDecisionText && decisionId ? `<details class="local-decision-text" data-decision-id="${escAttribute(decisionId)}">
+          <summary>Karar metni</summary>
+          <p role="status"></p>
+          <div class="local-decision-body"></div>
+        </details>` : ""}
       </article>
     `;
   }).join("");
+  results.querySelectorAll("[data-decision-id]").forEach((panel) => {
+    let request;
+    panel.addEventListener("toggle", async () => {
+      if (!panel.open) { request?.abort(); return; }
+      if (panel.dataset.loaded) return;
+      request?.abort();
+      const controller = request = new AbortController();
+      const status = panel.querySelector("[role=status]");
+      status.textContent = "Karar yükleniyor…";
+      try {
+        const id = panel.dataset.decisionId;
+        const response = await fetch(`/api/legal-index/decision?${new URLSearchParams({ id })}`, {
+          signal: AbortSignal.any([controller.signal, AbortSignal.timeout(10000)])
+        });
+        if (!response.ok) throw new Error(String(response.status));
+        const data = await response.json();
+        if (controller.signal.aborted) return;
+        if (data.hf_id !== id || typeof data.text !== "string" || !data.text) throw new Error();
+        panel.querySelector(".local-decision-body").textContent = data.text;
+        panel.dataset.loaded = "true";
+        status.textContent = "";
+      } catch (error) {
+        if (!controller.signal.aborted) status.textContent = error.message === "404"
+          ? "Bu kararın metni arşivde bulunamadı."
+          : "Karar yüklenemedi. Bölümü kapatıp yeniden açarak tekrar deneyin.";
+      }
+    });
+  });
 }
 
 async function loadLocalSearchOptions() {
@@ -368,7 +402,8 @@ function bindLocalReferenceSearch() {
         labels.join(" · "),
         mode,
         payload.text_search_scope || "",
-        query
+        query,
+        payload.decision_text_available === true
       );
       lastSearch = { mode, legalRef, query, court, dateFrom, dateTo, citationState, caseNo, decisionNo, offset };
       const count = Array.isArray(payload.results) ? payload.results.length : 0;
